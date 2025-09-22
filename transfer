@@ -1,52 +1,26 @@
-{
-	"name": "KeyError",
-	"message": "'Moyenne pondérée Top 10 '",
-	"stack": "---------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
-   3811 try:
--> 3812     return self._engine.get_loc(casted_key)
-   3813 except KeyError as err:
+df_dept['num_dpt'] = df_dept['num_dpt'].astype(str)
+df_dept['num_dpt'] = df_dept['num_dpt'].apply(lambda x: '0' + x if len(x) == 1 else x)
+df_dept
 
-File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
 
-File pandas/_libs/index.pyx:196, in pandas._libs.index.IndexEngine.get_loc()
+df_ti_dept_work = pd.merge(df_ti_dept_all, df_dept, left_on='DEPT', right_on='num_dpt', how='inner')
 
-File pandas/_libs/hashtable_class_helper.pxi:7088, in pandas._libs.hashtable.PyObjectHashTable.get_item()
+df_ti_dept_work['Year'] = df_ti_dept_work['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+df_ti_dept_work['TAUX_INFL'] = df_ti_dept_work['TAUX_INFL'].astype(float)
+df_ti_dept_work['population'] = df_ti_dept_work['population'].astype(float)
+df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work.apply(lambda row: row['TAUX_INFL'] * row['population'], axis=1)
 
-File pandas/_libs/hashtable_class_helper.pxi:7096, in pandas._libs.hashtable.PyObjectHashTable.get_item()
+df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
+df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_dept.iloc[102,2]
+df_ti_dept_grouped = df_ti_dept_grouped.drop(columns=['TAUX_INFL_POP'])
 
-KeyError: 'Moyenne pondérée Top 10 '
+new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
+df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
+df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = (100/(1+df_ti_dept_grouped['TAUX_INFL']))
 
-The above exception was the direct cause of the following exception:
+taux_infl_2012_2011 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2012, 2011])]['TAUX_INFL_TRANSFO'].mean()
+df_ti_dept_grouped['TAUX_INFL_BASE_2012'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO']/taux_infl_2012_2011)*100
 
-KeyError                                  Traceback (most recent call last)
-Cell In[106], line 9
-      7 # Tracer le taux d'inflation
-      8 plt.figure(figsize=(10, 6))
-----> 9 plt.plot(df_moyenne_top10['Year'], df_moyenne_top10[\"Moyenne pondérée Top 10 \"], label='Collection top 10 villes province ')
-     10 plt.plot(df_moyenne_top10['Year'], df_ti_paris[\"TAUX_INFL_2012 \"], label='Paris ')
-     11 plt.title(f\"Evolution de l'indice de prix immobilier - basé à 2012\")
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:4107, in DataFrame.__getitem__(self, key)
-   4105 if self.columns.nlevels > 1:
-   4106     return self._getitem_multilevel(key)
--> 4107 indexer = self.columns.get_loc(key)
-   4108 if is_integer(indexer):
-   4109     indexer = [indexer]
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
-   3814     if isinstance(casted_key, slice) or (
-   3815         isinstance(casted_key, abc.Iterable)
-   3816         and any(isinstance(x, slice) for x in casted_key)
-   3817     ):
-   3818         raise InvalidIndexError(key)
--> 3819     raise KeyError(key) from err
-   3820 except TypeError:
-   3821     # If we have a listlike key, _check_indexing_error will raise
-   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
-   3823     #  the TypeError.
-   3824     self._check_indexing_error(key)
-
-KeyError: 'Moyenne pondérée Top 10 '"
-}
+df_ti_dept_work
+df_ti_dept_grouped
