@@ -1,6 +1,30 @@
-# Vérifier doublons par année et département
-print(df_ti_dept_work.groupby(['Year', 'num_dpt']).size().reset_index(name='counts').query('counts > 1'))
+      Year num_dpt  counts
+0     2011      01       2
+4     2011      06       2
+7     2011      11       2
+8     2011      13       2
+9     2011      14       2
+...    ...     ...     ...
+1310  2024      95       2
+1311  2024     971       2
+1312  2024     972       2
+1313  2024     973       2
+1314  2024     974       2
 
-# Population totale par année après agrégation
-pop_par_annee = df_ti_dept_work.groupby('Year')['population'].sum()
-print(pop_par_annee)
+[1229 rows x 3 columns]
+Year
+2011    115123747.0
+2012    113128770.0
+2013    116943415.0
+2014    135832344.0
+2015    135832344.0
+2016    135832344.0
+2017    135832344.0
+2018    135832344.0
+2019    135832344.0
+2020    135832344.0
+2021    135832344.0
+2022    135832344.0
+2023    135832344.0
+2024    135832344.0
+Name: population, dtype: float64
