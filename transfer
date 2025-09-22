@@ -1,26 +1,16 @@
-df_dept['num_dpt'] = df_dept['num_dpt'].astype(str)
-df_dept['num_dpt'] = df_dept['num_dpt'].apply(lambda x: '0' + x if len(x) == 1 else x)
-df_dept
-
-
-df_ti_dept_work = pd.merge(df_ti_dept_all, df_dept, left_on='DEPT', right_on='num_dpt', how='inner')
-
-df_ti_dept_work['Year'] = df_ti_dept_work['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-df_ti_dept_work['TAUX_INFL'] = df_ti_dept_work['TAUX_INFL'].astype(float)
-df_ti_dept_work['population'] = df_ti_dept_work['population'].astype(float)
-df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work.apply(lambda row: row['TAUX_INFL'] * row['population'], axis=1)
-
-df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
-df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_dept.iloc[102,2]
-df_ti_dept_grouped = df_ti_dept_grouped.drop(columns=['TAUX_INFL_POP'])
-
-new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
-df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
-df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = (100/(1+df_ti_dept_grouped['TAUX_INFL']))
-
-taux_infl_2012_2011 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2012, 2011])]['TAUX_INFL_TRANSFO'].mean()
-df_ti_dept_grouped['TAUX_INFL_BASE_2012'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO']/taux_infl_2012_2011)*100
-
-df_ti_dept_work
-df_ti_dept_grouped
+Year	population	TAUX_INFL	TAUX_INFL_TRANSFO	TAUX_INFL_BASE_2012
+0	2011-01-01	115123747.0	0.258623	79.451922	99.341874
+1	2012-01-01	113128770.0	0.242164	80.504638	100.658126
+2	2013-01-01	116943415.0	0.291565	77.425437	96.808079
+3	2014-01-01	135832344.0	0.490758	67.079972	83.872736
+4	2015-01-01	135832344.0	0.506214	66.391638	83.012085
+5	2016-01-01	135832344.0	0.505876	66.406551	83.030732
+6	2017-01-01	135832344.0	0.452116	68.865021	86.104654
+7	2018-01-01	135832344.0	0.394189	71.726264	89.682178
+8	2019-01-01	135832344.0	0.354767	73.813445	92.291864
+9	2020-01-01	135832344.0	0.287755	77.654550	97.094548
+10	2021-01-01	135832344.0	0.154296	86.632863	108.320487
+11	2022-01-01	135832344.0	0.000972	99.902899	124.912537
+12	2023-01-01	135832344.0	-0.061240	106.523451	133.190475
+13	2024-01-01	135832344.0	0.022315	97.817238	122.304753
+14	2025-01-01	NaN	0.000000	100.000000	125.033946
