@@ -1,1 +1,45 @@
-final_df_idf.to_csv(r"N:\uflumth\indicateur_marche\V2\resultats\evolution_idf.csv", index=False)
+current_year = datetime.now().year
+top10_ville_apt ={'BORDEAUX':"APT", 'LILLE':"APT", 'MARSEILLE':"APT", 'LYON':"APT",'NICE':"APT",
+                  'RENNES':"APT",'NANTES':"APT",'STRASBOURG':"APT", 'TOULOUSE':"APT",'MONTPELLIER':"APT"}
+
+
+top10 =[]
+
+for ville,type_bien in top10_ville_apt.items():
+
+    requete_sql = f"""
+    SELECT DISTINCT *
+    FROM db_ti_ville 
+    WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}' """
+    df_ti_ville= ps.sqldf(requete_sql, locals())
+    # Transformer 'P-1', 'P-2', etc. en années
+    df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+    ###
+    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+    df_ti_ville = pd.concat([new_data, df_ti_ville], ignore_index=True)
+
+    df_ti_ville['Year'] = pd.to_datetime(df_ti_ville['Year'].astype(str), format='%Y')
+
+
+
+    df_ti_ville['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_ville['TAUX_INFL'])
+
+    taux_infl_2012_2011 =df_ti_ville[df_ti_ville['Year'].dt.year.isin([2012, 2011])]['TAUX_INFL_TRANSFO'].mean()
+
+    df_ti_ville['TAUX_INFL_2012'] = (df_ti_ville['TAUX_INFL_TRANSFO']/taux_infl_2012_2011)*100
+
+df_ti_ville["Moyenne Top 10"] = df_ti_ville.groupby('Year').apply(moyenne_ponderee).reset_index()
+
+
+start_year = df_ti_ville['Year'].min().year
+end_year =  df_ti_ville['Year'].max().year
+
+# Tracer le taux d'inflation
+plt.figure(figsize=(10, 6))
+plt.plot(df_ti_ville['Year'], df_ti_ville["Moyenne Top 10"], label='Taux Inflation par année de CL')
+plt.title(f"Evolution du taux d'inflation- {ville}")
+plt.xlabel('Année')
+plt.ylabel('Valeur')
+plt.legend()
+plt.xlim(pd.to_datetime(start_year, format='%Y'), pd.to_datetime(end_year, format='%Y'))
+# plt.savefig(rf"N:\uflumth\indicateur_marche\V2\resultats\CL vs MEILLEURs AGENTSevolution_{ville}_{type_bien}_graph")
