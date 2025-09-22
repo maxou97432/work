@@ -1,199 +1,85 @@
-{
-	"name": "DuplicateColumnError",
-	"message": "A column with name 'ID' is already present in table 'db_ti_ville'.",
-	"stack": "---------------------------------------------------------------------------
-DuplicateColumnError                      Traceback (most recent call last)
-Cell In[38], line 23
-     16 requete_sql = f\"\"\"
-     17 SELECT DISTINCT *
-     18 FROM db_ti_ville
-     19 WHERE VILLE = '{nom}' AND CD_TYP_BIEN = 'APT' 
-     20 \"\"\"
-     21 #Choisir entre APT (appartememnt), MAISON (maison) ou ENSEMBLE (maison+appartemment)
----> 23 df_ti_ville = ps.sqldf(requete_sql, locals())
-     25 df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-     28 new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandasql\\sqldf.py:156, in sqldf(query, env, db_uri)
-    124 def sqldf(query, env=None, db_uri='sqlite:///:memory:'):
-    125     \"\"\"
-    126     Query pandas data frames using sql syntax
-    127     This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.
-   (...)    154     >>> sqldf(\"select avg(x) from df;\", locals())
-    155     \"\"\"
---> 156     return PandaSQL(db_uri)(query, env)
+current_year = datetime.now().year
+top10_ville_apt ={'BORDEAUX':"APT", 'LILLE':"APT", 'MARSEILLE':"APT", 'LYON':"APT",'NICE':"APT",
+                  'RENNES':"APT",'NANTES':"APT",'STRASBOURG':"APT", 'TOULOUSE':"APT",'MONTPELLIER':"APT"}
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandasql\\sqldf.py:58, in PandaSQL.__call__(self, query, env)
-     56         continue
-     57     self.loaded_tables.add(table_name)
----> 58     write_table(env[table_name], table_name, conn)
-     60 try:
-     61     result = read_sql(query, conn)
+def moyenne_ponderee(group):
+    taux = pd.to_numeric(group['TAUX_INFL_2012'], errors = 'coerce')
+    poids = pd.to_numeric(group['EFFECTIF_VILLE'], errors = 'coerce')
+    return np.average(taux, weights = poids)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandasql\\sqldf.py:120, in write_table(df, tablename, conn)
-    117 with catch_warnings():
-    118     filterwarnings('ignore',
-    119                    message='The provided table name \\'%s\\' is not found exactly as such in the database' % tablename)
---> 120     to_sql(df, name=tablename, con=conn,
-    121            index=not any(name is None for name in df.index.names))
+top10 =[]
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:844, in to_sql(frame, name, con, schema, if_exists, index, index_label, chunksize, dtype, method, engine, **engine_kwargs)
-    839     raise NotImplementedError(
-    840         \"'frame' argument should be either a Series or a DataFrame\"
-    841     )
-    843 with pandasSQL_builder(con, schema=schema, need_transaction=True) as pandas_sql:
---> 844     return pandas_sql.to_sql(
-    845         frame,
-    846         name,
-    847         if_exists=if_exists,
-    848         index=index,
-    849         index_label=index_label,
-    850         schema=schema,
-    851         chunksize=chunksize,
-    852         dtype=dtype,
-    853         method=method,
-    854         engine=engine,
-    855         **engine_kwargs,
-    856     )
+base_annee = 2012
+base_indice = 100
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2020, in SQLDatabase.to_sql(self, frame, name, if_exists, index, index_label, schema, chunksize, dtype, method, engine, **engine_kwargs)
-   1970 \"\"\"
-   1971 Write records stored in a DataFrame to a SQL database.
-   1972 
-   (...)   2016     Any additional kwargs are passed to the engine.
-   2017 \"\"\"
-   2018 sql_engine = get_engine(engine)
--> 2020 table = self.prep_table(
-   2021     frame=frame,
-   2022     name=name,
-   2023     if_exists=if_exists,
-   2024     index=index,
-   2025     index_label=index_label,
-   2026     schema=schema,
-   2027     dtype=dtype,
-   2028 )
-   2030 total_inserted = sql_engine.insert_records(
-   2031     table=table,
-   2032     con=self.con,
-   (...)   2039     **engine_kwargs,
-   2040 )
-   2042 self.check_case_sensitive(name=name, schema=schema)
+def calcul_indice(df,base_annee, base_indice):
+    df = df.sort_values(by='Year')
+    df["Facteur"] = 1 + df["TAUX_INFL"]
+    for i,annee in enumerate(df["Year"]):
+        if annee == base_annee:
+            df.loc[df["Year"] == annee, 'Indice'] = base_indice
+        elif i > 0:
+            df.loc[df["Year" == annee, 'Indice']] = df.loc[df.index[i - 1], "Indice"] * df.loc[df.index[i], 'Facteur']
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:1914, in SQLDatabase.prep_table(self, frame, name, if_exists, index, index_label, schema, dtype)
-   1911         else:
-   1912             raise ValueError(f\"The type of {col} is not a SQLAlchemy type\")
--> 1914 table = SQLTable(
-   1915     name,
-   1916     self,
-   1917     frame=frame,
-   1918     index=index,
-   1919     if_exists=if_exists,
-   1920     index_label=index_label,
-   1921     schema=schema,
-   1922     dtype=dtype,
-   1923 )
-   1924 table.create()
-   1925 return table
+for ville,type_bien in top10_ville_apt.items():
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:960, in SQLTable.__init__(self, name, pandas_sql_engine, frame, index, if_exists, prefix, index_label, schema, keys, dtype)
-    956 self.dtype = dtype
-    958 if frame is not None:
-    959     # We want to initialize based on a dataframe
---> 960     self.table = self._create_table_setup()
-    961 else:
-    962     # no data provided, read-only mode
-    963     self.table = self.pd_sql.get_table(self.name, self.schema)
+    requete_sql = f"""
+    SELECT DISTINCT *
+    FROM db_ti_ville 
+    WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}' """
+    df_ti_ville= ps.sqldf(requete_sql, locals())
+    # Transformer 'P-1', 'P-2', etc. en années
+    df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+    ###
+    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+    for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
+        if col not in new_data:
+            new_data[col] = None
+    
+    df_ti_ville = pd.concat([new_data, df_ti_ville], ignore_index=True)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:1287, in SQLTable._create_table_setup(self)
-   1284 # At this point, attach to new metadata, only attach to self.meta
-   1285 # once table is created.
-   1286 meta = MetaData()
--> 1287 return Table(self.name, meta, *columns, schema=schema)
+    df_ti_ville['Year'] = pd.to_datetime(df_ti_ville['Year'].astype(str), format='%Y')
 
-File <string>:2, in __new__(cls, *args, **kw)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\util\\deprecations.py:281, in deprecated_params.<locals>.decorate.<locals>.warned(fn, *args, **kwargs)
-    274     if m in kwargs:
-    275         _warn_with_version(
-    276             messages[m],
-    277             versions[m],
-    278             version_warnings[m],
-    279             stacklevel=3,
-    280         )
---> 281 return fn(*args, **kwargs)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\schema.py:429, in Table.__new__(cls, *args, **kw)
-    422 @util.deprecated_params(
-    423     mustexist=(
-    424         \"1.4\",
-   (...)    427 )
-    428 def __new__(cls, *args: Any, **kw: Any) -> Any:
---> 429     return cls._new(*args, **kw)
+    df_ti_ville['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_ville['TAUX_INFL'])
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\schema.py:483, in Table._new(cls, *args, **kw)
-    481     return table
-    482 except Exception:
---> 483     with util.safe_reraise():
-    484         metadata._remove_table(name, schema)
+    taux_infl_2012_2011 =df_ti_ville[df_ti_ville['Year'].dt.year.isin([2012, 2011])]['TAUX_INFL_TRANSFO'].mean()
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\util\\langhelpers.py:224, in safe_reraise.__exit__(self, type_, value, traceback)
-    222     assert exc_value is not None
-    223     self._exc_info = None  # remove potential circular references
---> 224     raise exc_value.with_traceback(exc_tb)
-    225 else:
-    226     self._exc_info = None  # remove potential circular references
+    df_ti_ville['TAUX_INFL_2012'] = (df_ti_ville['TAUX_INFL_TRANSFO']/taux_infl_2012_2011)*100
+    top10.append(df_ti_ville)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\schema.py:479, in Table._new(cls, *args, **kw)
-    477 metadata._add_table(name, schema, table)
-    478 try:
---> 479     table.__init__(name, metadata, *args, _no_init=False, **kw)  # type: ignore[misc] # noqa: E501
-    480     table.dispatch.after_parent_attach(table, metadata)
-    481     return table
+df_top10 = pd.concat(top10, ignore_index= True)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\schema.py:873, in Table.__init__(self, name, metadata, schema, quote, quote_schema, autoload_with, autoload_replace, keep_existing, extend_existing, resolve_fks, include_columns, implicit_returning, comment, info, listeners, prefixes, _extend_on, _no_init, *args, **kw)
-    861     self._autoload(
-    862         metadata,
-    863         autoload_with,
-   (...)    867         resolve_fks=resolve_fks,
-    868     )
-    870 # initialize all the column, etc. objects.  done after reflection to
-    871 # allow user-overrides
---> 873 self._init_items(
-    874     *args,
-    875     allow_replacements=extend_existing
-    876     or keep_existing
-    877     or autoload_with,
-    878     all_names={},
-    879 )
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\schema.py:233, in SchemaItem._init_items(self, *args, **kw)
-    228     raise exc.ArgumentError(
-    229         \"'SchemaItem' object, such as a 'Column' or a \"
-    230         f\"'Constraint' expected, got {item!r}\"
-    231     ) from err
-    232 else:
---> 233     spwd(self, **kw)
+df_moyenne_top10 = df_top10.groupby('Year').apply(moyenne_ponderee).reset_index(name = "Moyenne pondérée Top 10")
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\base.py:1347, in SchemaEventTarget._set_parent_with_dispatch(self, parent, **kw)
-   1343 def _set_parent_with_dispatch(
-   1344     self, parent: SchemaEventTarget, **kw: Any
-   1345 ) -> None:
-   1346     self.dispatch.before_parent_attach(self, parent)
--> 1347     self._set_parent(parent, **kw)
-   1348     self.dispatch.after_parent_attach(self, parent)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\sqlalchemy\\sql\\schema.py:2359, in Column._set_parent(self, parent, all_names, allow_replacements, **kw)
-   2357 if existing_col is not self:
-   2358     if not allow_replacements:
--> 2359         raise exc.DuplicateColumnError(
-   2360             f\"A column with {conflicts_on} \"
-   2361             f\"\"\"'{
-   2362                 self.key if conflicts_on == 'key' else self.name
-   2363             }' \"\"\"
-   2364             f\"is already present in table '{table.name}'.\"
-   2365         )
-   2366     for fk in existing_col.foreign_keys:
-   2367         table.foreign_keys.remove(fk)
+requete_sql_paris = f"""
+SELECT DISTINCT *
+FROM db_ti_ville 
+WHERE VILLE = 'PARIS' AND CD_TYP_BIEN = 'APT' """
+df_ti_paris= ps.sqldf(requete_sql_paris, locals())
+# Transformer 'P-1', 'P-2', etc. en années
+df_ti_paris['Year'] = df_ti_paris['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+###
+new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
+    if col not in new_data:
+        new_data[col] = None
+    
+df_ti_paris = pd.concat([new_data, df_ti_paris], ignore_index=True)
 
-DuplicateColumnError: A column with name 'ID' is already present in table 'db_ti_ville'."
-}
+df_ti_paris['Year'] = pd.to_datetime(df_ti_paris['Year'].astype(str), format='%Y')
+df_ti_paris.sort_values(by='Year')    
+
+
+
+df_ti_paris['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_paris['TAUX_INFL'])
+
+taux_infl_2012_2011 =df_ti_paris[df_ti_paris['Year'].dt.year.isin([2012, 2011])]['TAUX_INFL_TRANSFO'].mean()
+
+df_ti_paris['TAUX_INFL_2012'] = (df_ti_paris['TAUX_INFL_TRANSFO']/taux_infl_2012_2011)*100
+
+df_ti_paris
