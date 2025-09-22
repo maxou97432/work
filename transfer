@@ -1,45 +1,59 @@
-current_year = datetime.now().year
-top10_ville_apt ={'BORDEAUX':"APT", 'LILLE':"APT", 'MARSEILLE':"APT", 'LYON':"APT",'NICE':"APT",
-                  'RENNES':"APT",'NANTES':"APT",'STRASBOURG':"APT", 'TOULOUSE':"APT",'MONTPELLIER':"APT"}
+{
+	"name": "DatabaseError",
+	"message": "Execution failed on sql 'SELECT DISTINCT *
+    FROM a.BIENS.dbo.TI_VILLE JOIN b.Biens.dbo.EFFECTIFS_VILLES
+    ON a.VILLE = b.LL_VILLE': ('42000', \"[42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Impossible de trouver le serveur 'a' dans sysservers. Vérifiez que le nom du serveur correct a été spécifié. Si nécessaire, exécutez la procédure stockée sp_addlinkedserver pour ajouter ce serveur à sysservers. (7202) (SQLExecDirectW)\")",
+	"stack": "---------------------------------------------------------------------------
+ProgrammingError                          Traceback (most recent call last)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2664, in SQLiteDatabase.execute(self, sql, params)
+   2663 try:
+-> 2664     cur.execute(sql, *args)
+   2665     return cur
 
+ProgrammingError: ('42000', \"[42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Impossible de trouver le serveur 'a' dans sysservers. Vérifiez que le nom du serveur correct a été spécifié. Si nécessaire, exécutez la procédure stockée sp_addlinkedserver pour ajouter ce serveur à sysservers. (7202) (SQLExecDirectW)\")
 
-top10 =[]
+The above exception was the direct cause of the following exception:
 
-for ville,type_bien in top10_ville_apt.items():
+DatabaseError                             Traceback (most recent call last)
+Cell In[27], line 25
+     22 df_ti_dept_all
+     23 current_year = datetime.now().year
+---> 25 db_ti_ville = pd.read_sql_query(
+     26     f\"\"\"SELECT DISTINCT *
+     27     FROM a.BIENS.dbo.TI_VILLE JOIN b.Biens.dbo.EFFECTIFS_VILLES
+     28     ON a.VILLE = b.LL_VILLE\"\"\" 
+     29     ,conn)
 
-    requete_sql = f"""
-    SELECT DISTINCT *
-    FROM db_ti_ville 
-    WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}' """
-    df_ti_ville= ps.sqldf(requete_sql, locals())
-    # Transformer 'P-1', 'P-2', etc. en années
-    df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-    ###
-    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-    df_ti_ville = pd.concat([new_data, df_ti_ville], ignore_index=True)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:528, in read_sql_query(sql, con, index_col, coerce_float, params, parse_dates, chunksize, dtype, dtype_backend)
+    525 assert dtype_backend is not lib.no_default
+    527 with pandasSQL_builder(con) as pandas_sql:
+--> 528     return pandas_sql.read_query(
+    529         sql,
+    530         index_col=index_col,
+    531         params=params,
+    532         coerce_float=coerce_float,
+    533         parse_dates=parse_dates,
+    534         chunksize=chunksize,
+    535         dtype=dtype,
+    536         dtype_backend=dtype_backend,
+    537     )
 
-    df_ti_ville['Year'] = pd.to_datetime(df_ti_ville['Year'].astype(str), format='%Y')
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2728, in SQLiteDatabase.read_query(self, sql, index_col, coerce_float, parse_dates, params, chunksize, dtype, dtype_backend)
+   2717 def read_query(
+   2718     self,
+   2719     sql,
+   (...)   2726     dtype_backend: DtypeBackend | Literal[\"numpy\"] = \"numpy\",
+   2727 ) -> DataFrame | Iterator[DataFrame]:
+-> 2728     cursor = self.execute(sql, params)
+   2729     columns = [col_desc[0] for col_desc in cursor.description]
+   2731     if chunksize is not None:
 
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2676, in SQLiteDatabase.execute(self, sql, params)
+   2673     raise ex from inner_exc
+   2675 ex = DatabaseError(f\"Execution failed on sql '{sql}': {exc}\")
+-> 2676 raise ex from exc
 
-
-    df_ti_ville['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_ville['TAUX_INFL'])
-
-    taux_infl_2012_2011 =df_ti_ville[df_ti_ville['Year'].dt.year.isin([2012, 2011])]['TAUX_INFL_TRANSFO'].mean()
-
-    df_ti_ville['TAUX_INFL_2012'] = (df_ti_ville['TAUX_INFL_TRANSFO']/taux_infl_2012_2011)*100
-
-df_ti_ville["Moyenne Top 10"] = df_ti_ville.groupby('Year').apply(moyenne_ponderee).reset_index()
-
-
-start_year = df_ti_ville['Year'].min().year
-end_year =  df_ti_ville['Year'].max().year
-
-# Tracer le taux d'inflation
-plt.figure(figsize=(10, 6))
-plt.plot(df_ti_ville['Year'], df_ti_ville["Moyenne Top 10"], label='Taux Inflation par année de CL')
-plt.title(f"Evolution du taux d'inflation- {ville}")
-plt.xlabel('Année')
-plt.ylabel('Valeur')
-plt.legend()
-plt.xlim(pd.to_datetime(start_year, format='%Y'), pd.to_datetime(end_year, format='%Y'))
-# plt.savefig(rf"N:\uflumth\indicateur_marche\V2\resultats\CL vs MEILLEURs AGENTSevolution_{ville}_{type_bien}_graph")
+DatabaseError: Execution failed on sql 'SELECT DISTINCT *
+    FROM a.BIENS.dbo.TI_VILLE JOIN b.Biens.dbo.EFFECTIFS_VILLES
+    ON a.VILLE = b.LL_VILLE': ('42000', \"[42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Impossible de trouver le serveur 'a' dans sysservers. Vérifiez que le nom du serveur correct a été spécifié. Si nécessaire, exécutez la procédure stockée sp_addlinkedserver pour ajouter ce serveur à sysservers. (7202) (SQLExecDirectW)\")"
+}
