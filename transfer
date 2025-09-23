@@ -1,11 +1,16 @@
+df_ti_dept_grouped = df_ti_dept.groupby('Year').apply(moyenne_ponderee).reset_index()
+# Pondération par effectif
 df_ti_dept_grouped.columns = ['Year', 'TAUX_INFL']
 new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
 df_ti_dept_grouped = pd.concat([ df_ti_dept_grouped, new_data], ignore_index=True)
 
 df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
 
-df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = (100/(1+df_ti_dept_grouped['TAUX_INFL']))
 
-taux_infl_2015_2014 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
+df_ti_dept_grouped['INDEX_RAW'] = (100/(1+df_ti_dept_grouped['TAUX_INFL'])).cumprod()
 
-df_ti_dept_grouped['TAUX_INFL_BASE_2015'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
+index_2015 = df_ti_dept_grouped.loc[df_ti_dept_grouped['Year'].dt.year == '2015', 'INDEX_RAW'].values[0]
+
+df_ti_dept_grouped['INDEX_BASE_2015'] = (df_ti_dept_grouped['INDEX_RAW']/index_2015)*100
+
+print(df_ti_dept_grouped)
