@@ -1,75 +1,80 @@
-import pandas as pd
-from datetime import datetime
-import pandasql as ps
+{
+	"name": "TypeError",
+	"message": "can't multiply sequence by non-int of type 'float'",
+	"stack": "---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:218, in _na_arithmetic_op(left, right, op, is_cmp)
+    217 try:
+--> 218     result = func(left, right)
+    219 except TypeError:
 
-current_year = datetime.now().year
-type_bien = 'APT'  # Choisir entre APT (appartement), MAI (maison)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\computation\\expressions.py:242, in evaluate(op, a, b, use_numexpr)
+    240     if use_numexpr:
+    241         # error: \"None\" not callable
+--> 242         return _evaluate(op, op_str, a, b)  # type: ignore[misc]
+    243 return _evaluate_standard(op, op_str, a, b)
 
-def format_change(value):
-    """Formate le changement avec un '+' si positif et arrondit à 2 chiffres après la virgule."""
-    value_rounded = round(value, 2)
-    return f"+{value_rounded}" if value_rounded > 0 else f"{value_rounded}"
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\computation\\expressions.py:73, in _evaluate_standard(op, op_str, a, b)
+     72     _store_test_result(False)
+---> 73 return op(a, b)
 
-final_data = []
+TypeError: can't multiply sequence by non-int of type 'float'
 
-# Chargement du fichier des départements
-dept_fr = pd.read_excel(r'N:\uflumth\indicateur_marche\V2\données indice de prix\table_rapport (2023)\Indice_prix\departements-francais.xlsx', header=2)
-dept_fr = dept_fr.rename(columns={'Département\nNuméro': 'num_dpt', 'Département\nNom': 'nom_dpt'})
-dept_fr['num_dpt'] = dept_fr['num_dpt'].astype(str).apply(lambda x: '0' + x if len(x) == 1 else x)
+During handling of the above exception, another exception occurred:
 
-for num_dept in ['78', '77', '91', '92', '93', '94', '95']: 
-    # Récupération des données du département
-    requete_sql = f"""
-    SELECT DISTINCT *
-    FROM df_ti_dept_all
-    WHERE DEPT = '{num_dept}' AND CD_TYP_BIEN = '{type_bien}'"""
-    df_ti_dept = ps.sqldf(requete_sql, locals())
+TypeError                                 Traceback (most recent call last)
+Cell In[32], line 34
+     30 # Transformer 'P-1', 'P-2', etc. en années
+     31 df_ti_dept['Year'] = df_ti_dept['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+---> 34 df_ti_dept['TAUX_INFL_POP'] = df_ti_dept['TAUX_INFL'] * df_ti_dept['population']
+     35 df_ti_dept_grouped = df_ti_dept.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
+     36 df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_ti_dept_grouped['population']
 
-    # Transformer 'P-1', 'P-2', etc. en années
-    df_ti_dept['Year'] = df_ti_dept['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\common.py:76, in _unpack_zerodim_and_defer.<locals>.new_method(self, other)
+     72             return NotImplemented
+     74 other = item_from_zerodim(other)
+---> 76 return method(self, other)
 
-    # Ajouter l'année courante si elle n'existe pas
-    if current_year not in df_ti_dept['Year'].values:
-        new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-        df_ti_dept = pd.concat([df_ti_dept, new_data], ignore_index=True)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\arraylike.py:202, in OpsMixin.__mul__(self, other)
+    200 @unpack_zerodim_and_defer(\"__mul__\")
+    201 def __mul__(self, other):
+--> 202     return self._arith_method(other, operator.mul)
 
-    # Conversion en datetime et tri
-    df_ti_dept['Year'] = pd.to_datetime(df_ti_dept['Year'].astype(str), format='%Y')
-    df_ti_dept = df_ti_dept.sort_values('Year')
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\series.py:6146, in Series._arith_method(self, other, op)
+   6144 def _arith_method(self, other, op):
+   6145     self, other = self._align_for_op(other)
+-> 6146     return base.IndexOpsMixin._arith_method(self, other, op)
 
-    # Construire l'indice chaîné
-    df_ti_dept['INDEX_RAW'] = 100 * (1 + df_ti_dept['TAUX_INFL']).cumprod()
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\base.py:1391, in IndexOpsMixin._arith_method(self, other, op)
+   1388     rvalues = np.arange(rvalues.start, rvalues.stop, rvalues.step)
+   1390 with np.errstate(all=\"ignore\"):
+-> 1391     result = ops.arithmetic_op(lvalues, rvalues, op)
+   1393 return self._construct_result(result, name=res_name)
 
-    # Rebaser sur 2015 = 100
-    base_year = 2015
-    index_2015_array = df_ti_dept.loc[df_ti_dept['Year'].dt.year == base_year, 'INDEX_RAW'].values
-    if len(index_2015_array) == 0:
-        raise ValueError(f"L'année {base_year} n'est pas présente dans les données pour le département {num_dept} !")
-    index_2015 = index_2015_array[0]
-    df_ti_dept['INDEX_BASE_2015'] = df_ti_dept['INDEX_RAW'] / index_2015 * 100
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:283, in arithmetic_op(left, right, op)
+    279     _bool_arith_check(op, left, right)  # type: ignore[arg-type]
+    281     # error: Argument 1 to \"_na_arithmetic_op\" has incompatible type
+    282     # \"Union[ExtensionArray, ndarray[Any, Any]]\"; expected \"ndarray[Any, Any]\"
+--> 283     res_values = _na_arithmetic_op(left, right, op)  # type: ignore[arg-type]
+    285 return res_values
 
-    # Jointure pour récupérer le nom du département
-    df_ti_dept['DEPT'] = df_ti_dept['DEPT'].astype(str)
-    df_ti_dept = pd.merge(df_ti_dept, dept_fr, left_on='DEPT', right_on='num_dpt', how='inner')
-    nom_dpt = df_ti_dept['nom_dpt'].iloc[0]
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:227, in _na_arithmetic_op(left, right, op, is_cmp)
+    219 except TypeError:
+    220     if not is_cmp and (
+    221         left.dtype == object or getattr(right, \"dtype\", None) == object
+    222     ):
+   (...)    225         # Don't do this for comparisons, as that will handle complex numbers
+    226         #  incorrectly, see GH#32047
+--> 227         result = _masked_arith_op(left, right, op)
+    228     else:
+    229         raise
 
-    # Récupération des taux pour 10, 8, 5 et 1 an
-    # Remplace 'TAUX_INFL_FINAL' par 'TAUX_INFL' si tu n'as pas cette colonne
-    taux_10_ans = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 10, 'TAUX_INFL'].iloc[0]
-    taux_8_ans  = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 8,  'TAUX_INFL'].iloc[0]
-    taux_5_ans  = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 5,  'TAUX_INFL'].iloc[0]
-    taux_1_an   = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 1,  'TAUX_INFL'].iloc[0]
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:163, in _masked_arith_op(x, y, op)
+    161     # See GH#5284, GH#5035, GH#19448 for historical reference
+    162     if mask.any():
+--> 163         result[mask] = op(xrav[mask], yrav[mask])
+    165 else:
+    166     if not is_scalar(y):
 
-    # Ajoute les données à la liste finale
-    final_data.append({
-        'Département': nom_dpt,
-        '10 ans': format_change(taux_10_ans),
-        '8 ans' : format_change(taux_8_ans),
-        '5 ans' : format_change(taux_5_ans),
-        '1 an'  : format_change(taux_1_an)
-    })
-
-# Création du DataFrame final et export
-final_df_idf = pd.DataFrame(final_data)
-final_df_idf.to_csv(r"N:\uflumth\indicateur_marche\V2\resultats\evolution_idf.csv", index=False)
-final_df_idf
+TypeError: can't multiply sequence by non-int of type 'float'"
+}
