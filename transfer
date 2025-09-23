@@ -1,74 +1,75 @@
-# Tableau Crédit Logement
-# TODO : tableau Évolution des indices des prix selon CL en IDF: final_df_idf
+import pandas as pd
+from datetime import datetime
+import pandasql as ps
 
-type_bien = 'APT' #Choisir entre APT (appartememnt), MAI (maison) 
+current_year = datetime.now().year
+type_bien = 'APT'  # Choisir entre APT (appartement), MAI (maison)
+
 def format_change(value):
     """Formate le changement avec un '+' si positif et arrondit à 2 chiffres après la virgule."""
     value_rounded = round(value, 2)
     return f"+{value_rounded}" if value_rounded > 0 else f"{value_rounded}"
 
-
 final_data = []
 
+# Chargement du fichier des départements
+dept_fr = pd.read_excel(r'N:\uflumth\indicateur_marche\V2\données indice de prix\table_rapport (2023)\Indice_prix\departements-francais.xlsx', header=2)
+dept_fr = dept_fr.rename(columns={'Département\nNuméro': 'num_dpt', 'Département\nNom': 'nom_dpt'})
+dept_fr['num_dpt'] = dept_fr['num_dpt'].astype(str).apply(lambda x: '0' + x if len(x) == 1 else x)
+
 for num_dept in ['78', '77', '91', '92', '93', '94', '95']: 
+    # Récupération des données du département
     requete_sql = f"""
     SELECT DISTINCT *
     FROM df_ti_dept_all
-    WHERE DEPT = {num_dept} AND CD_TYP_BIEN = '{type_bien}'"""
+    WHERE DEPT = '{num_dept}' AND CD_TYP_BIEN = '{type_bien}'"""
     df_ti_dept = ps.sqldf(requete_sql, locals())
 
+    # Transformer 'P-1', 'P-2', etc. en années
     df_ti_dept['Year'] = df_ti_dept['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
 
-
-
+    # Ajouter l'année courante si elle n'existe pas
     if current_year not in df_ti_dept['Year'].values:
         new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-    
-    df_ti_dept = pd.concat([df_ti_dept, new_data], ignore_index=True)
+        df_ti_dept = pd.concat([df_ti_dept, new_data], ignore_index=True)
 
+    # Conversion en datetime et tri
     df_ti_dept['Year'] = pd.to_datetime(df_ti_dept['Year'].astype(str), format='%Y')
-
-    # Trier par année
     df_ti_dept = df_ti_dept.sort_values('Year')
 
-    # Construire l'indice chaîné correctement
+    # Construire l'indice chaîné
     df_ti_dept['INDEX_RAW'] = 100 * (1 + df_ti_dept['TAUX_INFL']).cumprod()
 
     # Rebaser sur 2015 = 100
     base_year = 2015
     index_2015_array = df_ti_dept.loc[df_ti_dept['Year'].dt.year == base_year, 'INDEX_RAW'].values
     if len(index_2015_array) == 0:
-        raise ValueError(f"L'année {base_year} n'est pas présente dans les données !")
+        raise ValueError(f"L'année {base_year} n'est pas présente dans les données pour le département {num_dept} !")
     index_2015 = index_2015_array[0]
     df_ti_dept['INDEX_BASE_2015'] = df_ti_dept['INDEX_RAW'] / index_2015 * 100
-    ligne_current_year = df_ti_dept[df_ti_dept['Year'].dt.year == current_year]
 
-    dept_fr = pd.read_excel(r'N:\uflumth\indicateur_marche\V2\données indice de prix\table_rapport (2023)\Indice_prix\departements-francais.xlsx', header=2)
-    dept_fr = dept_fr.rename(columns={'Département\nNuméro': 'num_dpt'})
-    dept_fr = dept_fr.rename(columns={'Département\nNom': 'nom_dpt'}) 
-
+    # Jointure pour récupérer le nom du département
     df_ti_dept['DEPT'] = df_ti_dept['DEPT'].astype(str)
-    dept_fr['num_dpt'] = dept_fr['num_dpt'].astype(str)
-
-    # Ajoutez un '0' devant les numéros de départements de longueur 1 dans df_dept
-    dept_fr['num_dpt'] = dept_fr['num_dpt'].apply(lambda x: '0' + x if len(x) == 1 else x)
     df_ti_dept = pd.merge(df_ti_dept, dept_fr, left_on='DEPT', right_on='num_dpt', how='inner')
     nom_dpt = df_ti_dept['nom_dpt'].iloc[0]
 
-    taux_10_ans = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 10, 'TAUX_INFL_FINAL'].iloc[0]
-    taux_8_ans = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 8, 'TAUX_INFL_FINAL'].iloc[0]
-    taux_5_ans = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 5, 'TAUX_INFL_FINAL'].iloc[0]
-    taux_1_an = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 1, 'TAUX_INFL_FINAL'].iloc[0]
+    # Récupération des taux pour 10, 8, 5 et 1 an
+    # Remplace 'TAUX_INFL_FINAL' par 'TAUX_INFL' si tu n'as pas cette colonne
+    taux_10_ans = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 10, 'TAUX_INFL'].iloc[0]
+    taux_8_ans  = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 8,  'TAUX_INFL'].iloc[0]
+    taux_5_ans  = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 5,  'TAUX_INFL'].iloc[0]
+    taux_1_an   = df_ti_dept.loc[df_ti_dept['Year'].dt.year == current_year - 1,  'TAUX_INFL'].iloc[0]
 
-    # Ajoutez les données à la liste finale
+    # Ajoute les données à la liste finale
     final_data.append({
-    'Département': nom_dpt,
-    '10 ans': format_change(taux_10_ans),
-    '8 ans': format_change(taux_8_ans),
-    '5 ans': format_change(taux_5_ans),
-    '1 an': format_change(taux_1_an)
-})
+        'Département': nom_dpt,
+        '10 ans': format_change(taux_10_ans),
+        '8 ans' : format_change(taux_8_ans),
+        '5 ans' : format_change(taux_5_ans),
+        '1 an'  : format_change(taux_1_an)
+    })
 
+# Création du DataFrame final et export
 final_df_idf = pd.DataFrame(final_data)
 final_df_idf.to_csv(r"N:\uflumth\indicateur_marche\V2\resultats\evolution_idf.csv", index=False)
 final_df_idf
