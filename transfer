@@ -1,24 +1,35 @@
-    # Ajouter l'année courante si elle n'existe pas
-    if current_year not in df_ti_dept_grouped['Year'].values:
-        new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-        df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
+# Ajouter l'année courante si elle n'existe pas
+if current_year not in df_ti_dept_grouped['Year'].values:
+    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+    df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
 
-    # Conversion en datetime pour tri et sécurité
-    df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
+# Conversion en datetime pour tri et sécurité
+df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
 
-    # Trier par année
-    df_ti_dept_grouped = df_ti_dept_grouped.sort_values('Year')
+# Trier par année croissante
+df_ti_dept_grouped = df_ti_dept_grouped.sort_values('Year').reset_index(drop=True)
 
-    # Construire l'indice chaîné correctement
-    df_ti_dept_grouped['INDEX_RAW'] = 100 * (1 + df_ti_dept_grouped['TAUX_INFL']).cumprod()
+# === Reconstruction de l'indice ===
+# On fixe l'année courante comme base 100
+df_ti_dept_grouped['INDEX_RAW'] = None
+df_ti_dept_grouped.loc[df_ti_dept_grouped['Year'].dt.year == current_year, 'INDEX_RAW'] = 100.0
 
-    # Rebaser sur 2015 = 100
-    base_year = 2015
-    index_2015_array = df_ti_dept_grouped.loc[df_ti_dept_grouped['Year'].dt.year == base_year, 'INDEX_RAW'].values
-    if len(index_2015_array) == 0:
-        raise ValueError(f"L'année {base_year} n'est pas présente dans les données ")
-    index_2015 = index_2015_array[0]
-    df_ti_dept_grouped['INDEX_BASE_2015'] = df_ti_dept_grouped['INDEX_RAW'] / index_2015 * 100
+# Remonter en arrière avec la formule : Index_t-k = Index_t / (1 + taux)
+years = df_ti_dept_grouped['Year'].dt.year.values
+for i in range(len(years) - 2, -1, -1):  # on part de l'avant-dernière année
+    taux = df_ti_dept_grouped.loc[i+1, 'TAUX_INFL']  # taux entre année[i] et année courante
+    index_suivant = df_ti_dept_grouped.loc[i+1, 'INDEX_RAW']
+    if taux is not None:
+        df_ti_dept_grouped.loc[i, 'INDEX_RAW'] = index_suivant / (1 + taux)
 
-    # Vérification
-    print(df_ti_dept_grouped[['Year', 'TAUX_INFL', 'INDEX_BASE_2015']])
+# Rebaser sur 2015 = 100
+base_year = 2015
+index_2015_array = df_ti_dept_grouped.loc[df_ti_dept_grouped['Year'].dt.year == base_year, 'INDEX_RAW'].values
+if len(index_2015_array) == 0:
+    raise ValueError(f"L'année {base_year} n'est pas présente dans les données !")
+
+index_2015 = index_2015_array[0]
+df_ti_dept_grouped['INDEX_BASE_2015'] = df_ti_dept_grouped['INDEX_RAW'] / index_2015 * 100
+
+# Vérification
+print(df_ti_dept_grouped[['Year', 'TAUX_INFL', 'INDEX_BASE_2015']])
