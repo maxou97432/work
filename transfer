@@ -1,25 +1,33 @@
+import pandas as pd
 
-df_ti_['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_['TAUX_INFL'])
+# Exemple de DataFrame avec tes données
+data = {
+    'Year': [
+        '2025-01-01','2024-01-01','2023-01-01','2022-01-01','2011-01-01',
+        '2015-01-01','2014-01-01','2013-01-01','2012-01-01','2018-01-01',
+        '2017-01-01','2016-01-01','2021-01-01','2020-01-01','2019-01-01'
+    ],
+    'TAUX_INFL': [
+        0.0000, -0.0119, -0.0767, -0.1037, 0.2677,
+        0.2089, 0.1872, 0.1685, 0.1568, 0.0396,
+        0.1196, 0.1870, -0.1159, -0.0876, -0.0256
+    ]
+}
 
-taux_infl_2014_2013 =df_ti_[df_ti_['Year'].dt.year.isin([2014, 2013])]['TAUX_INFL_TRANSFO'].mean()
+df_ti_ = pd.DataFrame(data)
 
-df_ti['TAUX_INFL_2014'] = (df_ti['TAUX_INFL_TRANSFO']/taux_infl_2014_2013)*100
+# Conversion en datetime
+df_ti_['Year'] = pd.to_datetime(df_ti_['Year'])
 
-         Year  TAUX_INFL CD_TYPE_BIEN  VILLE PERIODE             
-0  2025-01-01     0.0000         None   None    None               
-1  2024-01-01    -0.0119          NaN  PARIS     P-1     
-2  2023-01-01    -0.0767          NaN  PARIS     P-2   
-3  2022-01-01    -0.1037          NaN  PARIS     P-3     
-4  2011-01-01     0.2677          NaN  PARIS    P-14   
-5  2015-01-01     0.2089          NaN  PARIS    P-10    
-6  2014-01-01     0.1872          NaN  PARIS    P-11     
-7  2013-01-01     0.1685          NaN  PARIS    P-12  
-8  2012-01-01     0.1568          NaN  PARIS    P-13     
-9  2018-01-01     0.0396          NaN  PARIS     P-7    
-10 2017-01-01     0.1196          NaN  PARIS     P-8    
-11 2016-01-01     0.1870          NaN  PARIS     P-9     
-12 2021-01-01    -0.1159          NaN  PARIS     P-4     
-13 2020-01-01    -0.0876          NaN  PARIS     P-5     
-14 2019-01-01    -0.0256          NaN  PARIS     P-6  
+# 1️⃣ Calcul TAUX_INFL_TRANSFO
+df_ti_['TAUX_INFL_TRANSFO'] = 100 / (1 + df_ti_['TAUX_INFL'])
 
+# 2️⃣ Calcul de la moyenne 2013-2014 pour la base
+taux_infl_2014_2013 = df_ti_.loc[df_ti_['Year'].dt.year.isin([2014, 2013]), 'TAUX_INFL_TRANSFO'].mean()
 
+# 3️⃣ Calcul de l'indice rebasé sur cette moyenne
+df_ti_['TAUX_INFL_2014'] = df_ti_['TAUX_INFL_TRANSFO'] / taux_infl_2014_2013 * 100
+
+# Affichage
+pd.set_option('display.float_format', '{:.2f}'.format)
+print(df_ti_[['Year','TAUX_INFL','TAUX_INFL_TRANSFO','TAUX_INFL_2014']])
