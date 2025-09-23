@@ -1,33 +1,20 @@
-import pandas as pd
+df_ti_paris['Year'] = df_ti_paris['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+###
+new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
+    if col not in new_data:
+        new_data[col] = None
+    
+df_ti_paris = pd.concat([new_data, df_ti_paris], ignore_index=True)
 
-# Exemple de DataFrame avec tes données
-data = {
-    'Year': [
-        '2025-01-01','2024-01-01','2023-01-01','2022-01-01','2011-01-01',
-        '2015-01-01','2014-01-01','2013-01-01','2012-01-01','2018-01-01',
-        '2017-01-01','2016-01-01','2021-01-01','2020-01-01','2019-01-01'
-    ],
-    'TAUX_INFL': [
-        0.0000, -0.0119, -0.0767, -0.1037, 0.2677,
-        0.2089, 0.1872, 0.1685, 0.1568, 0.0396,
-        0.1196, 0.1870, -0.1159, -0.0876, -0.0256
-    ]
-}
+df_ti_paris['Year'] = pd.to_datetime(df_ti_paris['Year'].astype(str), format='%Y')
+df_ti_paris.sort_values(by='Year')    
 
-df_ti_ = pd.DataFrame(data)
 
-# Conversion en datetime
-df_ti_['Year'] = pd.to_datetime(df_ti_['Year'])
 
-# 1️⃣ Calcul TAUX_INFL_TRANSFO
-df_ti_['TAUX_INFL_TRANSFO'] = 100 / (1 + df_ti_['TAUX_INFL'])
+df_ti_paris['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_paris['TAUX_INFL'])
 
-# 2️⃣ Calcul de la moyenne 2013-2014 pour la base
-taux_infl_2014_2013 = df_ti_.loc[df_ti_['Year'].dt.year.isin([2014, 2013]), 'TAUX_INFL_TRANSFO'].mean()
+taux_infl_2014_2013 =df_ti_paris[df_ti_paris['Year'].dt.year.isin([2014, 2013])]['TAUX_INFL_TRANSFO'].mean()
 
-# 3️⃣ Calcul de l'indice rebasé sur cette moyenne
-df_ti_['TAUX_INFL_2014'] = df_ti_['TAUX_INFL_TRANSFO'] / taux_infl_2014_2013 * 100
-
-# Affichage
-pd.set_option('display.float_format', '{:.2f}'.format)
-print(df_ti_[['Year','TAUX_INFL','TAUX_INFL_TRANSFO','TAUX_INFL_2014']])
+df_ti_paris['TAUX_INFL_2014'] = (df_ti_paris['TAUX_INFL_TRANSFO']/taux_infl_2014_2013)*100
+print(df_ti_paris)
