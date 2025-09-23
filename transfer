@@ -1,35 +1,25 @@
-# Ajouter l'année courante si elle n'existe pas
-if current_year not in df_ti_dept_grouped['Year'].values:
-    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-    df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
 
-# Conversion en datetime pour tri et sécurité
-df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
+df_ti_['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_['TAUX_INFL'])
 
-# Trier par année croissante
-df_ti_dept_grouped = df_ti_dept_grouped.sort_values('Year').reset_index(drop=True)
+taux_infl_2014_2013 =df_ti_[df_ti_['Year'].dt.year.isin([2014, 2013])]['TAUX_INFL_TRANSFO'].mean()
 
-# === Reconstruction de l'indice ===
-# On fixe l'année courante comme base 100
-df_ti_dept_grouped['INDEX_RAW'] = None
-df_ti_dept_grouped.loc[df_ti_dept_grouped['Year'].dt.year == current_year, 'INDEX_RAW'] = 100.0
+df_ti['TAUX_INFL_2014'] = (df_ti['TAUX_INFL_TRANSFO']/taux_infl_2014_2013)*100
 
-# Remonter en arrière avec la formule : Index_t-k = Index_t / (1 + taux)
-years = df_ti_dept_grouped['Year'].dt.year.values
-for i in range(len(years) - 2, -1, -1):  # on part de l'avant-dernière année
-    taux = df_ti_dept_grouped.loc[i+1, 'TAUX_INFL']  # taux entre année[i] et année courante
-    index_suivant = df_ti_dept_grouped.loc[i+1, 'INDEX_RAW']
-    if taux is not None:
-        df_ti_dept_grouped.loc[i, 'INDEX_RAW'] = index_suivant / (1 + taux)
+         Year  TAUX_INFL CD_TYPE_BIEN  VILLE PERIODE             
+0  2025-01-01     0.0000         None   None    None               
+1  2024-01-01    -0.0119          NaN  PARIS     P-1     
+2  2023-01-01    -0.0767          NaN  PARIS     P-2   
+3  2022-01-01    -0.1037          NaN  PARIS     P-3     
+4  2011-01-01     0.2677          NaN  PARIS    P-14   
+5  2015-01-01     0.2089          NaN  PARIS    P-10    
+6  2014-01-01     0.1872          NaN  PARIS    P-11     
+7  2013-01-01     0.1685          NaN  PARIS    P-12  
+8  2012-01-01     0.1568          NaN  PARIS    P-13     
+9  2018-01-01     0.0396          NaN  PARIS     P-7    
+10 2017-01-01     0.1196          NaN  PARIS     P-8    
+11 2016-01-01     0.1870          NaN  PARIS     P-9     
+12 2021-01-01    -0.1159          NaN  PARIS     P-4     
+13 2020-01-01    -0.0876          NaN  PARIS     P-5     
+14 2019-01-01    -0.0256          NaN  PARIS     P-6  
 
-# Rebaser sur 2015 = 100
-base_year = 2015
-index_2015_array = df_ti_dept_grouped.loc[df_ti_dept_grouped['Year'].dt.year == base_year, 'INDEX_RAW'].values
-if len(index_2015_array) == 0:
-    raise ValueError(f"L'année {base_year} n'est pas présente dans les données !")
 
-index_2015 = index_2015_array[0]
-df_ti_dept_grouped['INDEX_BASE_2015'] = df_ti_dept_grouped['INDEX_RAW'] / index_2015 * 100
-
-# Vérification
-print(df_ti_dept_grouped[['Year', 'TAUX_INFL', 'INDEX_BASE_2015']])
