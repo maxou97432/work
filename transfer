@@ -1,37 +1,80 @@
 {
-	"name": "KeyError",
-	"message": "Index(['num_dpt'], dtype='object')",
+	"name": "TypeError",
+	"message": "can't multiply sequence by non-int of type 'float'",
 	"stack": "---------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-~\\AppData\\Local\\Temp\\10\\ipykernel_11924\\2027821509.py in ?()
-     24 df_ti_dept_work['Year'] = df_ti_dept_work['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-     25 df_ti_dept_work['TAUX_INFL'] = df_ti_dept_work['TAUX_INFL'].astype(float)
-     26 df_ti_dept_work['population'] = df_ti_dept_work['population'].astype(float)
-     27 df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work.apply(lambda row: row['TAUX_INFL'] * row['population'], axis=1)
----> 28 df_ti_dept_work = df_ti_dept_work.drop_duplicates(subset=[\"Year\",\"num_dpt\"])
-     29 
-     30 df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
-     31 df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_ti_dept_grouped['population']
+TypeError                                 Traceback (most recent call last)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:218, in _na_arithmetic_op(left, right, op, is_cmp)
+    217 try:
+--> 218     result = func(left, right)
+    219 except TypeError:
 
-~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py in ?(self, subset, keep, inplace, ignore_index)
-   6821 
-   6822         inplace = validate_bool_kwarg(inplace, \"inplace\")
-   6823         ignore_index = validate_bool_kwarg(ignore_index, \"ignore_index\")
-   6824 
--> 6825         result = self[-self.duplicated(subset, keep=keep)]
-   6826         if ignore_index:
-   6827             result.index = default_index(len(result))
-   6828 
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\computation\\expressions.py:242, in evaluate(op, a, b, use_numexpr)
+    240     if use_numexpr:
+    241         # error: \"None\" not callable
+--> 242         return _evaluate(op, op_str, a, b)  # type: ignore[misc]
+    243 return _evaluate_standard(op, op_str, a, b)
 
-~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py in ?(self, subset, keep)
-   6953         # Otherwise, raise a KeyError, same as if you try to __getitem__ with a
-   6954         # key that doesn't exist.
-   6955         diff = set(subset) - set(self.columns)
-   6956         if diff:
--> 6957             raise KeyError(Index(diff))
-   6958 
-   6959         if len(subset) == 1 and self.columns.is_unique:
-   6960             # GH#45236 This is faster than get_group_index below
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\computation\\expressions.py:73, in _evaluate_standard(op, op_str, a, b)
+     72     _store_test_result(False)
+---> 73 return op(a, b)
 
-KeyError: Index(['num_dpt'], dtype='object')"
+TypeError: can't multiply sequence by non-int of type 'float'
+
+During handling of the above exception, another exception occurred:
+
+TypeError                                 Traceback (most recent call last)
+Cell In[19], line 34
+     30 # Transformer 'P-1', 'P-2', etc. en années
+     31 df_ti_dept['Year'] = df_ti_dept['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+---> 34 df_ti_dept['TAUX_INFL_POP'] = df_ti_dept['TAUX_INFL'] * df_ti_dept['population']
+     35 df_ti_dept_grouped = df_ti_dept.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
+     36 df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_ti_dept_grouped['population']
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\common.py:76, in _unpack_zerodim_and_defer.<locals>.new_method(self, other)
+     72             return NotImplemented
+     74 other = item_from_zerodim(other)
+---> 76 return method(self, other)
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\arraylike.py:202, in OpsMixin.__mul__(self, other)
+    200 @unpack_zerodim_and_defer(\"__mul__\")
+    201 def __mul__(self, other):
+--> 202     return self._arith_method(other, operator.mul)
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\series.py:6146, in Series._arith_method(self, other, op)
+   6144 def _arith_method(self, other, op):
+   6145     self, other = self._align_for_op(other)
+-> 6146     return base.IndexOpsMixin._arith_method(self, other, op)
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\base.py:1391, in IndexOpsMixin._arith_method(self, other, op)
+   1388     rvalues = np.arange(rvalues.start, rvalues.stop, rvalues.step)
+   1390 with np.errstate(all=\"ignore\"):
+-> 1391     result = ops.arithmetic_op(lvalues, rvalues, op)
+   1393 return self._construct_result(result, name=res_name)
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:283, in arithmetic_op(left, right, op)
+    279     _bool_arith_check(op, left, right)  # type: ignore[arg-type]
+    281     # error: Argument 1 to \"_na_arithmetic_op\" has incompatible type
+    282     # \"Union[ExtensionArray, ndarray[Any, Any]]\"; expected \"ndarray[Any, Any]\"
+--> 283     res_values = _na_arithmetic_op(left, right, op)  # type: ignore[arg-type]
+    285 return res_values
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:227, in _na_arithmetic_op(left, right, op, is_cmp)
+    219 except TypeError:
+    220     if not is_cmp and (
+    221         left.dtype == object or getattr(right, \"dtype\", None) == object
+    222     ):
+   (...)    225         # Don't do this for comparisons, as that will handle complex numbers
+    226         #  incorrectly, see GH#32047
+--> 227         result = _masked_arith_op(left, right, op)
+    228     else:
+    229         raise
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\ops\\array_ops.py:163, in _masked_arith_op(x, y, op)
+    161     # See GH#5284, GH#5035, GH#19448 for historical reference
+    162     if mask.any():
+--> 163         result[mask] = op(xrav[mask], yrav[mask])
+    165 else:
+    166     if not is_scalar(y):
+
+TypeError: can't multiply sequence by non-int of type 'float'"
 }
