@@ -1,57 +1,54 @@
-####################### TOP 10 VILLE PROVINCE ############################
+import matplotlib.pyplot as plt
+import pandas as pd
 
-current_year = datetime.now().year
-top10_ville_apt ={'BORDEAUX':"APT", 'LILLE':"APT", 'MARSEILLE':"APT", 'LYON':"APT",'NICE':"APT",
-                  'RENNES':"APT",'NANTES':"APT",'STRASBOURG':"APT", 'TOULOUSE':"APT",'MONTPELLIER':"APT"}
+def tracer_villes(villes_dict, titre, conn):
+    toutes_villes = []
 
-top10_list = list(top10_ville_apt.items())
-top = dict(top10_list[5:])
-bottom = dict(top10_list[-5:0])
-
-def tracer_villes(villes_dict, titre):
-
-    top10 = []
-    for ville,type_bien in top10_ville_apt.items():
-
+    for ville, type_bien in villes_dict.items():
         requete_sql = f"""
-        SELECT DISTINCT *
-        FROM db_ti_ville 
-        WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}' """
+            SELECT DISTINCT *
+            FROM db_ti_ville 
+            WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}'
+        """
+        df_ti_ville = pd.read_sql(requete_sql, conn)
 
-        df_ti_ville= ps.sqldf(requete_sql, locals())
         # Transformer 'P-1', 'P-2', etc. en années
         df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-        ###
+
+        # Ajouter une ligne pour l'année courante
         new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
         for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
             if col not in new_data:
                 new_data[col] = None
-    
         df_ti_ville = pd.concat([new_data, df_ti_ville], ignore_index=True)
 
+        # Conversion en datetime
         df_ti_ville['Year'] = pd.to_datetime(df_ti_ville['Year'].astype(str), format='%Y')
 
+        # Transformation
+        df_ti_ville['TAUX_INFL_TRANSFO'] = 100 / (1 + df_ti_ville['TAUX_INFL'])
+        taux_infl_2015_2014 = df_ti_ville[
+            df_ti_ville['Year'].dt.year.isin([2015, 2014])
+        ]['TAUX_INFL_TRANSFO'].mean()
+        df_ti_ville['TAUX_INFL_2015'] = (df_ti_ville['TAUX_INFL_TRANSFO'] / taux_infl_2015_2014) * 100
 
-        df_ti_ville['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_ville['TAUX_INFL'])
-
-        taux_infl_2015_2014 =df_ti_ville[df_ti_ville['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
-
-        df_ti_ville['TAUX_INFL_2015'] = (df_ti_ville['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
-
-        df_ti_ville['Moyenne Glissante'] = df_ti_ville["TAUX_INFL_2015"].rolling(window=1, min_periods=1).mean()
-        df_ti_ville = df_ti_ville.sort_values(by='Year').reset_index()
+        # Moyenne glissante (ici identique mais tu peux mettre window=2 ou 3)
+        df_ti_ville['Moyenne Glissante'] = df_ti_ville['TAUX_INFL_2015'].rolling(window=2, min_periods=1).mean()
+        df_ti_ville = df_ti_ville.sort_values(by='Year').reset_index(drop=True)
         df_ti_ville['VILLE'] = ville
-        start_year = df_ti_ville['Year'].min().year 
-        end_year =  df_ti_ville['Year'].max().year
-        top10.append(df_ti_ville)
 
-    df_top10 = pd.concat(top10, ignore_index = True)
-    
+        toutes_villes.append(df_ti_ville)
+
+    df_villes = pd.concat(toutes_villes, ignore_index=True)
+
+    # Tracer
     plt.figure(figsize=(12, 7))
-    for ville in df_top10['VILLE'].unique():
-        subset = df_top10[df_top10["VILLE"] == ville].sort_values('Year')
-        plt.plot(subset['Year'],subset["Moyenne Glissante"],label = ville)
-        plt.xlim(pd.to_datetime(start_year, format='%Y'), pd.to_datetime(end_year, format='%Y'))
+    for ville in df_villes['VILLE'].unique():
+        subset = df_villes[df_villes['VILLE'] == ville].sort_values('Year')
+        plt.plot(subset['Year'], subset["Moyenne Glissante"], label=ville)
 
-tracer_villes(top, "Evolution de l'indice de prix _ base 100 en 2015")
-tracer_villes(bottom, "Evolution de l'indice de prix _ base 100 en 2015")
+    plt.title(titre)
+    plt.xlabel("Année")
+    plt.ylabel("Indice base 2015 = 100")
+    plt.legend()
+    plt.show()
