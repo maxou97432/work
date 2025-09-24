@@ -1,44 +1,40 @@
-CREDIT LOGEMEMNT
-Département	10 ans	8 ans	5 ans	1 an
-0	Yvelines	+15.51	+16.56	+6.98	+5.04
-1	Seine-et-Marne	+13.52	+15.51	+4.88	+2.64
-2	Essonne	+8.9	+9.06	+1.53	+0.19
-3	Hauts-de-Seine	+18.44	+12.76	-3.66	-2.32
-4	Seine-Saint-Denis	+21.43	+21.43	+6.25	+4.91
-5	Val-de-Marne	+20.85	+15.38	-0.66	+1.19
-6	Val-d'Oise	+13.27	+15.33	+4.99	+3.14
-INSEE
-Département	10 ans	8 ans	5 ans	1 an
-0	Yvelines	+10.27	+9.18	+1.94	-0.63
-1	Seine-et-Marne	+7.92	+6.63	+2.38	-0.28
-2	Essonne	+9.11	+8.35	+3.12	-0.27
-3	Hauts-de-Seine	+14.27	+11.27	-4.5	-0.52
-4	Seine-Saint-Denis	+17.9	+15.93	-0.67	-0.17
-5	Val-de-Marne	+15.4	+12.59	-0.69	-0.17
-6	Val-d'Oise	+9.89	+8.8	+3.38	0.0
+{
+	"name": "AttributeError",
+	"message": "Can only use .dt accessor with datetimelike values",
+	"stack": "---------------------------------------------------------------------------
+AttributeError                            Traceback (most recent call last)
+Cell In[134], line 48
+     44 df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
+     46 df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = (100/(1+df_ti_dept_grouped['TAUX_INFL']))
+---> 48 taux_infl_2015_2014 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
+     50 df_ti_dept_grouped['TAUX_INFL_2015'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
+     56 df= pd.read_csv( rf'N:\\uflumth\\indicateur_marche\\V2\\données indice de prix\\table_rapport (2025)\\valeurs_trimestrielles_{nom_region}_APT.csv', sep = ';')
 
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\generic.py:6318, in NDFrame.__getattr__(self, name)
+   6311 if (
+   6312     name not in self._internal_names_set
+   6313     and name not in self._metadata
+   6314     and name not in self._accessors
+   6315     and self._info_axis._can_hold_identifiers_and_holds_name(name)
+   6316 ):
+   6317     return self[name]
+-> 6318 return object.__getattribute__(self, name)
 
-CREDIT LOGEMENT
-Région	10 ans	8 ans	5 ans	1 an
-0	Nord-Pas-de-Calais	+4.34	+2.64	+0.23	+3.46
-1	Provence-Alpes-Côte-d'Azur	+15.61	+13.68	+8.20	+1.87
-2	Rhône-Alpes	+13.44	+10.00	+3.35	+0.81
-INSEE
-Région	10 ans	8 ans	5 ans	1 an
-0	NORD-PAS-DE-CALAIS	+31.63	+30.97	+18.0	+4.21
-1	PACA	+27.64	+27.13	+18.25	+1.84
-2	RHONE-ALPES	+31.02	+28.95	+11.83	+0.08
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\accessor.py:224, in CachedAccessor.__get__(self, obj, cls)
+    221 if obj is None:
+    222     # we're accessing the attribute of the class, i.e., Dataset.geo
+    223     return self._accessor
+--> 224 accessor_obj = self._accessor(obj)
+    225 # Replace the property with the accessor object. Inspired by:
+    226 # https://www.pydanny.com/cached-property.html
+    227 # We need to use object.__setattr__ because we overwrite __setattr__ on
+    228 # NDFrame
+    229 object.__setattr__(obj, self._name, accessor_obj)
 
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\accessors.py:643, in CombinedDatetimelikeProperties.__new__(cls, data)
+    640 elif isinstance(data.dtype, PeriodDtype):
+    641     return PeriodProperties(data, orig)
+--> 643 raise AttributeError(\"Can only use .dt accessor with datetimelike values\")
 
-CREDIT LOGEMENT
-Villes	10 ans	8 ans	5 ans	1 an
-0	PARIS	+20.89	+11.96	-8.76	-1.19
-1	LILLE	+27.63	+24.48	+9.99	+0.96
-2	MARSEILLE	+31.73	+32.88	+25.76	+5.04
-3	LYON	+34.87	+23.88	-4.45	-1.53
-INSEE
-Ville	10 ans	8 ans	5 ans	1 an
-0	Paris	+20.2	+12.41	-9.12	+0.17
-1	Marseille	+32.73	+30.09	+17.28	+1.47
-2	Lyon	+32.1	+25.79	-5.25	-2.3
-3	Lille	+23.7	+21.16	+8.32	+1.64
+AttributeError: Can only use .dt accessor with datetimelike values"
+}
