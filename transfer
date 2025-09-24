@@ -6,3 +6,9 @@
         print(f"Aucune donnée pour {current_year}")
     df_ti_dept['TAUX_INFL_FINAL'] = ((taux_infl_current_year/df_ti_dept['TAUX_INFL_2015'])-1)*100
 0	PARIS	+20.89	-8.76	-7.67	-1.19
+France app:
+10 ans	5 ans	2 ans	1 an
+	+25.52	+15.57	-1.65	+2.43
+France maison:
+10 ans	5 ans	2 ans	1 an
+0	+25.62	+13.5	-4.53	-0.17
