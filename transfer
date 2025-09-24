@@ -1,3 +1,8 @@
-df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
-		10 ans	5 ans	2 ans	1 an
+    df_ti_dept['TAUX_INFL_2015'] = (df_ti_dept['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
+    ligne_current_year = df_ti_dept[df_ti_dept['Year'].dt.year == current_year]
+    if not ligne_current_year.empty:
+        taux_infl_current_year = ligne_current_year["TAUX_INFL_2015"].iloc[0]
+    else:
+        print(f"Aucune donnée pour {current_year}")
+    df_ti_dept['TAUX_INFL_FINAL'] = ((taux_infl_current_year/df_ti_dept['TAUX_INFL_2015'])-1)*100
 0	PARIS	+20.89	-8.76	-7.67	-1.19
