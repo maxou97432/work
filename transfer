@@ -1,35 +1,41 @@
-df_dept = df_dept.rename(columns={'Numéro': 'num_dpt'})
-df_dept = df_dept.rename(columns={'Département': 'nom_dpt'})
-df_dept = df_dept.rename(columns={'2025 (p)': 'population'})
+####################### FRANCE ############################
 
-#On exclu l'IDF
-liste_depts_idf = ['92', '93', '94', '95', '91', '78', '77','75']
-df_ti_dept['DEPT'] = df_ti_dept['DEPT'].astype(str)
-df_ti_province = df_ti_dept[~df_ti_dept["DEPT"].isin(liste_depts_idf)].copy()
+# Charger les départements
+df_dept = pd.read_excel(r"N:\uflumth\indicateur_marche\V2\données indice de prix\table_rapport (2025)\departements francais.xlsx", header=3)
+df_dept = df_dept.rename(columns={'Numéro': 'num_dpt', 'Département': 'nom_dpt', '2025 (p)': 'population'})
 
+# Uniformiser le numéro de département
+df_dept['num_dpt'] = df_dept['num_dpt'].astype(str).apply(lambda x: '0' + x if len(x) == 1 else x)
 
-df_ti_dept_work['DEPT'] = df_ti_dept_work['DEPT'].astype(str)
-df_dept['num_dpt'] = df_dept['num_dpt'].astype(str)
-df_dept['num_dpt'] = df_dept['num_dpt'].apply(lambda x: '0' + x if len(x) == 1 else x)
+# Fusion avec les données de taux d'inflation
+df_ti_dept_work = pd.merge(df_ti_dept_all, df_dept, left_on='DEPT', right_on='num_dpt', how='inner')
 
-
-
-df_ti_dept_work = pd.merge(df_ti_dept_work, df_dept, left_on='DEPT', right_on='num_dpt', how='inner')
-
+# Calcul de l'année
 df_ti_dept_work['Year'] = df_ti_dept_work['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-df_ti_dept_work['TAUX_INFL'] = df_ti_dept_work['TAUX_INFL'].astype(float)
-df_ti_dept_work['population'] = df_ti_dept_work['population'].astype(float)
-df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work.apply(lambda row: row['TAUX_INFL'] * row['population'], axis=1)
+df_ti_dept_work['TAUX_INFL'] = pd.to_numeric(df_ti_dept_work['TAUX_INFL'], errors='coerce')
+df_ti_dept_work['population'] = pd.to_numeric(df_ti_dept_work['population'], errors='coerce')
 
+# Pondération par population
+df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work['TAUX_INFL'] * df_ti_dept_work['population']
+df_ti_dept_work = df_ti_dept_work.drop_duplicates(subset=["Year","num_dpt"])
+df_ti_dept_work
 
+# Agrégation par année
 df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
 df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_ti_dept_grouped['population']
 df_ti_dept_grouped = df_ti_dept_grouped.drop(columns=['TAUX_INFL_POP'])
 
-new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
-df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
-df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = (100/(1+df_ti_dept_grouped['TAUX_INFL']))
+# Ajouter l'année courante
+if current_year not in df_ti_dept_grouped['Year'].values:
+    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+    df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
 
-taux_infl_2015_2014 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
-df_ti_dept_grouped['TAUX_INFL_BASE_2015'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
+
+df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
+df_ti_dept_grouped = df_ti_dept_grouped.sort_values('Year')
+# Transformation pour base 2015
+df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = 100/(1 + df_ti_dept_grouped['TAUX_INFL'])
+
+# Calcul de la base 2015
+taux_infl_2015_2014 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
+df_ti_dept_grouped['TAUX_INFL_BASE_2015'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO'] / taux_infl_2015_2014) * 100
