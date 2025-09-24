@@ -18,6 +18,7 @@ df_ti_dept_work['population'] = pd.to_numeric(df_ti_dept_work['population'], err
 # Pondération par population
 df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work['TAUX_INFL'] * df_ti_dept_work['population']
 df_ti_dept_work = df_ti_dept_work.drop_duplicates(subset=["Year","num_dpt"])
+df_ti_dept_work
 
 # Agrégation par année
 df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
@@ -28,15 +29,9 @@ df_ti_dept_grouped = df_ti_dept_grouped.drop(columns=['TAUX_INFL_POP'])
 new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
 df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
 
-# S'assurer que Year est bien un entier (année)
-df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'], errors='coerce').dt.year
-
 # Transformation pour base 2015
-df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = 100 / (1 + df_ti_dept_grouped['TAUX_INFL'])
+df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = 100/(1 + df_ti_dept_grouped['TAUX_INFL'])
 
 # Calcul de la base 2015
 taux_infl_2015_2014 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
 df_ti_dept_grouped['TAUX_INFL_BASE_2015'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO'] / taux_infl_2015_2014) * 100
-
-# Vérification
-print(df_ti_dept_grouped[['Year', 'TAUX_INFL', 'TAUX_INFL_BASE_2015']])
