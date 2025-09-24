@@ -1,45 +1,12 @@
-####################### PARIS ############################
 
-current_year = datetime.now().year
-top10_ville_apt ={'PARIS':"APT"}
-
-def moyenne_ponderee(group):
-    taux = pd.to_numeric(group['TAUX_INFL_2014'], errors = 'coerce')
-    poids = pd.to_numeric(group['EFFECTIF_VILLE'], errors = 'coerce')
-    return np.average(taux, weights = poids)
-
-paris =[]
-
-for ville,type_bien in top10_ville_apt.items():
-
-    requete_sql = f"""
-    SELECT DISTINCT *
-    FROM db_ti_ville 
-    WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}' """
-    df_ti_paris= ps.sqldf(requete_sql, locals())
-    # Transformer 'P-1', 'P-2', etc. en années
-    df_ti_paris['Year'] = df_ti_paris['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-    ###
-
-    
-    
-
-    df_ti_paris['Year'] = pd.to_datetime(df_ti_paris['Year'].astype(str), format='%Y')
-
-
-
-    df_ti_paris['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_paris['TAUX_INFL'])
-
-    taux_infl_2014_2013 =df_ti_paris[df_ti_paris['Year'].dt.year.isin([2014, 2013])]['TAUX_INFL_TRANSFO'].mean()
-
-    df_ti_paris['TAUX_INFL_2014'] = (df_ti_paris['TAUX_INFL_TRANSFO']/taux_infl_2014_2013)*100
-    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-    for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
-        if col not in new_data:
-            new_data[col] = None
-    new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
-    df_ti_paris = pd.concat([new_data, df_ti_paris], ignore_index=True)
-    paris.append(df_ti_paris)
-
-df_paris = pd.concat(paris, ignore_index= True)
-df_paris
+Villes	10 ans	5 ans	2 ans	1 an
+0	BORDEAUX	+34.7	-1.73	-7.04	-0.8
+1	LILLE	+27.63	+9.99	-4.96	+0.96
+2	MARSEILLE	+31.73	+25.76	+1.85	+5.04
+3	LYON	+34.87	-4.45	-10.3	-1.53
+4	NICE	+36.77	+21.9	+3.11	+2.98
+5	RENNES	+45.9	+16.72	-3.39	+1.76
+6	NANTES	+31.83	+3.77	-6.97	+1.92
+7	STRASBOURG	+25.05	+4.57	-10.52	-3.87
+8	TOULOUSE	+25.18	+9.53	+2.41	+4.99
+9	MONTPELLIER	+17.82	+12.89	-2.44	+0.98
