@@ -1,50 +1,34 @@
-{
-	"name": "ValueError",
-	"message": "No objects to concatenate",
-	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-Cell In[145], line 67
-     65     plt.show()
-     66 tracer_villes(top, \"Evolution de l'indice de prix - base 100 en 2015\", conn)
----> 67 tracer_villes(bottom, \"Evolution de l'indice de prix - base 100 en 2015\", conn)
+df_dept = df_dept.rename(columns={'Numéro': 'num_dpt'})
+df_dept = df_dept.rename(columns={'Département': 'nom_dpt'})
+df_dept = df_dept.rename(columns={'2025 (p)': 'population'})
 
-Cell In[145], line 53, in tracer_villes(villes_dict, titre, conn)
-     49     df_ti_ville['VILLE'] = ville
-     51     toutes_villes.append(df_ti_ville)
----> 53 df_villes = pd.concat(toutes_villes, ignore_index=True)
-     55 # Tracer
-     56 plt.figure(figsize=(12, 7))
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\concat.py:382, in concat(objs, axis, join, ignore_index, keys, levels, names, verify_integrity, sort, copy)
-    379 elif copy and using_copy_on_write():
-    380     copy = False
---> 382 op = _Concatenator(
-    383     objs,
-    384     axis=axis,
-    385     ignore_index=ignore_index,
-    386     join=join,
-    387     keys=keys,
-    388     levels=levels,
-    389     names=names,
-    390     verify_integrity=verify_integrity,
-    391     copy=copy,
-    392     sort=sort,
-    393 )
-    395 return op.get_result()
+df_dept['num_dpt'] = df_dept['num_dpt'].astype(str)
+df_dept['num_dpt'] = df_dept['num_dpt'].apply(lambda x: '0' + x if len(x) == 1 else x)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\concat.py:445, in _Concatenator.__init__(self, objs, axis, join, keys, levels, names, ignore_index, verify_integrity, copy, sort)
-    442 self.verify_integrity = verify_integrity
-    443 self.copy = copy
---> 445 objs, keys = self._clean_keys_and_objs(objs, keys)
-    447 # figure out what our result ndim is going to be
-    448 ndims = self._get_ndims(objs)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\concat.py:507, in _Concatenator._clean_keys_and_objs(self, objs, keys)
-    504     objs_list = list(objs)
-    506 if len(objs_list) == 0:
---> 507     raise ValueError(\"No objects to concatenate\")
-    509 if keys is None:
-    510     objs_list = list(com.not_none(*objs_list))
 
-ValueError: No objects to concatenate"
-}
+df_ti_dept_work = pd.merge(df_ti_dept_all, df_dept, left_on='DEPT', right_on='num_dpt', how='inner')
+
+df_ti_dept_work['Year'] = df_ti_dept_work['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+df_ti_dept_work['TAUX_INFL'] = df_ti_dept_work['TAUX_INFL'].astype(float)
+df_ti_dept_work['population'] = df_ti_dept_work['population'].astype(float)
+df_ti_dept_work['TAUX_INFL_POP'] = df_ti_dept_work.apply(lambda row: row['TAUX_INFL'] * row['population'], axis=1)
+df_ti_dept_work = df_ti_dept_work.drop_duplicates(subset=["Year","num_dpt"])
+
+df_ti_dept_grouped = df_ti_dept_work.groupby('Year').agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'}).reset_index()
+df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_dept.iloc[102,2]
+df_ti_dept_grouped = df_ti_dept_grouped.drop(columns=['TAUX_INFL_POP'])
+
+new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
+    if col not in new_data:
+        new_data[col] = None
+
+df_ti_dept_grouped = pd.concat([new_data, df_ti_dept_grouped], ignore_index=True)
+
+df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
+df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = (100/(1+df_ti_dept_grouped['TAUX_INFL']))
+
+taux_infl_2015_2014 = df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
+df_ti_dept_grouped['TAUX_INFL_BASE_2015'] = (df_ti_dept_grouped['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
