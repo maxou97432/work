@@ -1,65 +1,57 @@
-# Transformer 'P-1', 'P-2', etc. en années
-df_ti_dept['Year'] = df_ti_dept['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
-df_ti_dept['TAUX_INFL'] = pd.to_numeric(df_ti_dept['TAUX_INFL'], errors='coerce')
-df_ti_dept['population'] = pd.to_numeric(df_ti_dept['population'], errors='coerce')
+####################### TOP 10 VILLE PROVINCE ############################
 
-# Pondération par population
-df_ti_dept['TAUX_INFL_POP'] = df_ti_dept['TAUX_INFL'] * df_ti_dept['population']
-df_ti_dept_grouped = (
-    df_ti_dept.groupby('Year')
-    .agg({'TAUX_INFL_POP': 'sum', 'population': 'sum'})
-    .reset_index()
-)
-df_ti_dept_grouped['TAUX_INFL'] = df_ti_dept_grouped['TAUX_INFL_POP'] / df_ti_dept_grouped['population']
-df_ti_dept_grouped = df_ti_dept_grouped.drop(columns=['TAUX_INFL_POP'])
+current_year = datetime.now().year
+top10_ville_apt ={'BORDEAUX':"APT", 'LILLE':"APT", 'MARSEILLE':"APT", 'LYON':"APT",'NICE':"APT",
+                  'RENNES':"APT",'NANTES':"APT",'STRASBOURG':"APT", 'TOULOUSE':"APT",'MONTPELLIER':"APT"}
 
-# Conversion Year en datetime
-df_ti_dept_grouped['Year'] = pd.to_datetime(df_ti_dept_grouped['Year'].astype(str), format='%Y')
+top10_list = list(top10_ville_apt.items())
+top = dict(top10_list[5:])
+bottom = dict(top10_list[-5:0])
 
-# Ajouter l'année courante si elle n'existe pas
-if current_year not in df_ti_dept_grouped['Year'].dt.year.values:
-    new_data = pd.DataFrame([{'Year': pd.to_datetime(str(current_year)), 'TAUX_INFL': 0, 'population': 0}])
-    df_ti_dept_grouped = pd.concat([df_ti_dept_grouped, new_data], ignore_index=True)
+def tracer_villes(villes_dict, titre):
 
-# Transformation
-df_ti_dept_grouped['TAUX_INFL_TRANSFO'] = 100 / (1 + df_ti_dept_grouped['TAUX_INFL'])
+    top10 = []
+    for ville,type_bien in top10_ville_apt.items():
 
-# Calcul sur 2014-2015
-taux_infl_2015_2014 = (
-    df_ti_dept_grouped[df_ti_dept_grouped['Year'].dt.year.isin([2015, 2014])]
-    ['TAUX_INFL_TRANSFO']
-    .mean()
-)
+        requete_sql = f"""
+        SELECT DISTINCT *
+        FROM db_ti_ville 
+        WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}' """
 
-df_ti_dept_grouped['TAUX_INFL_2015'] = (
-    df_ti_dept_grouped['TAUX_INFL_TRANSFO'] / taux_infl_2015_2014
-) * 100
+        df_ti_ville= ps.sqldf(requete_sql, locals())
+        # Transformer 'P-1', 'P-2', etc. en années
+        df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+        ###
+        new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+        for col in {"TAUX_INFL","PERIODE","VILLE","CD_TYPE_BIEN"}:
+            if col not in new_data:
+                new_data[col] = None
+    
+        df_ti_ville = pd.concat([new_data, df_ti_ville], ignore_index=True)
 
-# Charger fichier externe (INSEE)
-df = pd.read_csv(
-    rf'N:\uflumth\indicateur_marche\V2\données indice de prix\table_rapport (2025)\valeurs_trimestrielles_{nom_region}_APT.csv',
-    sep=';'
-)
-df = df[4:]  # supprimer lignes inutiles
-df = df.rename(columns={df.columns[1]: 'taux_infl'})
-df['taux_infl'] = df['taux_infl'].astype(float)
-df['Year'] = df['Libellé'].apply(lambda x: int(x.split('-')[0]))
-df['Quarter'] = df['Libellé'].apply(lambda x: int(x.split('T')[-1]))
+        df_ti_ville['Year'] = pd.to_datetime(df_ti_ville['Year'].astype(str), format='%Y')
 
-df['Month'] = df['Quarter'] * 3
-df['Période'] = pd.to_datetime(df[['Year', 'Month']].assign(DAY=1))
 
-# Moyennes glissantes
-df['Moyenne Glissante'] = df['taux_infl'].rolling(window=4, min_periods=1).mean()
-df_ti_dept_grouped = df_ti_dept_grouped.sort_values('Year')  # sécurité avant rolling
-df_ti_dept_grouped['Moyenneglissante'] = df_ti_dept_grouped['TAUX_INFL_2015'].rolling(window=2, min_periods=1).mean()
+        df_ti_ville['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_ville['TAUX_INFL'])
 
-# Tracé
-plt.figure(figsize=(10, 6))
-plt.plot(df['Période'], df['Moyenne Glissante'], label="Moyenne Glissante par trimestre de l'INSEE")
-plt.plot(df_ti_dept_grouped['Year'], df_ti_dept_grouped['Moyenneglissante'], label='Indice de prix par année de CL')
-plt.title(f"Graphique de l'évolution de l'indice de prix: {nom_region}")
-plt.xlabel('Année')
-plt.ylabel('Valeur')
-plt.legend()
-plt.show()
+        taux_infl_2015_2014 =df_ti_ville[df_ti_ville['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
+
+        df_ti_ville['TAUX_INFL_2015'] = (df_ti_ville['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
+
+        df_ti_ville['Moyenne Glissante'] = df_ti_ville["TAUX_INFL_2015"].rolling(window=1, min_periods=1).mean()
+        df_ti_ville = df_ti_ville.sort_values(by='Year').reset_index()
+        df_ti_ville['VILLE'] = ville
+        start_year = df_ti_ville['Year'].min().year 
+        end_year =  df_ti_ville['Year'].max().year
+        top10.append(df_ti_ville)
+
+    df_top10 = pd.concat(top10, ignore_index = True)
+    
+    plt.figure(figsize=(12, 7))
+    for ville in df_top10['VILLE'].unique():
+        subset = df_top10[df_top10["VILLE"] == ville].sort_values('Year')
+        plt.plot(subset['Year'],subset["Moyenne Glissante"],label = ville)
+        plt.xlim(pd.to_datetime(start_year, format='%Y'), pd.to_datetime(end_year, format='%Y'))
+
+tracer_villes(top, "Evolution de l'indice de prix _ base 100 en 2015")
+tracer_villes(bottom, "Evolution de l'indice de prix _ base 100 en 2015")
