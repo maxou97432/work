@@ -1,73 +1,50 @@
 {
-	"name": "DatabaseError",
-	"message": "Execution failed on sql '
-            SELECT DISTINCT *
-            FROM db_ti_ville 
-            WHERE VILLE = 'BORDEAUX' AND CD_TYP_BIEN = 'APT'
-        ': ('42S02', \"[42S02] [Microsoft][ODBC SQL Server Driver][SQL Server]Nom d'objet 'db_ti_ville' non valide. (208) (SQLExecDirectW)\")",
+	"name": "ValueError",
+	"message": "No objects to concatenate",
 	"stack": "---------------------------------------------------------------------------
-ProgrammingError                          Traceback (most recent call last)
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2664, in SQLiteDatabase.execute(self, sql, params)
-   2663 try:
--> 2664     cur.execute(sql, *args)
-   2665     return cur
+ValueError                                Traceback (most recent call last)
+Cell In[145], line 67
+     65     plt.show()
+     66 tracer_villes(top, \"Evolution de l'indice de prix - base 100 en 2015\", conn)
+---> 67 tracer_villes(bottom, \"Evolution de l'indice de prix - base 100 en 2015\", conn)
 
-ProgrammingError: ('42S02', \"[42S02] [Microsoft][ODBC SQL Server Driver][SQL Server]Nom d'objet 'db_ti_ville' non valide. (208) (SQLExecDirectW)\")
+Cell In[145], line 53, in tracer_villes(villes_dict, titre, conn)
+     49     df_ti_ville['VILLE'] = ville
+     51     toutes_villes.append(df_ti_ville)
+---> 53 df_villes = pd.concat(toutes_villes, ignore_index=True)
+     55 # Tracer
+     56 plt.figure(figsize=(12, 7))
 
-The above exception was the direct cause of the following exception:
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\concat.py:382, in concat(objs, axis, join, ignore_index, keys, levels, names, verify_integrity, sort, copy)
+    379 elif copy and using_copy_on_write():
+    380     copy = False
+--> 382 op = _Concatenator(
+    383     objs,
+    384     axis=axis,
+    385     ignore_index=ignore_index,
+    386     join=join,
+    387     keys=keys,
+    388     levels=levels,
+    389     names=names,
+    390     verify_integrity=verify_integrity,
+    391     copy=copy,
+    392     sort=sort,
+    393 )
+    395 return op.get_result()
 
-DatabaseError                             Traceback (most recent call last)
-Cell In[144], line 65
-     63     plt.legend()
-     64     plt.show()
----> 65 tracer_villes(top, \"Evolution de l'indice de prix - base 100 en 2015\", conn)
-     66 tracer_villes(bottom, \"Evolution de l'indice de prix - base 100 en 2015\", conn)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\concat.py:445, in _Concatenator.__init__(self, objs, axis, join, keys, levels, names, ignore_index, verify_integrity, copy, sort)
+    442 self.verify_integrity = verify_integrity
+    443 self.copy = copy
+--> 445 objs, keys = self._clean_keys_and_objs(objs, keys)
+    447 # figure out what our result ndim is going to be
+    448 ndims = self._get_ndims(objs)
 
-Cell In[144], line 23, in tracer_villes(villes_dict, titre, conn)
-     17 for ville, type_bien in villes_dict.items():
-     18     requete_sql = f\"\"\"
-     19         SELECT DISTINCT *
-     20         FROM db_ti_ville 
-     21         WHERE VILLE = '{ville}' AND CD_TYP_BIEN = '{type_bien}'
-     22     \"\"\"
----> 23     df_ti_ville = pd.read_sql(requete_sql, conn)
-     25     # Transformer 'P-1', 'P-2', etc. en années
-     26     df_ti_ville['Year'] = df_ti_ville['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\concat.py:507, in _Concatenator._clean_keys_and_objs(self, objs, keys)
+    504     objs_list = list(objs)
+    506 if len(objs_list) == 0:
+--> 507     raise ValueError(\"No objects to concatenate\")
+    509 if keys is None:
+    510     objs_list = list(com.not_none(*objs_list))
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:708, in read_sql(sql, con, index_col, coerce_float, params, parse_dates, columns, chunksize, dtype_backend, dtype)
-    706 with pandasSQL_builder(con) as pandas_sql:
-    707     if isinstance(pandas_sql, SQLiteDatabase):
---> 708         return pandas_sql.read_query(
-    709             sql,
-    710             index_col=index_col,
-    711             params=params,
-    712             coerce_float=coerce_float,
-    713             parse_dates=parse_dates,
-    714             chunksize=chunksize,
-    715             dtype_backend=dtype_backend,
-    716             dtype=dtype,
-    717         )
-    719     try:
-    720         _is_table_name = pandas_sql.has_table(sql)
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2728, in SQLiteDatabase.read_query(self, sql, index_col, coerce_float, parse_dates, params, chunksize, dtype, dtype_backend)
-   2717 def read_query(
-   2718     self,
-   2719     sql,
-   (...)   2726     dtype_backend: DtypeBackend | Literal[\"numpy\"] = \"numpy\",
-   2727 ) -> DataFrame | Iterator[DataFrame]:
--> 2728     cursor = self.execute(sql, params)
-   2729     columns = [col_desc[0] for col_desc in cursor.description]
-   2731     if chunksize is not None:
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\io\\sql.py:2676, in SQLiteDatabase.execute(self, sql, params)
-   2673     raise ex from inner_exc
-   2675 ex = DatabaseError(f\"Execution failed on sql '{sql}': {exc}\")
--> 2676 raise ex from exc
-
-DatabaseError: Execution failed on sql '
-            SELECT DISTINCT *
-            FROM db_ti_ville 
-            WHERE VILLE = 'BORDEAUX' AND CD_TYP_BIEN = 'APT'
-        ': ('42S02', \"[42S02] [Microsoft][ODBC SQL Server Driver][SQL Server]Nom d'objet 'db_ti_ville' non valide. (208) (SQLExecDirectW)\")"
+ValueError: No objects to concatenate"
 }
