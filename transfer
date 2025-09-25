@@ -1,60 +1,11 @@
-Cette note a pour objectif de visualiser l’´evolution des indices de prix de l’immobilier et de comparer les chiffres
-de Cr´edit Logement aux chiffres officiels de l’INSEE.
-D’une part, nous pouvons noter que les chiffres de l’INSEE sont calcul´es par trimestre alors que les chiffres
-de Cr´edit Logement sont calcul´es par ann´ee.
-D’autre part, les chiffres de Cr´edit Logement sont calcul´es en r´ef´erence `a la p´eriode : juillet de l’ann´ee actuellejuillet de l’ann´ee pr´ec´edente. Cette r´ef´erence rend la comparaison aux chiffres officiels complexe.
-La granularit´e diff`ere entre les chiffres de Cr´edit Logement et de l’INSEE. Voici un tableau r´ecapitulatif des
-diff´erents p´erim`etres disponibles :
-INSEE CL
-France m´etropolitaine ✓ ×
-R´egions ✓ ×
-D´epartements uniquement ceux
-d’Ile-de-France > 50 transactions
-Agglom´eration (Lyon, Marseille,
-Lille) ✓ ×
-Communes Paris > 30 transactions
-Iris × > 10 transactions
-Distinction entre immobilier
-neuf et ancien ✓ ×
-Distinction entre appartement
-et maison ✓ ✓
-2 Evolution de l’indice des prix de l’immobilier `a l’´echelle nationale
+credit logement: 
+Région	10 ans	8 ans	5 ans	1 an
+0	Nord-Pas-de-Calais	+4.34	+2.64	+0.23	+3.46
+1	Provence-Alpes-Côte-d'Azur	+15.61	+13.68	+8.20	+1.87
+2	Rhône-Alpes	+13.44	+10.00	+3.35	+0.81
 
-Les deux courbes correspondent `a la moyenne simple des indices des prix des sept d´epartements d’Ile-de-France
-(hors Paris).
-Figure 1: Evolution de l’indice des prix en ´ ˆIle-de-France (hors Paris).
-2.2 Province
-L’INSEE calcule l’indice des prix de l’immobilier en province. Afin de comparer nos chiffres `a grande ´echelle,
-nous allons effectuer une moyenne des indices de prix des d´epartements de province pond´er´ee par la population.
-Nous remarquons, malgr´e cette approximation, que les deux courbes suivent la mˆeme tendance.
-
-3 Evolution de l’indice des prix de l’immobilier `a l’´echelle des r´egions ´
-L’INSEE calcule l’indice des prix `a l’´echelle r´egionale tandis que Cr´edit Logement calcule l’indice des prix `a
-l’´echelle d´epartementale. Afin de comparer les chiffres de Cr´edit Logement et de l’INSEE, nous allons effectuer,
-pour chaque r´egion, une moyenne pond´er´ee par la population des indices des prix immobiliers par d´epartement.
-Nous allons comparer les chiffres de Cr´edit Logement et de l’INSEE pour trois r´egions : Nord-Pas-de-Calais,
-Rhˆone-Alpes et Provence-Alpes-Cˆote d’Azur.
-3.1 Tableau r´ecapitulatif
-3.2 Graphique
-
-4 Evolution de l’indice des prix de l’immobilier `a l’´echelle des villes ´
-L’INSEE calcule l’indice des prix uniquement `a l’´echelle d’agglom´erations (Marseille, Lyon, Lille) et d’une
-commune (Paris). Cr´edit Logement calcule l’indice des prix pour 1983 villes de France. Nous allons comparer
-les chiffres de Cr´edit Logement et de l’INSEE pour les quatre plus grandes villes de France. Dans cette partie,
-nous confondrons ville et agglom´eration.
-4.1 Tableau r´ecapitulatif
-10 ans 8 ans 5 ans 1 an
-Paris +28.62 +33.35 +16.04 -1.28
-Lyon +30.09 +53.18 +28.76 +1.61
-Marseille +22.00 +35.11 +36.00 +13.7
-Lille +23.25 +34.38 +23.59 +4.35
-Table 5: Evolution de l’indice des prix selon CL ´
-10 ans 8 ans 5 ans 1 an Donn´ees
-Paris +24.38 +30.25 +13.38 -2.04 ici
-Lyon +51.57 +50.05 +29.64 -1.9 ici
-Marseille +25.34 +38.80 +32.23 + 6.53 ici
-Lille +25.34 +38.80 +32.23 + 6.53 ici
-Table 6: Evolution de l’indice des prix selon INSEE ´
-4.2 Graphiques
-Nous remarquons que les courbes de Cr´edit Logement et de l’INSEE suivent la mˆeme tendance. N´eanmoins,
-les extr´emit´es des courbes semblent s’´eloigner l’une de l’autre.
+insee
+Région	10 ans	8 ans	5 ans	1 an
+0	NORD-PAS-DE-CALAIS	+31.63	+30.97	+18.0	+4.21
+1	PACA	+27.64	+27.13	+18.25	+1.84
+2	RHONE-ALPES	+31.02	+28.95	+11.83	+0.08
