@@ -1,13 +1,7 @@
-credit logement: 
-Villes	10 ans	8 ans	5 ans	1 an
-0	PARIS	+20.89	+11.96	-8.76	-1.19
-1	LILLE	+27.63	+24.48	+9.99	+0.96
-2	MARSEILLE	+31.73	+32.88	+25.76	+5.04
-3	LYON	+34.87	+23.88	-4.45	-1.53
+df_3m = df_3m.rename(columns={'MEAN': 'mean_3m', 'NB_BIENS': 'nb_bien_3m'})
+df_6m = df_6m.rename(columns={'MEAN': 'mean_6m_3m', 'NB_BIENS': 'nb_bien_6m'})
+df_merged = pd.merge(df_3m, df_6m, on=['nom_département', 'CD_TYP_BIEN'], how='inner')
 
-insee
-Ville	10 ans	8 ans	5 ans	1 an
-0	Paris	+20.2	+12.41	-9.12	+0.17
-1	Marseille	+32.73	+30.09	+17.28	+1.47
-2	Lyon	+32.1	+25.79	-5.25	-2.3
-3	Lille	+23.7	+21.16	+8.32	+1.64
+
+df_merged['mean_6_m'] = (df_merged['mean_6m_3m'] * (df_merged['nb_bien_3m'] + df_merged['nb_bien_6m']) - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / df_merged['nb_bien_6m']
+df_6m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_6m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_6m'))]
