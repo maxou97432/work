@@ -1,18 +1,50 @@
 {
-	"name": "TypeError",
-	"message": "StringMethods.split() takes from 1 to 2 positional arguments but 3 positional arguments (and 1 keyword-only argument) were given",
+	"name": "KeyError",
+	"message": "'Département'",
 	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-Cell In[71], line 1
-----> 1 df_MA[['Numero', 'Nom']] = df_MA['Département'].str.split(' - ', 1, expand=True)
+KeyError                                  Traceback (most recent call last)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
+   3811 try:
+-> 3812     return self._engine.get_loc(casted_key)
+   3813 except KeyError as err:
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\strings\\accessor.py:140, in forbid_nonstring_types.<locals>._forbid_nonstring_types.<locals>.wrapper(self, *args, **kwargs)
-    135     msg = (
-    136         f\"Cannot use .str.{func_name} with values of \"
-    137         f\"inferred dtype '{self._inferred_dtype}'.\"
-    138     )
-    139     raise TypeError(msg)
---> 140 return func(self, *args, **kwargs)
+File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
 
-TypeError: StringMethods.split() takes from 1 to 2 positional arguments but 3 positional arguments (and 1 keyword-only argument) were given"
+File pandas/_libs/index.pyx:196, in pandas._libs.index.IndexEngine.get_loc()
+
+File pandas/_libs/hashtable_class_helper.pxi:7088, in pandas._libs.hashtable.PyObjectHashTable.get_item()
+
+File pandas/_libs/hashtable_class_helper.pxi:7096, in pandas._libs.hashtable.PyObjectHashTable.get_item()
+
+KeyError: 'Département'
+
+The above exception was the direct cause of the following exception:
+
+KeyError                                  Traceback (most recent call last)
+Cell In[75], line 1
+----> 1 df_MA[['Numero', 'Nom']] = df_MA['Département'].str.split(' - ', n = 1, expand=True)
+      2 df_MA.drop(columns=['Département', 'Loyer m2 moyen', 'Loyer m2 moyen.1'], inplace=True)
+      3 df_MA = df_MA[df_MA['Numero'].isin(departments_to_keep)]
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:4107, in DataFrame.__getitem__(self, key)
+   4105 if self.columns.nlevels > 1:
+   4106     return self._getitem_multilevel(key)
+-> 4107 indexer = self.columns.get_loc(key)
+   4108 if is_integer(indexer):
+   4109     indexer = [indexer]
+
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
+   3814     if isinstance(casted_key, slice) or (
+   3815         isinstance(casted_key, abc.Iterable)
+   3816         and any(isinstance(x, slice) for x in casted_key)
+   3817     ):
+   3818         raise InvalidIndexError(key)
+-> 3819     raise KeyError(key) from err
+   3820 except TypeError:
+   3821     # If we have a listlike key, _check_indexing_error will raise
+   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
+   3823     #  the TypeError.
+   3824     self._check_indexing_error(key)
+
+KeyError: 'Département'"
 }
