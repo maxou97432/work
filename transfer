@@ -1,6 +1,6 @@
 {
 	"name": "KeyError",
-	"message": "'Département'",
+	"message": "'mean_6_m'",
 	"stack": "---------------------------------------------------------------------------
 KeyError                                  Traceback (most recent call last)
 File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
@@ -16,15 +16,19 @@ File pandas/_libs/hashtable_class_helper.pxi:7088, in pandas._libs.hashtable.PyO
 
 File pandas/_libs/hashtable_class_helper.pxi:7096, in pandas._libs.hashtable.PyObjectHashTable.get_item()
 
-KeyError: 'Département'
+KeyError: 'mean_6_m'
 
 The above exception was the direct cause of the following exception:
 
 KeyError                                  Traceback (most recent call last)
-Cell In[75], line 1
-----> 1 df_MA[['Numero', 'Nom']] = df_MA['Département'].str.split(' - ', n = 1, expand=True)
-      2 df_MA.drop(columns=['Département', 'Loyer m2 moyen', 'Loyer m2 moyen.1'], inplace=True)
-      3 df_MA = df_MA[df_MA['Numero'].isin(departments_to_keep)]
+Cell In[90], line 22
+     16 df_6m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_6m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_6m'))]
+     17 df_prix_m2_dept= pd.merge(df_prix_m2_dept, df_6m_merged[['nom_département', 'CD_TYP_BIEN', 'mean_6_m']], on=['nom_département', 'CD_TYP_BIEN'], how='left')
+---> 22 df_prix_m2_dept['mean_6_m'] = df_prix_m2_dept['mean_6_m'].where(df_prix_m2_dept['DIC_NAME'].str.endswith('6m'), np.nan)
+     23 df_6m = df[(df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL') | 
+     24             (df['DIC_NAME'] == '__pm2_cty_comp_6m') & (df['CD_TYP_BIEN'] == 'ALL')]
+     25 df_12m = df[((df['DIC_NAME'] == '__pm2_cty_12m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
+     26             ((df['DIC_NAME'] == '__pm2_cty_comp_12m') & (df['CD_TYP_BIEN'] == 'ALL'))]
 
 File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:4107, in DataFrame.__getitem__(self, key)
    4105 if self.columns.nlevels > 1:
@@ -46,5 +50,5 @@ File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexe
    3823     #  the TypeError.
    3824     self._check_indexing_error(key)
 
-KeyError: 'Département'"
+KeyError: 'mean_6_m'"
 }
