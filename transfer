@@ -1,4 +1,18 @@
-if (df_merged['nb_bien_6m'] - df_merged['nb_bien_3m']) == 0:
-    df_merged['mean_6m_3m'] = (df_merged['mean_6m'] *  df_merged['nb_bien_6m'] - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / df_merged['nb_bien_6m'] 
-else : 
-    df_merged['mean_6m_3m'] = (df_merged['mean_6m'] *  df_merged['nb_bien_6m'] - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / (df_merged['nb_bien_6m'] - df_merged['nb_bien_3m'])
+{
+	"name": "TypeError",
+	"message": "_LocationIndexer.__call__() takes from 1 to 2 positional arguments but 3 were given",
+	"stack": "---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+Cell In[118], line 25
+     20 df_merged = pd.merge(df_3m, df_6m, on=['Département', 'CD_TYP_BIEN'], how='inner')
+     22 mask = (df_merged['nb_bien_6m'] - df_merged['nb_bien_3m']) == 0
+     24 df_merged.loc[mask,'mean_6m_3m'] = (
+---> 25     (df_merged.loc(mask,'mean_6m') * df_merged.loc[mask,'nb_bien_6m'] - df_merged.loc(mask,'mean_3m') * df_merged.loc[mask,'nb_bien_3m'])
+     26 )
+     28 df_merged.loc[~mask,'mean_6m_3m'] = (
+     29     (df_merged.loc(~mask,'mean_6m') * df_merged.loc[~mask,'nb_bien_6m'] - df_merged.loc(~mask,'mean_3m') * df_merged.loc[~mask,'nb_bien_3m'])/ (df_merged[~mask,'nb_bien_6m'] - df_merged[~mask,'nb_bien_3m'])
+     30 )
+     33 df_merged
+
+TypeError: _LocationIndexer.__call__() takes from 1 to 2 positional arguments but 3 were given"
+}
