@@ -1,10 +1,34 @@
-df_merged.loc[mask, 'mean_6m_3m'] = (
-    (df_merged.loc[mask, 'mean_6m'] * df_merged.loc[mask, 'nb_bien_6m']) -
-    (df_merged.loc[mask, 'mean_3m'] * df_merged.loc[mask, 'nb_bien_3m'])
-)
+df_3m = df[(df['DIC_NAME'] == '__pm2_cty_3m') & (df['CD_TYP_BIEN'] != 'ALL') | 
+            (df['DIC_NAME'] == '__pm2_cty_comp_3m') & (df['CD_TYP_BIEN'] == 'ALL')]
+df_6m = df[((df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
+            ((df['DIC_NAME'] == '__pm2_cty_comp_6m') & (df['CD_TYP_BIEN'] == 'ALL'))]
 
-df_merged.loc[~mask, 'mean_6m_3m'] = (
-    ((df_merged.loc[~mask, 'mean_6m'] * df_merged.loc[~mask, 'nb_bien_6m']) -
-    (df_merged.loc[~mask, 'mean_3m'] * df_merged.loc[~mask, 'nb_bien_3m'])) /
-    (df_merged.loc[~mask, 'nb_bien_6m'] - df_merged.loc[~mask, 'nb_bien_3m'])
-)
+
+df_3m = df_3m.rename(columns={'MEAN': 'mean_3m', 'NB_BIENS': 'nb_bien_3m'})
+df_6m = df_6m.rename(columns={'MEAN': 'mean_6m_3m', 'NB_BIENS': 'nb_bien_6m'})
+df_merged = pd.merge(df_3m, df_6m, on=['nom_département', 'CD_TYP_BIEN'], how='inner')
+
+
+df_merged['mean_6_m'] = (df_merged['mean_6m_3m'] * (df_merged['nb_bien_3m'] + df_merged['nb_bien_6m']) - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / df_merged['nb_bien_6m']
+df_6m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_6m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_6m'))]
+df_prix_m2_dept= pd.merge(df_prix_m2_dept, df_6m_merged[['nom_département', 'CD_TYP_BIEN', 'mean_6_m']], on=['nom_département', 'CD_TYP_BIEN'], how='left')
+
+
+
+
+df_prix_m2_dept['mean_6_m'] = df_prix_m2_dept['mean_6_m'].where(df_prix_m2_dept['DIC_NAME'].str.endswith('6m'), np.nan)
+df_6m = df[(df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL') | 
+            (df['DIC_NAME'] == '__pm2_cty_comp_6m') & (df['CD_TYP_BIEN'] == 'ALL')]
+df_12m = df[((df['DIC_NAME'] == '__pm2_cty_12m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
+            ((df['DIC_NAME'] == '__pm2_cty_comp_12m') & (df['CD_TYP_BIEN'] == 'ALL'))]
+df_6m = df_6m.rename(columns={'MEAN': 'mean_6m', 'NB_BIENS': 'nb_bien_6m'})
+df_12m = df_12m.rename(columns={'MEAN': 'mean_12m_6m', 'NB_BIENS': 'nb_bien_12m'})
+df_merged = pd.merge(df_6m, df_12m, on=['nom_département', 'CD_TYP_BIEN'], how='inner')
+df_merged['mean_12_m'] = (df_merged['mean_12m_6m'] * (df_merged['nb_bien_6m'] + df_merged['nb_bien_12m']) - df_merged['nb_bien_6m'] * df_merged['mean_6m']) / df_merged['nb_bien_12m']
+df_12m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_12m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_12m'))]
+df_prix_m2_dept = pd.merge(df_prix_m2_dept, df_12m_merged[['nom_département', 'CD_TYP_BIEN', 'mean_12_m']], on=['nom_département', 'CD_TYP_BIEN'], how='left')
+df_prix_m2_dept['mean_12_m'] = df_prix_m2_dept['mean_12_m'].where(df_prix_m2_dept['DIC_NAME'].str.endswith('12m'), np.nan)
+
+table = df_prix_m2_dept[['nom_département', 'CD_TYP_BIEN', 'mean_6_m', 'mean_12_m', 'DIC_NAME', 'MEAN', 'NB_BIENS', 'VAL_MAILLE_GEO', 'STD']]
+list_tables.append(table)
+table_final = pd.concat(list_tables, ignore_index=True)
