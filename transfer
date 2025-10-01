@@ -1,50 +1,12 @@
 {
-	"name": "KeyError",
-	"message": "'Départements'",
+	"name": "TypeError",
+	"message": "'function' object is not subscriptable",
 	"stack": "---------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-Cell In[155], line 4
-      2 df_MA_dep = df_MA_dep.drop(df_MA_dep.index[0])
-      3 df_MA_dep.drop(columns = ['Loyer m2 moyen (maisons)','Loyer m2 moyen (appartements)'], errors='inplace')
-----> 4 df_MA_dep[[\"Prix m2 moyen (maisons)\", \"Prix m2 moyen (appartements)\"]].groupby('Départements')
+TypeError                                 Traceback (most recent call last)
+Cell In[166], line 5
+      3 df_MA_dep = df_MA_dep.drop(columns = ['Loyer m2 moyen (maisons)','Loyer m2 moyen (appartements)'], errors='inplace')
+      4 print(df_MA_dep)
+----> 5 df_MA_dep = pd.to_numeric[df_MA_dep[[\"Prix m2 moyen (maisons)\",\"Prix m2 moyen (appartements)\"]]]
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:9190, in DataFrame.groupby(self, by, axis, level, as_index, sort, group_keys, observed, dropna)
-   9187 if level is None and by is None:
-   9188     raise TypeError(\"You have to supply one of 'by' and 'level'\")
--> 9190 return DataFrameGroupBy(
-   9191     obj=self,
-   9192     keys=by,
-   9193     axis=axis,
-   9194     level=level,
-   9195     as_index=as_index,
-   9196     sort=sort,
-   9197     group_keys=group_keys,
-   9198     observed=observed,
-   9199     dropna=dropna,
-   9200 )
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\groupby\\groupby.py:1330, in GroupBy.__init__(self, obj, keys, axis, level, grouper, exclusions, selection, as_index, sort, group_keys, observed, dropna)
-   1327 self.dropna = dropna
-   1329 if grouper is None:
--> 1330     grouper, exclusions, obj = get_grouper(
-   1331         obj,
-   1332         keys,
-   1333         axis=axis,
-   1334         level=level,
-   1335         sort=sort,
-   1336         observed=False if observed is lib.no_default else observed,
-   1337         dropna=self.dropna,
-   1338     )
-   1340 if observed is lib.no_default:
-   1341     if any(ping._passed_categorical for ping in grouper.groupings):
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\groupby\\grouper.py:1043, in get_grouper(obj, key, axis, level, sort, observed, validate, dropna)
-   1041         in_axis, level, gpr = False, gpr, None
-   1042     else:
--> 1043         raise KeyError(gpr)
-   1044 elif isinstance(gpr, Grouper) and gpr.key is not None:
-   1045     # Add key to exclusions
-   1046     exclusions.add(gpr.key)
-
-KeyError: 'Départements'"
+TypeError: 'function' object is not subscriptable"
 }
