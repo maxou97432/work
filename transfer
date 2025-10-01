@@ -1,19 +1,16 @@
-df_prix_m2_dept = ps.sqldf(requete_sql, locals())
 
-df_prix_m2_dept= df_prix_m2_dept.rename(columns={' nom_département' : 'nom_département'})
-df = df_prix_m2_dept
+df = df_prix_m2
+
 
 df_3m = df[(df['DIC_NAME'] == '__pm2_cty_3m') & (df['CD_TYP_BIEN'] != 'ALL') | 
             (df['DIC_NAME'] == '__pm2_cty_comp_3m') & (df['CD_TYP_BIEN'] == 'ALL')]
-df_6m_3m = df[((df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
+df_6m = df[((df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
             ((df['DIC_NAME'] == '__pm2_cty_comp_6m') & (df['CD_TYP_BIEN'] == 'ALL'))]
 
 
+
 df_3m = df_3m.rename(columns={'MEAN': 'mean_3m', 'NB_BIENS': 'nb_bien_3m'})
-df_6m_3m = df_6m_3m.rename(columns={'MEAN': 'mean_6m', 'NB_BIENS': 'nb_bien_6m'})
-df_merged = pd.merge(df_3m, df_6m_3m, on=['nom_département', 'CD_TYP_BIEN'], how='inner')
-
-
-df_merged['mean_6m_3m'] = (df_merged['mean_6m'] * (df_merged['nb_bien_3m'] + df_merged['nb_bien_6m']) - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / df_merged['nb_bien_6m']
-df_6m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_6m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_6m'))]
-df_prix_m2_dept= pd.merge(df_prix_m2_dept, df_6m_merged[['nom_département', 'CD_TYP_BIEN', 'mean_6m_3m']], on=['nom_département', 'CD_TYP_BIEN'], how='left')
+df_6m = df_6m.rename(columns={'MEAN': 'mean_6m', 'NB_BIENS': 'nb_bien_6m'})
+df_merged = pd.merge(df_3m, df_6m, on=['Département', 'CD_TYP_BIEN'], how='inner')
+df_merged['mean_6m_3m'] = (df_merged['mean_6m'] *  df_merged['nb_bien_6m'] - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / (df_merged['nb_bien_6m'] - df_merged['nb_bien_3m'])
+df_merged
