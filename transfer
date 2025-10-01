@@ -1,3 +1,18 @@
+# TODO : ajouter les cartes au latex, chemin : N:\\uflujek\\prix_m2\\ma_carte_prix_m2_dept_{type_bien}.html
+
+df_final = pd.DataFrame()
+list_tables = [] 
+
+
+
+requete_sql = f"""
+SELECT  *
+FROM df_prix_m2"""
+df_prix_m2_dept = ps.sqldf(requete_sql, locals())
+
+df_prix_m2_dept= df_prix_m2_dept.rename(columns={' nom_département' : 'nom_département'})
+df = df_prix_m2_dept
+
 df_3m = df[(df['DIC_NAME'] == '__pm2_cty_3m') & (df['CD_TYP_BIEN'] != 'ALL') | 
             (df['DIC_NAME'] == '__pm2_cty_comp_3m') & (df['CD_TYP_BIEN'] == 'ALL')]
 df_6m = df[((df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
@@ -32,3 +47,53 @@ df_prix_m2_dept['mean_12_m'] = df_prix_m2_dept['mean_12_m'].where(df_prix_m2_dep
 table = df_prix_m2_dept[['nom_département', 'CD_TYP_BIEN', 'mean_6_m', 'mean_12_m', 'DIC_NAME', 'MEAN', 'NB_BIENS', 'VAL_MAILLE_GEO', 'STD']]
 list_tables.append(table)
 table_final = pd.concat(list_tables, ignore_index=True)
+
+
+with open(r'N:\uflujek\table_rapport\Prix_m2\dep_fr.geojson') as f:
+    geojson = json.load(f)
+
+
+types_bien = ['ALL', 'APT', 'MAI']
+
+for type_bien in types_bien:
+
+    requete_sql = f"""
+    SELECT  DISTINCT *
+    FROM table_final
+    WHERE CD_TYP_BIEN = '{type_bien}' AND DIC_NAME LIKE '%cty_%_%m' AND mean_12_m NOT NULL"""
+    df = ps.sqldf(requete_sql, locals())
+
+    for feature in geojson['features']:
+        code = feature['properties']['code']
+        row = df.loc[df['VAL_MAILLE_GEO'] == code]
+        for col in df.columns:
+            if col == 'mean_12_m' and len(row[col].values) > 0:
+    
+                feature['properties'][col] = f"Prix au m² : {round(row[col].values[0])} €"
+            elif len(row[col].values) > 0:
+                feature['properties'][col] = row[col].values[0]
+            else:
+                feature['properties'][col] = None
+
+    m = folium.Map(location=[46.603354, 1.888334], zoom_start=6)
+
+    
+    choropleth = folium.Choropleth(
+        geo_data=geojson,
+        name='choropleth',
+        data=df,
+        columns=['VAL_MAILLE_GEO', 'mean_12_m'],
+        key_on='feature.properties.code',
+        fill_color='YlGn',
+        fill_opacity=0.7,
+        line_opacity=0.2,
+        legend_name='Prix au m²'
+    ).add_to(m)
+
+   
+    choropleth.geojson.add_child(
+        folium.features.GeoJsonTooltip(['nom', 'mean_12_m'], labels=False)
+    )
+
+   
+    m.save(f'N:\\uflujek\\prix_m2\\ma_carte_prix_m2_dept_{type_bien}.html')
