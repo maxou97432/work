@@ -1,12 +1,1 @@
-{
-	"name": "TypeError",
-	"message": "'function' object is not subscriptable",
-	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-Cell In[166], line 5
-      3 df_MA_dep = df_MA_dep.drop(columns = ['Loyer m2 moyen (maisons)','Loyer m2 moyen (appartements)'], errors='inplace')
-      4 print(df_MA_dep)
-----> 5 df_MA_dep = pd.to_numeric[df_MA_dep[[\"Prix m2 moyen (maisons)\",\"Prix m2 moyen (appartements)\"]]]
-
-TypeError: 'function' object is not subscriptable"
-}
+df_MA_dep[['Prix m2 moyen (maisons)', 'Prix m2 moyen (appartements)']] = df_MA_dep[['Prix m2 moyen (maisons)', 'Prix m2 moyen (appartements)']].apply(pd.to_numeric, errors='coerce')
