@@ -1,87 +1,10 @@
-{
-	"name": "InvalidIndexError",
-	"message": "(0       True
-1       True
-2       True
-3      False
-4       True
-       ...  
-277     True
-278    False
-279    False
-280    False
-281    False
-Length: 282, dtype: bool, 'nb_bien_6m')",
-	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
-   3811 try:
--> 3812     return self._engine.get_loc(casted_key)
-   3813 except KeyError as err:
+df_merged.loc[mask, 'mean_6m_3m'] = (
+    (df_merged.loc[mask, 'mean_6m'] * df_merged.loc[mask, 'nb_bien_6m']) -
+    (df_merged.loc[mask, 'mean_3m'] * df_merged.loc[mask, 'nb_bien_3m'])
+)
 
-File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
-
-File pandas/_libs/index.pyx:173, in pandas._libs.index.IndexEngine.get_loc()
-
-TypeError: '(0       True
-1       True
-2       True
-3      False
-4       True
-       ...  
-277     True
-278    False
-279    False
-280    False
-281    False
-Length: 282, dtype: bool, 'nb_bien_6m')' is an invalid key
-
-During handling of the above exception, another exception occurred:
-
-InvalidIndexError                         Traceback (most recent call last)
-Cell In[120], line 29
-     22 mask = (df_merged['nb_bien_6m'] - df_merged['nb_bien_3m']) == 0
-     24 df_merged.loc[mask,'mean_6m_3m'] = (
-     25     (df_merged.loc[mask,'mean_6m'] * df_merged.loc[mask,'nb_bien_6m'] - df_merged.loc[mask,'mean_3m'] * df_merged.loc[mask,'nb_bien_3m'])
-     26 )
-     28 df_merged.loc[~mask,'mean_6m_3m'] = (
----> 29     (df_merged.loc[~mask,'mean_6m'] * df_merged.loc[~mask,'nb_bien_6m'] - df_merged.loc[~mask,'mean_3m'] * df_merged.loc[~mask,'nb_bien_3m'])/ (df_merged[~mask,'nb_bien_6m'] - df_merged[~mask,'nb_bien_3m'])
-     30 )
-     33 df_merged
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:4107, in DataFrame.__getitem__(self, key)
-   4105 if self.columns.nlevels > 1:
-   4106     return self._getitem_multilevel(key)
--> 4107 indexer = self.columns.get_loc(key)
-   4108 if is_integer(indexer):
-   4109     indexer = [indexer]
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:3824, in Index.get_loc(self, key)
-   3819     raise KeyError(key) from err
-   3820 except TypeError:
-   3821     # If we have a listlike key, _check_indexing_error will raise
-   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
-   3823     #  the TypeError.
--> 3824     self._check_indexing_error(key)
-   3825     raise
-
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:6072, in Index._check_indexing_error(self, key)
-   6068 def _check_indexing_error(self, key):
-   6069     if not is_scalar(key):
-   6070         # if key is not a scalar, directly raise an error (the code below
-   6071         # would convert to numpy arrays and raise later any way) - GH29926
--> 6072         raise InvalidIndexError(key)
-
-InvalidIndexError: (0       True
-1       True
-2       True
-3      False
-4       True
-       ...  
-277     True
-278    False
-279    False
-280    False
-281    False
-Length: 282, dtype: bool, 'nb_bien_6m')"
-}
+df_merged.loc[~mask, 'mean_6m_3m'] = (
+    ((df_merged.loc[~mask, 'mean_6m'] * df_merged.loc[~mask, 'nb_bien_6m']) -
+    (df_merged.loc[~mask, 'mean_3m'] * df_merged.loc[~mask, 'nb_bien_3m'])) /
+    (df_merged.loc[~mask, 'nb_bien_6m'] - df_merged.loc[~mask, 'nb_bien_3m'])
+)
