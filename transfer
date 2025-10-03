@@ -1,15 +1,21 @@
-df_MA_dep = pd.read_excel(r"N:\uflumth\indicateur_marche\prix_m2\Meilleurs agents données finales -  Septembre 2025.xlsx", sheet_name="Départements - Comp")
-df_MA_dep = df_MA_dep.drop(df_MA_dep.index[0])
+# On met le nom du département en index directement
+df_select = df_select.set_index("Départements")
 
-df_MA_dep['Prix m2 moyen (maisons)'] = df_MA_dep['Prix m2 moyen (maisons)'].astype(float)
-df_MA_dep["Numéro département"] = df_MA_dep["Départements"].apply(lambda x : x.split('-')[0])
-df_MA_dep = df_MA_dep.drop(columns = ['Loyer m2 moyen (maisons)','Loyer m2 moyen (appartements)'], errors='inplace')
-df_MA_dep["Numéro département"] = df_MA_dep["Numéro département"].str.strip()
-df_MA_dep["Date"] = pd.to_datetime(df_MA_dep["Date"])
+# Pivot Meilleurs Agents (Appart / Maison)
+pivot_MA = df_select.pivot_table(
+    values=["Prix m2 moyen (appartements)", "Prix m2 moyen (maisons)"],
+    index="Départements"
+)
 
-df_MA_dep['Mois'] = df_MA_dep['Date'].dt.month
-df_MA_dep['Année'] = df_MA_dep['Date'].dt.year
+# Fusion avec Crédit Logement (déjà pivoté dans pivot_3m)
+result = pivot_MA.merge(pivot_3m, left_index=True, right_index=True)
 
+# Renommer joliment
+result.columns = pd.MultiIndex.from_tuples([
+    ("Meilleurs Agents", "Appartement"),
+    ("Meilleurs Agents", "Maison"),
+    ("Crédit Logement", "Appartement"),
+    ("Crédit Logement", "Maison")
+])
 
-df_select = df_MA_dep[df_MA_dep['Numéro département'].isin(departments_to_keep)].copy()
-df_select
+print(result.head())
