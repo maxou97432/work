@@ -1,139 +1,31 @@
-je veux pouvoir à partir de ce code: # TODO : ajouter Tableau des prix par mètre carré selon Crédit Logement : df_final
+import pandas as pd
 
+# --- Préparer df_final pour la comparaison ---
+# On va extraire les colonnes 'ALL' pour chaque période (3, 6 et 12 mois)
+df_compare = pd.DataFrame(index=df_final.index)
 
+for period, label in zip(['3 mois', '6 mois', '12 mois'], ['3m', '6m', '12m']):
+    if (period, 'ALL') in df_final.columns:
+        df_compare[f'MA Crédit {label}'] = df_final[(period, 'ALL')].replace('-', pd.NA).str.replace(' €','').str.replace(' ','').astype(float)
 
-table = df_prix_m2_dept[['Département', 'CD_TYP_BIEN', 'mean_6m_3m', 'mean_12m_6m', 'DIC_NAME', 'MEAN', 'NB_BIENS', 'VAL_MAILLE_GEO', 'STD']]
-list_tables.append(table)
+# --- Préparer df_moyennes pour la comparaison ---
+# Retirer le numéro du département pour correspondre aux noms de df_final
+df_moyennes_index_clean = df_moyennes.copy()
+df_moyennes_index_clean.index = df_moyennes_index_clean.index.str.split(' - ').str[1]
 
+# Renommer les colonnes pour correspondance
+df_moyennes_index_clean = df_moyennes_index_clean.rename(columns={
+    'Moyenne 3 derniers mois': 'MA Meilleurs Agents 3m',
+    'Moyenne 6 derniers mois': 'MA Meilleurs Agents 6m',
+    'Moyenne 12 derniers mois': 'MA Meilleurs Agents 12m'
+})
 
+# --- Fusionner les deux tableaux sur le département ---
+df_final_compare = df_compare.merge(df_moyennes_index_clean, left_index=True, right_index=True, how='outer')
 
+# --- Affichage final, avec formatting €
+for col in df_final_compare.columns:
+    df_final_compare[col] = df_final_compare[col].apply(lambda x: f"{x:,.0f} €" if pd.notna(x) else '-')
 
-def create_pivot(df, dic_name, value_column, index='Département', columns='CD_TYP_BIEN'):
-    unique_cols = df[columns].unique()
-    pivot = pd.DataFrame(columns=pd.MultiIndex.from_product([[f'prix_m2_{dic_name}'], unique_cols]), index=df[index].unique())
-    subset_df = df[df['DIC_NAME'].str.contains(dic_name)]
-    if not subset_df[value_column].isna().all():
-        pivot_temp = subset_df.pivot_table(index=index, columns=columns, values=value_column)
-        pivot_temp.columns = pd.MultiIndex.from_product([[f'prix_m2_{dic_name}'], pivot_temp.columns])
-        pivot.update(pivot_temp)
-    for col in pivot.columns:
-        pivot[col] = pivot[col].apply(lambda x: f"{x:,.0f}".replace(',', ' ') + ' €' if pd.notna(x) else '-')
-        
-    return pivot
-
-
-
-pivot_3m = create_pivot(df_prix_m2_dept, '3m', 'MEAN')
-pivot_6m = create_pivot(df_prix_m2_dept, '6m', 'mean_6m_3m')
-pivot_12m = create_pivot(df_prix_m2_dept, '12m', 'mean_12m_6m')
-
-
-df_new = pd.concat([pivot_3m, pivot_6m, pivot_12m], axis=1)
-
-if not df_new.empty:
-    df_new = df_new.round(0)
-
-    df_final = pd.concat([df_final, df_new], axis=0)
-
-df_final.columns = df_final.columns.set_levels(['12 mois' if x == 'prix_m2_12m' else x for x in df_final.columns.levels[0]], level=0)
-df_final.columns = df_final.columns.set_levels(['3 mois' if x == 'prix_m2_3m' else x for x in df_final.columns.levels[0]], level=0)
-df_final.columns = df_final.columns.set_levels(['6 mois' if x == 'prix_m2_6m' else x for x in df_final.columns.levels[0]], level=0)
-cols_non_12m = [col for col in df_final.columns if col[0] != '12 mois']
-cols_12m = [col for col in df_final.columns if col[0] == '12 mois']
-ordered_cols = cols_non_12m + cols_12m
-df_final = df_final[ordered_cols]
-
-print(df_final)
-
-table_final = pd.concat(list_tables, ignore_index=True)
-requete_sql = f"""
-SELECT  DISTINCT *
-FROM table_final
-WHERE CD_TYP_BIEN = 'ALL' AND DIC_NAME LIKE '%cty_comp_%m' AND mean_12m_6m NOT NULL"""
-df = ps.sqldf(requete_sql, locals())
-qui renvoie:                    3 mois                     6 mois                    \
-                      APT      MAI      ALL      APT      MAI      ALL   
-Alpes-Maritimes   2 617 €  3 748 €  4 520 €        -  3 748 €  1 560 €   
-Bouches-du-Rhône  3 808 €  4 162 €  4 162 €  3 808 €  4 162 €  4 162 €   
-Nord              1 961 €  2 594 €  2 594 €    548 €  1 869 €  1 882 €   
-Rhône             3 227 €  2 991 €  3 050 €  1 967 €  1 696 €  1 761 €   
-Seine-et-Marne    3 368 €  2 352 €  2 473 €  1 962 €  1 381 €  1 438 €   
-Yvelines          4 687 €  2 994 €  3 104 €    327 €  1 687 €  2 941 €   
-Essonne           2 764 €  2 514 €  2 552 €    294 €  1 706 €  1 631 €   
-Val-de-Marne            -        -        -        -        -        -   
-Val-d'Oise        3 652 €  3 017 €  3 116 €    863 €  1 907 €  1 962 €   
-
-                  12 mois                    
-                      APT      MAI      ALL  
-Alpes-Maritimes   2 002 €  2 822 €  2 656 €  
-Bouches-du-Rhône    646 €  4 086 €  4 013 €  
-Nord                457 €  1 411 €  1 405 €  
-Rhône             1 693 €  2 267 €  2 155 €  
-Seine-et-Marne    2 018 €  1 843 €  1 828 €  
-Yvelines          2 414 €  2 485 €  2 458 €  
-Essonne           2 569 €  2 232 €  2 270 €  
-Val-de-Marne            -        -  2 917 €  
-Val-d'Oise        2 322 €  2 362 €  2 340 €  
-
-pouvoir comparer les résultats de ce code: df_MA_dep = pd.read_excel(r"N:\uflumth\indicateur_marche\prix_m2\Meilleurs agents données finales -  Septembre 2025.xlsx", sheet_name="Départements - Comp")
-df_MA_dep = df_MA_dep.drop(df_MA_dep.index[0])
-
-df_MA_dep['Prix m2 moyen (maisons)'] = df_MA_dep['Prix m2 moyen (maisons)'].astype(float)
-df_MA_dep["Numéro département"] = df_MA_dep["Départements"].apply(lambda x : x.split('-')[0])
-df_MA_dep = df_MA_dep.drop(columns = ['Loyer m2 moyen (maisons)','Loyer m2 moyen (appartements)'], errors='inplace')
-df_MA_dep["Numéro département"] = df_MA_dep["Numéro département"].str.strip()
-df_MA_dep["Date"] = pd.to_datetime(df_MA_dep["Date"])
-
-df_MA_dep['Mois'] = df_MA_dep['Date'].dt.month
-df_MA_dep['Année'] = df_MA_dep['Date'].dt.year
-
-
-df_select = df_MA_dep[df_MA_dep['Numéro département'].isin(departments_to_keep)].copy()
-df_select
-date_max = df_select['Date'].max()
-date_min_3m = date_max - pd.DateOffset(months = 3)
-date_min_6m = date_max - pd.DateOffset(months = 6)
-date_min_12m = date_max - pd.DateOffset(months = 12)
-
-df_3m = df_select[df_select['Date'] > date_min_3m].groupby("Départements")["Prix m2 moyen (appartements)"].mean()
-df_6m = df_select[df_select['Date'] > date_min_6m].groupby("Départements")["Prix m2 moyen (appartements)"].mean()
-df_12m = df_select[df_select['Date'] > date_min_12m].groupby("Départements")["Prix m2 moyen (appartements)"].mean()
-
-df_moyennes = pd.DataFrame({'Moyenne 3 derniers mois': df_3m,
-                            'Moyenne 6 derniers mois': df_6m,
-                            'Moyenne 12 derniers mois': df_12m,
-                            })
-print(df_moyennes)
-results:                         Moyenne 3 derniers mois  Moyenne 6 derniers mois  \
-Départements                                                               
-06 - Alpes-Maritimes                5178.133333              5156.233333   
-13 - Bouches-du-Rhône               3639.700000              3618.683333   
-59 - Nord                           2564.933333              2524.966667   
-69 - Rhône                          3948.600000              3873.133333   
-75 - Paris                          9668.633333              9568.483333   
-77 - Seine-et-Marne                 3265.300000              3311.150000   
-78 - Yvelines                       4575.900000              4558.616667   
-91 - Essonne                        3054.600000              3069.966667   
-92 - Hauts-de-Seine                 6571.566667              6547.116667   
-93 - Seine-Saint-Denis              4021.066667              4069.866667   
-94 - Val-de-Marne                   5070.700000              5109.350000   
-95 - Val-d'Oise                     3289.166667              3291.083333   
-
-                        Moyenne 12 derniers mois  
-Départements                                      
-06 - Alpes-Maritimes                 5164.366667  
-13 - Bouches-du-Rhône                3586.675000  
-59 - Nord                            2530.816667  
-69 - Rhône                           3778.150000  
-75 - Paris                           9449.241667  
-77 - Seine-et-Marne                  3290.075000  
-78 - Yvelines                        4549.891667  
-91 - Essonne                         3088.066667  
-92 - Hauts-de-Seine                  6515.975000  
-93 - Seine-Saint-Denis               4081.433333  
-94 - Val-de-Marne                    5113.591667  
-95 - Val-d'Oise                      3270.541667  
-
-
-Ducoup moi je veux que tu me fournisses un code qui permettra d'avoir un tableua récapitulatif des résultats d'avant (où on les voit cote à cote)
-
+# Affichage
+print(df_final_compare)
