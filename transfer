@@ -1,40 +1,28 @@
-{
-	"name": "KeyError",
-	"message": "\"None of [Index(['01 ', '02 ', '03 ', '04 ', '05 ', '06 ', '07 ', '08 ', '09 ', '10 ',\
-       ...\
-       '86 ', '87 ', '88 ', '89 ', '90 ', '91 ', '92 ', '93 ', '94 ', '95 '],\
-      dtype='object', length=1248)] are in the [columns]\"",
-	"stack": "---------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-Cell In[197], line 14
-     11 df_MA_dep['Année'] = df_MA_dep['Date'].dt.year
-     12 df_MA_dep.info()
----> 14 df_select = df_MA_dep[df_MA_dep['Numéro département']].isin(departments_to_keep).copy()
+# On suppose que tu as deux DataFrames :
+# df_prix_CL = données Crédit Logement (département, type de bien, prix)
+# df_prix_MA = données Meilleurs Agents (département, type de bien, prix)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:4113, in DataFrame.__getitem__(self, key)
-   4111     if is_iterator(key):
-   4112         key = list(key)
--> 4113     indexer = self.columns._get_indexer_strict(key, \"columns\")[1]
-   4115 # take() does not accept boolean indexers
-   4116 if getattr(indexer, \"dtype\", None) == bool:
+# Harmonisation des colonnes (adapter si nécessaire)
+df_prix_CL = df_prix_CL.rename(columns={"mean_6m": "Prix_CL"})
+df_prix_MA = df_prix_MA.rename(columns={"Prix_m2": "Prix_MA"})  # adapter le nom exact
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:6212, in Index._get_indexer_strict(self, key, axis_name)
-   6209 else:
-   6210     keyarr, indexer, new_indexer = self._reindex_non_unique(keyarr)
--> 6212 self._raise_if_missing(keyarr, indexer, axis_name)
-   6214 keyarr = self.take(indexer)
-   6215 if isinstance(key, Index):
-   6216     # GH 42790 - Preserve name from an Index
+# Fusion des deux sources
+df_comparaison = pd.merge(
+    df_prix_CL[["Département", "CD_TYP_BIEN", "Prix_CL"]],
+    df_prix_MA[["Département", "CD_TYP_BIEN", "Prix_MA"]],
+    on=["Département", "CD_TYP_BIEN"],
+    how="inner"
+)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\indexes\\base.py:6261, in Index._raise_if_missing(self, key, indexer, axis_name)
-   6259 if nmissing:
-   6260     if nmissing == len(indexer):
--> 6261         raise KeyError(f\"None of [{key}] are in the [{axis_name}]\")
-   6263     not_found = list(ensure_index(key)[missing_mask.nonzero()[0]].unique())
-   6264     raise KeyError(f\"{not_found} not in index\")
+# Optionnel : calcul des écarts
+df_comparaison["Ecart_abs"] = df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]
+df_comparaison["Ecart_%"] = (
+    (df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]) / df_comparaison["Prix_MA"] * 100
+).round(2)
 
-KeyError: \"None of [Index(['01 ', '02 ', '03 ', '04 ', '05 ', '06 ', '07 ', '08 ', '09 ', '10 ',\
-       ...\
-       '86 ', '87 ', '88 ', '89 ', '90 ', '91 ', '92 ', '93 ', '94 ', '95 '],\
-      dtype='object', length=1248)] are in the [columns]\""
-}
+# Affichage côte à côte
+import pandas as pd
+pd.set_option("display.max_rows", 50)
+pd.set_option("display.max_columns", None)
+
+df_comparaison.head(20)
