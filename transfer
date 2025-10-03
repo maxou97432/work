@@ -1,83 +1,49 @@
-{
-	"name": "MergeError",
-	"message": "Not allowed to merge between different levels. (1 levels on the left, 2 on the right)",
-	"stack": "---------------------------------------------------------------------------
-MergeError                                Traceback (most recent call last)
-Cell In[61], line 11
-      5 pivot_MA = df_select.pivot_table(
-      6     values=[\"Prix m2 moyen (appartements)\", \"Prix m2 moyen (maisons)\"],
-      7     index=\"Départements\"
-      8 )
-     10 # Fusion avec Crédit Logement (déjà pivoté dans pivot_3m)
----> 11 result = pivot_MA.merge(pivot_3m, left_index=True, right_index=True)
-     13 # Renommer joliment
-     14 result.columns = pd.MultiIndex.from_tuples([
-     15     (\"Meilleurs Agents\", \"Appartement\"),
-     16     (\"Meilleurs Agents\", \"Maison\"),
-     17     (\"Crédit Logement\", \"Appartement\"),
-     18     (\"Crédit Logement\", \"Maison\")
-     19 ])
+# ============================
+# 1. Préparation Meilleurs Agents
+# ============================
+# On part de df_select déjà filtré sur departments_to_keep
+df_MA_dep = df_select.copy()
+df_MA_dep = df_MA_dep.set_index("Départements")
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\frame.py:10839, in DataFrame.merge(self, right, how, on, left_on, right_on, left_index, right_index, sort, suffixes, copy, indicator, validate)
-  10820 @Substitution(\"\")
-  10821 @Appender(_merge_doc, indents=2)
-  10822 def merge(
-   (...)  10835     validate: MergeValidate | None = None,
-  10836 ) -> DataFrame:
-  10837     from pandas.core.reshape.merge import merge
-> 10839     return merge(
-  10840         self,
-  10841         right,
-  10842         how=how,
-  10843         on=on,
-  10844         left_on=left_on,
-  10845         right_on=right_on,
-  10846         left_index=left_index,
-  10847         right_index=right_index,
-  10848         sort=sort,
-  10849         suffixes=suffixes,
-  10850         copy=copy,
-  10851         indicator=indicator,
-  10852         validate=validate,
-  10853     )
+# Pivot Meilleurs Agents : prix m2 moyens pour Appartements / Maisons
+pivot_MA = df_MA_dep.pivot_table(
+    values=["Prix m2 moyen (appartements)", "Prix m2 moyen (maisons)"],
+    index="Départements"
+)
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\merge.py:170, in merge(left, right, how, on, left_on, right_on, left_index, right_index, sort, suffixes, copy, indicator, validate)
-    155     return _cross_merge(
-    156         left_df,
-    157         right_df,
-   (...)    167         copy=copy,
-    168     )
-    169 else:
---> 170     op = _MergeOperation(
-    171         left_df,
-    172         right_df,
-    173         how=how,
-    174         on=on,
-    175         left_on=left_on,
-    176         right_on=right_on,
-    177         left_index=left_index,
-    178         right_index=right_index,
-    179         sort=sort,
-    180         suffixes=suffixes,
-    181         indicator=indicator,
-    182         validate=validate,
-    183     )
-    184     return op.get_result(copy=copy)
+# Renommer les colonnes
+pivot_MA.columns = ["Appartement", "Maison"]
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\reshape\\merge.py:784, in _MergeOperation.__init__(self, left, right, how, on, left_on, right_on, left_index, right_index, sort, suffixes, indicator, validate)
-    778 if _left.columns.nlevels != _right.columns.nlevels:
-    779     msg = (
-    780         \"Not allowed to merge between different levels. \"
-    781         f\"({_left.columns.nlevels} levels on the left, \"
-    782         f\"{_right.columns.nlevels} on the right)\"
-    783     )
---> 784     raise MergeError(msg)
-    786 self.left_on, self.right_on = self._validate_left_right_on(left_on, right_on)
-    788 (
-    789     self.left_join_keys,
-    790     self.right_join_keys,
-   (...)    793     right_drop,
-    794 ) = self._get_merge_keys()
+# ============================
+# 2. Préparation Crédit Logement
+# ============================
+# pivot_3m existe déjà dans ton notebook, mais il a un MultiIndex en colonnes
+# On isole seulement les moyennes des 3 derniers mois
+pivot_CL = pivot_3m.xs("mean_3m", axis=1, level=0)  # garde uniquement le niveau mean_3m
 
-MergeError: Not allowed to merge between different levels. (1 levels on the left, 2 on the right)"
-}
+# On garde uniquement les colonnes Appartement / Maison
+pivot_CL = pivot_CL.rename(columns={"APT": "Appartement", "MAI": "Maison"})
+pivot_CL = pivot_CL[["Appartement", "Maison"]]
+
+# ============================
+# 3. Fusion
+# ============================
+# Fusionner MA et CL sur les départements
+result = pivot_MA.merge(pivot_CL, left_index=True, right_index=True, suffixes=("_MA", "_CL"))
+
+# Réorganiser les colonnes
+result = result[["Appartement_MA", "Maison_MA", "Appartement_CL", "Maison_CL"]]
+
+# MultiIndex des colonnes pour joli affichage
+header = pd.MultiIndex.from_tuples([
+    ("Meilleurs Agents", "Appartement"),
+    ("Meilleurs Agents", "Maison"),
+    ("Crédit Logement", "Appartement"),
+    ("Crédit Logement", "Maison")
+])
+result.columns = header
+
+# ============================
+# 4. Affichage
+# ============================
+print(result.head())
