@@ -1,28 +1,29 @@
-# On suppose que tu as deux DataFrames :
-# df_prix_CL = données Crédit Logement (département, type de bien, prix)
-# df_prix_MA = données Meilleurs Agents (département, type de bien, prix)
+# Fusion Crédit Logement (CL) et Meilleurs Agents (MA)
 
-# Harmonisation des colonnes (adapter si nécessaire)
-df_prix_CL = df_prix_CL.rename(columns={"mean_6m": "Prix_CL"})
-df_prix_MA = df_prix_MA.rename(columns={"Prix_m2": "Prix_MA"})  # adapter le nom exact
+# On récupère les prix CL (moyenne sur 6 mois par département)
+df_CL = df_prix_m2_dept[["Département", "CD_TYP_BIEN", "mean_6m"]].copy()
+df_CL = df_CL.rename(columns={"mean_6m": "Prix_CL"})
 
-# Fusion des deux sources
+# On récupère les prix MA (moyenne sur 6 mois)
+df_MA = df_moyennes[["Moyenne 6 derniers mois"]].reset_index()
+df_MA = df_MA.rename(columns={
+    "Départements": "Département",
+    "Moyenne 6 derniers mois": "Prix_MA"
+})
+
+# Fusion
 df_comparaison = pd.merge(
-    df_prix_CL[["Département", "CD_TYP_BIEN", "Prix_CL"]],
-    df_prix_MA[["Département", "CD_TYP_BIEN", "Prix_MA"]],
-    on=["Département", "CD_TYP_BIEN"],
+    df_CL[df_CL["CD_TYP_BIEN"] == "ALL"],  # uniquement "tous biens" pour comparer
+    df_MA,
+    on="Département",
     how="inner"
 )
 
-# Optionnel : calcul des écarts
-df_comparaison["Ecart_abs"] = df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]
+# Ajout des écarts
+df_comparaison["Ecart_abs (€)"] = df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]
 df_comparaison["Ecart_%"] = (
     (df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]) / df_comparaison["Prix_MA"] * 100
 ).round(2)
 
-# Affichage côte à côte
-import pandas as pd
-pd.set_option("display.max_rows", 50)
-pd.set_option("display.max_columns", None)
-
+# Affichage
 df_comparaison.head(20)
