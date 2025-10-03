@@ -1,21 +1,15 @@
-{
-	"name": "TypeError",
-	"message": "StringMethods.split() takes from 1 to 2 positional arguments but 3 positional arguments (and 1 keyword-only argument) were given",
-	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-Cell In[58], line 2
-      1 # === Préparation Meilleurs Agents ===
-----> 2 df_MA[['Numero', 'Nom']] = df_MA['Département'].str.split(' - ', 1, expand=True)
-      3 df_MA.drop(columns=['Département', 'Loyer m2 moyen', 'Loyer m2 moyen.1'], inplace=True)
-      4 df_MA = df_MA[df_MA['Numero'].isin(departments_to_keep)]
+df_MA_dep = pd.read_excel(r"N:\uflumth\indicateur_marche\prix_m2\Meilleurs agents données finales -  Septembre 2025.xlsx", sheet_name="Départements - Comp")
+df_MA_dep = df_MA_dep.drop(df_MA_dep.index[0])
 
-File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\strings\\accessor.py:140, in forbid_nonstring_types.<locals>._forbid_nonstring_types.<locals>.wrapper(self, *args, **kwargs)
-    135     msg = (
-    136         f\"Cannot use .str.{func_name} with values of \"
-    137         f\"inferred dtype '{self._inferred_dtype}'.\"
-    138     )
-    139     raise TypeError(msg)
---> 140 return func(self, *args, **kwargs)
+df_MA_dep['Prix m2 moyen (maisons)'] = df_MA_dep['Prix m2 moyen (maisons)'].astype(float)
+df_MA_dep["Numéro département"] = df_MA_dep["Départements"].apply(lambda x : x.split('-')[0])
+df_MA_dep = df_MA_dep.drop(columns = ['Loyer m2 moyen (maisons)','Loyer m2 moyen (appartements)'], errors='inplace')
+df_MA_dep["Numéro département"] = df_MA_dep["Numéro département"].str.strip()
+df_MA_dep["Date"] = pd.to_datetime(df_MA_dep["Date"])
 
-TypeError: StringMethods.split() takes from 1 to 2 positional arguments but 3 positional arguments (and 1 keyword-only argument) were given"
-}
+df_MA_dep['Mois'] = df_MA_dep['Date'].dt.month
+df_MA_dep['Année'] = df_MA_dep['Date'].dt.year
+
+
+df_select = df_MA_dep[df_MA_dep['Numéro département'].isin(departments_to_keep)].copy()
+df_select
