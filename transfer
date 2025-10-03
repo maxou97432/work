@@ -1,35 +1,49 @@
+# === Préparation Meilleurs Agents ===
 df_MA[['Numero', 'Nom']] = df_MA['Département'].str.split(' - ', 1, expand=True)
 df_MA.drop(columns=['Département', 'Loyer m2 moyen', 'Loyer m2 moyen.1'], inplace=True)
 df_MA = df_MA[df_MA['Numero'].isin(departments_to_keep)]
 df_MA.set_index('Nom', inplace=True)
-result = df_MA.merge(pivot_3m, left_index=True, right_index=True)
 
-# TODO : ajouter Tableau comparatif des prix par mètre carré selon Crédit Logement (3 mois) et Meilleurs Agents : result
+# pivot Meilleurs Agents (selon Appartement / Maison)
+pivot_MA = df_MA.pivot_table(
+    values='Moyenne 3 derniers mois',  # tu peux changer 3m → 6m si besoin
+    index='Nom',
+    columns='Type de bien'
+)
 
+# === Préparation Crédit Logement ===
+pivot_CL = pivot_3m.pivot_table(  # ici tu as déjà "pivot_3m" dans ton code
+    values='mean_3m',
+    index='Département',
+    columns='CD_TYP_BIEN'
+)
 
+# Harmoniser les index
+pivot_CL.index.name = 'Nom'
 
+# === Fusion des deux sources ===
+result = pivot_MA.merge(pivot_CL, left_index=True, right_index=True)
 
+# Renommer les colonnes
 columns_to_rename = {
-    result.columns[0]: 'Appartment',
+    result.columns[0]: 'Appartement',
     result.columns[1]: 'Maison',
-    result.columns[3]: 'Appartement ',
-    result.columns[4]: 'Maison '
+    result.columns[2]: 'Appartement ',
+    result.columns[3]: 'Maison '
 }
-
 result.rename(columns=columns_to_rename, inplace=True)
 
-result = result[['Appartment', 'Maison', 'Appartement ', 'Maison ']]
+# Réordonner
+result = result[['Appartement', 'Maison', 'Appartement ', 'Maison ']]
 
-
-
-
-
+# MultiIndex colonnes
 header = pd.MultiIndex.from_tuples([
-    ('Meilleur Agent', 'Appartement'),
-    ('Meilleur Agent', 'Maison'),
-    ('Crédit Logement', 'Appartement '),
-    ('Crédit Logement', 'Maison ')
+    ('Meilleurs Agents', 'Appartement'),
+    ('Meilleurs Agents', 'Maison'),
+    ('Crédit Logement', 'Appartement'),
+    ('Crédit Logement', 'Maison')
 ])
 result.columns = header
 
+# Affichage final
 print(result)
