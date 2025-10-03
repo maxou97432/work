@@ -1,29 +1,35 @@
-# Fusion Crédit Logement (CL) et Meilleurs Agents (MA)
+df_MA[['Numero', 'Nom']] = df_MA['Département'].str.split(' - ', 1, expand=True)
+df_MA.drop(columns=['Département', 'Loyer m2 moyen', 'Loyer m2 moyen.1'], inplace=True)
+df_MA = df_MA[df_MA['Numero'].isin(departments_to_keep)]
+df_MA.set_index('Nom', inplace=True)
+result = df_MA.merge(pivot_3m, left_index=True, right_index=True)
 
-# On récupère les prix CL (moyenne sur 6 mois par département)
-df_CL = df_prix_m2_dept[["Département", "CD_TYP_BIEN", "mean_6m"]].copy()
-df_CL = df_CL.rename(columns={"mean_6m": "Prix_CL"})
+# TODO : ajouter Tableau comparatif des prix par mètre carré selon Crédit Logement (3 mois) et Meilleurs Agents : result
 
-# On récupère les prix MA (moyenne sur 6 mois)
-df_MA = df_moyennes[["Moyenne 6 derniers mois"]].reset_index()
-df_MA = df_MA.rename(columns={
-    "Départements": "Département",
-    "Moyenne 6 derniers mois": "Prix_MA"
-})
 
-# Fusion
-df_comparaison = pd.merge(
-    df_CL[df_CL["CD_TYP_BIEN"] == "ALL"],  # uniquement "tous biens" pour comparer
-    df_MA,
-    on="Département",
-    how="inner"
-)
 
-# Ajout des écarts
-df_comparaison["Ecart_abs (€)"] = df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]
-df_comparaison["Ecart_%"] = (
-    (df_comparaison["Prix_CL"] - df_comparaison["Prix_MA"]) / df_comparaison["Prix_MA"] * 100
-).round(2)
 
-# Affichage
-df_comparaison.head(20)
+columns_to_rename = {
+    result.columns[0]: 'Appartment',
+    result.columns[1]: 'Maison',
+    result.columns[3]: 'Appartement ',
+    result.columns[4]: 'Maison '
+}
+
+result.rename(columns=columns_to_rename, inplace=True)
+
+result = result[['Appartment', 'Maison', 'Appartement ', 'Maison ']]
+
+
+
+
+
+header = pd.MultiIndex.from_tuples([
+    ('Meilleur Agent', 'Appartement'),
+    ('Meilleur Agent', 'Maison'),
+    ('Crédit Logement', 'Appartement '),
+    ('Crédit Logement', 'Maison ')
+])
+result.columns = header
+
+print(result)
