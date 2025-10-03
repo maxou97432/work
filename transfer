@@ -1,31 +1,73 @@
-import pandas as pd
+{
+	"name": "TypeError",
+	"message": "float() argument must be a string or a real number, not 'NAType'",
+	"stack": "---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+Cell In[39], line 7
+      5 for period, label in zip(['3 mois', '6 mois', '12 mois'], ['3m', '6m', '12m']):
+      6     if (period, 'ALL') in df_final.columns:
+----> 7         df_compare[f'MA Crédit {label}'] = df_final[(period, 'ALL')].replace('-', pd.NA).str.replace(' €','').str.replace(' ','').astype(float)
+      9 # --- Préparer df_moyennes pour la comparaison ---
+     10 # Retirer le numéro du département pour correspondre aux noms de df_final
+     11 df_moyennes_index_clean = df_moyennes.copy()
 
-# --- Préparer df_final pour la comparaison ---
-# On va extraire les colonnes 'ALL' pour chaque période (3, 6 et 12 mois)
-df_compare = pd.DataFrame(index=df_final.index)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\generic.py:6662, in NDFrame.astype(self, dtype, copy, errors)
+   6656     results = [
+   6657         ser.astype(dtype, copy=copy, errors=errors) for _, ser in self.items()
+   6658     ]
+   6660 else:
+   6661     # else, only a single dtype is given
+-> 6662     new_data = self._mgr.astype(dtype=dtype, copy=copy, errors=errors)
+   6663     res = self._constructor_from_mgr(new_data, axes=new_data.axes)
+   6664     return res.__finalize__(self, method=\"astype\")
 
-for period, label in zip(['3 mois', '6 mois', '12 mois'], ['3m', '6m', '12m']):
-    if (period, 'ALL') in df_final.columns:
-        df_compare[f'MA Crédit {label}'] = df_final[(period, 'ALL')].replace('-', pd.NA).str.replace(' €','').str.replace(' ','').astype(float)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\internals\\managers.py:430, in BaseBlockManager.astype(self, dtype, copy, errors)
+    427 elif using_copy_on_write():
+    428     copy = False
+--> 430 return self.apply(
+    431     \"astype\",
+    432     dtype=dtype,
+    433     copy=copy,
+    434     errors=errors,
+    435     using_cow=using_copy_on_write(),
+    436 )
 
-# --- Préparer df_moyennes pour la comparaison ---
-# Retirer le numéro du département pour correspondre aux noms de df_final
-df_moyennes_index_clean = df_moyennes.copy()
-df_moyennes_index_clean.index = df_moyennes_index_clean.index.str.split(' - ').str[1]
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\internals\\managers.py:363, in BaseBlockManager.apply(self, f, align_keys, **kwargs)
+    361         applied = b.apply(f, **kwargs)
+    362     else:
+--> 363         applied = getattr(b, f)(**kwargs)
+    364     result_blocks = extend_blocks(applied, result_blocks)
+    366 out = type(self).from_blocks(result_blocks, self.axes)
 
-# Renommer les colonnes pour correspondance
-df_moyennes_index_clean = df_moyennes_index_clean.rename(columns={
-    'Moyenne 3 derniers mois': 'MA Meilleurs Agents 3m',
-    'Moyenne 6 derniers mois': 'MA Meilleurs Agents 6m',
-    'Moyenne 12 derniers mois': 'MA Meilleurs Agents 12m'
-})
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\internals\\blocks.py:784, in Block.astype(self, dtype, copy, errors, using_cow, squeeze)
+    781         raise ValueError(\"Can not squeeze with more than one column.\")
+    782     values = values[0, :]  # type: ignore[call-overload]
+--> 784 new_values = astype_array_safe(values, dtype, copy=copy, errors=errors)
+    786 new_values = maybe_coerce_values(new_values)
+    788 refs = None
 
-# --- Fusionner les deux tableaux sur le département ---
-df_final_compare = df_compare.merge(df_moyennes_index_clean, left_index=True, right_index=True, how='outer')
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\dtypes\\astype.py:237, in astype_array_safe(values, dtype, copy, errors)
+    234     dtype = dtype.numpy_dtype
+    236 try:
+--> 237     new_values = astype_array(values, dtype, copy=copy)
+    238 except (ValueError, TypeError):
+    239     # e.g. _astype_nansafe can fail on object-dtype of strings
+    240     #  trying to convert to float
+    241     if errors == \"ignore\":
 
-# --- Affichage final, avec formatting €
-for col in df_final_compare.columns:
-    df_final_compare[col] = df_final_compare[col].apply(lambda x: f"{x:,.0f} €" if pd.notna(x) else '-')
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\dtypes\\astype.py:182, in astype_array(values, dtype, copy)
+    179     values = values.astype(dtype, copy=copy)
+    181 else:
+--> 182     values = _astype_nansafe(values, dtype, copy=copy)
+    184 # in pandas we don't store numpy str dtypes, so convert to object
+    185 if isinstance(dtype, np.dtype) and issubclass(values.dtype.type, str):
 
-# Affichage
-print(df_final_compare)
+File ~\\AppData\\Roaming\\Python\\Python311\\site-packages\\pandas\\core\\dtypes\\astype.py:133, in _astype_nansafe(arr, dtype, copy, skipna)
+    129     raise ValueError(msg)
+    131 if copy or arr.dtype == object or dtype == object:
+    132     # Explicit copy, or required since NumPy can't view from / to object.
+--> 133     return arr.astype(dtype, copy=True)
+    135 return arr.astype(dtype, copy=copy)
+
+TypeError: float() argument must be a string or a real number, not 'NAType'"
+}
