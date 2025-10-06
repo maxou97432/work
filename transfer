@@ -1,35 +1,54 @@
-import pandas as pd
-import numpy as np
+cd_type = 'APT' #Choisir entre APT (appartememnt), MAI (maison) 
+resultats_finaux = pd.DataFrame(columns=['Région', '10 ans', '8 ans', '5 ans', '1 an'])
 
-# --- Préparer df_final pour la comparaison ---
-df_compare = pd.DataFrame(index=df_final.index)
+def moyenne_ponderee(group):
+    taux = pd.to_numeric(group['TAUX_INFL_FINAL'], errors = 'coerce')
+    poids = pd.to_numeric(group['EFFECTIF'], errors = 'coerce')
+    return np.average(taux, weights = poids)
+    
+# Itérer sur chaque région et ses départements
+for region, liste_departements in zip(regions_interested, final_result):
 
-for period, label in zip(['3 mois', '6 mois', '12 mois'], ['3m', '6m', '12m']):
-    if (period, 'ALL') in df_final.columns:
-        # Remplacer '-' par NaN, enlever les espaces et €, puis convertir en float en ignorant les NaN
-        df_compare[f'MA Crédit {label}'] = (
-            df_final[(period, 'ALL')]
-            .replace('-', np.nan)                     # '-' -> NaN
-            .str.replace(' €','', regex=False)        # enlever le €
-            .str.replace(' ','', regex=False)         # enlever les espaces
-            .apply(pd.to_numeric, errors='coerce')    # convertir en float, mettre NaN si impossible
-        )
+    df_resultats = pd.DataFrame()
 
-# --- Préparer df_moyennes pour la comparaison ---
-df_moyennes_index_clean = df_moyennes.copy()
-df_moyennes_index_clean.index = df_moyennes_index_clean.index.str.split(' - ').str[1]
+    for num_dept in liste_departements:
+        requete_sql = f"""
+        SELECT DISTINCT *
+        FROM df_ti_dept_all
+        WHERE DEPT = {num_dept} AND CD_TYP_BIEN = '{cd_type}'"""
+        df_ti_dept = ps.sqldf(requete_sql, locals())
 
-df_moyennes_index_clean = df_moyennes_index_clean.rename(columns={
-    'Moyenne 3 derniers mois': 'MA Meilleurs Agents 3m',
-    'Moyenne 6 derniers mois': 'MA Meilleurs Agents 6m',
-    'Moyenne 12 derniers mois': 'MA Meilleurs Agents 12m'
-})
+        df_ti_dept['Year'] = df_ti_dept['PERIODE'].apply(lambda x: current_year - int(x.split('-')[1]))
 
-# --- Fusionner les deux tableaux sur le département ---
-df_final_compare = df_compare.merge(df_moyennes_index_clean, left_index=True, right_index=True, how='outer')
+        new_data = pd.DataFrame([{'Year': current_year, 'TAUX_INFL': 0}])
+        df_ti_dept = pd.concat([new_data, df_ti_dept], ignore_index=True)
+        df_ti_dept['Year'] = pd.to_datetime(df_ti_dept['Year'].astype(str), format='%Y')
+        df_ti_dept['TAUX_INFL_TRANSFO'] = 100/(1+df_ti_dept['TAUX_INFL'])
 
-# --- Affichage final avec formatage €
-for col in df_final_compare.columns:
-    df_final_compare[col] = df_final_compare[col].apply(lambda x: f"{x:,.0f} €" if pd.notna(x) else '-')
+        taux_infl_2015_2014 = df_ti_dept[df_ti_dept['Year'].dt.year.isin([2015, 2014])]['TAUX_INFL_TRANSFO'].mean()
+        df_ti_dept['TAUX_INFL_2015'] = (df_ti_dept['TAUX_INFL_TRANSFO']/taux_infl_2015_2014)*100
 
-print(df_final_compare)
+        taux_infl_current_year = df_ti_dept[df_ti_dept['Year'].dt.year.isin([current_year])]['TAUX_INFL_2015'].iloc[0]
+        df_ti_dept['TAUX_INFL_FINAL'] = ((taux_infl_current_year/df_ti_dept['TAUX_INFL_2015'])-1)*100
+
+        df_resultats = pd.concat([df_resultats, df_ti_dept[['Year', 'TAUX_INFL_FINAL','EFFECTIF']]], ignore_index=True)
+
+    moyenne_par_annee = df_resultats.groupby(df_resultats['Year'].dt.year).apply(moyenne_ponderee).reset_index(name = 'TAUX_INFL_FINAL')
+
+    dix_ans = moyenne_par_annee[moyenne_par_annee['Year'].between(current_year - 10, current_year)]['TAUX_INFL_FINAL'].mean()
+    huit_ans = moyenne_par_annee[moyenne_par_annee['Year'].between(current_year - 8, current_year)]['TAUX_INFL_FINAL'].mean()
+    cinq_ans = moyenne_par_annee[moyenne_par_annee['Year'].between(current_year - 5, current_year)]['TAUX_INFL_FINAL'].mean()
+    un_an = moyenne_par_annee[moyenne_par_annee['Year'].between(current_year - 1, current_year)]['TAUX_INFL_FINAL'].mean()
+
+    nouvelle_ligne = pd.DataFrame([{
+        'Région': region,
+        '10 ans': f'+{dix_ans:.2f}',
+        '8 ans': f'+{huit_ans:.2f}',
+        '5 ans': f'+{cinq_ans:.2f}',
+        '1 an': f'+{un_an:.2f}'}])
+
+    resultats_finaux = pd.concat([resultats_finaux, nouvelle_ligne],ignore_index= True)
+
+resultats_finaux
+
+
