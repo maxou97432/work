@@ -1,1 +1,1 @@
-https://bdm.insee.fr/series/sdmx/data/SERIES_BDM/{id_serie}?format=csvfile
+Erreur HTTPSConnectionPool(host='bdm.insee.fr', port=443): Max retries exceeded with url: /series/sdmx/data/SERIES_BDM/001515333?format=csvfile (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000001FC53200B90>: Failed to resolve 'bdm.insee.fr' ([Errno 11001] getaddrinfo failed)"))
