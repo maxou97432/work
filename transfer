@@ -1,33 +1,38 @@
 resultats = []
+df_filtre = df_filtre.sort_values(["ville_","DATE"])
+
+df_filtre["moyenne_glissante_12m"] = df_filtre.groupby("ville_")["Prix_m2"].rolling(window = 12, min_period = 12)
 
 for ville, groupe in df_filtre.groupby("ville_"):
     groupe = groupe.sort_values("DATE")
-    last_date = groupe["DATE"].max()
-    min_date = groupe["DATE"].min()
+    last_row = groupe.iloc[-1]
+    date_last = last_row["DATE"]
+    moyenne_last = last_row["moyenne_glissante_12m"]
 
-    prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
-    prix_min = groupe.loc[groupe["DATE"] == min_date, "Prix_m2"]
+    date_previous = date_last - pd.DateOffset(years = 1)
+    groupe_previous = groupe[groupe["DATE"] <= date_previous]
 
-    if not prix_min.empty:
-        evolution = ((prix_last.values[0] - prix_min.values[0]) / prix_min.values[0]) * 100
-        resultats.append({
-            "ville": ville,
-            "date_actuelle": last_date.date(),
-            "date_annee_precedente": min_date.date(),
-            "evolution_%": round(evolution, 2),
-            "date_la_plus_recente": last_date.date(),
-            "prix_m2_last": prix_last.values[0],
-            "prix_m2_min": prix_min.values[0]
+    if not groupe_previous.empty: 
+        moyenne_previous = groupe_previous.iloc[-1]["moyenne_glissante_12m"]
+        evolution = ((moyenne_last - moyenne_previous)/moyenne_previous)*100
+        last_date = groupe["DATE"].max()
+        prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
+
+
+    resultats.append({
+        "ville": ville,
+        "date_actuelle": last_date.date(),
+        "evolution_%": round(evolution, 2),
+        "prix_m2": prix_last.values[0]
         })
+    
     else:
         resultats.append({
             "ville": ville,
-            "date_actuelle": last_date.date(),
-            "date_annee_precedente": min_date.date(),
-            "evolution_%": None,
             "date_la_plus_recente": last_date.date(),
-            "prix_m2_last": prix_last.values[0] if not prix_last.empty else None,
-            "prix_m2_min": None
+            "evolution_%": None,
+            "prix_m2": prix_last.values[0] if not prix_last.empty else None
         })
 
 rdf = pd.DataFrame(resultats)
+rdf
