@@ -1,30 +1,30 @@
-villes = [
-    "STRASBOURG", "COLMAR", "MULHOUSE", "BORDEAUX", "MÉRIGNAC", "PESSAC", "TALENCE", "PAU",
-    "ANGLET", "BAYONNE", "CLERMONT-FERRAND", "CAEN", "CHERBOURG-EN-COTENTIN", "CHALON-SUR-SAÔNE",
-    "DIJON", "SAINT-BRIEUC", "BREST", "QUIMPER", "RENNES", "SAINT-MALO", "LORIENT", "VANNES",
-    "CHARTRES", "BLOIS", "BOURGES", "CHATEAUROUX", "TOURS", "ORLÉANS", "CHARLEVILLE-MEZIERES",
-    "TROYES", "CHALONS-EN-CHAMPAGNE", "REIMS", "BELFORT", "BESANÇON", "EVREUX", "LE HAVRE",
-    "ROUEN", "VINCENNES", "ANTONY", "ASNIÈRES-SUR-SEINE", "BAGNEUX", "BOULOGNE-BILLANCOURT",
-    "CLAMART", "CLICHY", "COLOMBES", "COURBEVOIE", "ISSY-LES-MOULINEAUX", "LEVALLOIS-PERRET",
-    "MEUDON", "MONTROUGE", "NANTERRE", "NEUILLY-SUR-SEINE", "PUTEAUX", "RUEIL-MALMAISON",
-    "SURESNES", "PARIS", "AUBERVILLIERS", "AULNAY-SOUS-BOIS", "BOBIGNY", "BONDY", "DRANCY",
-    "EPINAY-SUR-SEINE", "GAGNY", "LA COURNEUVE", "LE BLANC-MESNIL", "MONTREUIL", "NOISY-LE-GRAND",
-    "NOISY-LE-SEC", "PANTIN", "ROSNY-SOUS-BOIS", "SAINT-DENIS", "SAINT-OUEN-SUR-SEINE", "SEVRAN",
-    "IVRY-SUR-SEINE", "ALFORTVILLE", "CHAMPIGNY-SUR-MARNE", "CHOISY-LE-ROI", "CRÉTEIL",
-    "FONTENAY-SOUS-BOIS", "MAISONS-ALFORT", "SAINT-MAUR-DES-FOSSÉS", "VILLEJUIF", "VITRY-SUR-SEINE",
-    "ARGENTEUIL", "CERGY", "GARGES-LES-GONESSE", "SARCELLES", "VERSAILLES", "CORBEIL-ESSONNES",
-    "EVRY-COURCOURONNES", "MASSY", "CHELLES", "MEAUX", "MELUN", "SAINT-GERMAIN-EN-LAYE",
-    "SARTROUVILLE", "CARCASSONNE", "NARBONNE", "NÎMES", "BÉZIERS", "MONTPELLIER", "SÈTE",
-    "PERPIGNAN", "BRIVE-LA-GAILLARDE", "LIMOGES", "NANCY", "METZ", "THIONVILLE", "TARBES",
-    "TOULOUSE", "MONTAUBAN", "DOUAI", "DUNKERQUE", "LILLE", "MARCQ-EN-BAROEUL", "ROUBAIX",
-    "TOURCOING", "VALENCIENNES", "VILLENEUVE-D'ASCQ", "WATTRELOS", "ARRAS", "BOULOGNE-SUR-MER",
-    "CALAIS", "ALES", "ALBI", "CASTRES", "NANTES", "REZE", "SAINT-HERBLAIN", "SAINT-NAZAIRE",
-    "ANGERS", "CHOLET", "LAVAL", "LE MANS", "LA ROCHE-SUR-YON", "LES SABLES-D'OLONNE",
-    "SAINT-QUENTIN", "BEAUVAIS", "COMPIÈGNE", "AMIENS", "ANGOULEME", "LA ROCHELLE", "NIORT",
-    "POITIERS", "ANTIBES", "CAGNES-SUR-MER", "CANNES", "GRASSE", "LE CANNET", "NICE",
-    "AIX-EN-PROVENCE", "ARLES", "AUBAGNE", "MARSEILLE", "MARTIGUES", "SALON-DE-PROVENCE",
-    "GAP", "DRAGUIGNAN", "FRÉJUS", "HYÈRES", "LA SEYNE-SUR-MER", "TOULON", "AVIGNON",
-    "BOURG-EN-BRESSE", "GRAND GENÈVE", "MONTELIMAR", "VALENCE", "GRENOBLE", "SAINT-ÉTIENNE",
-    "BRON", "CALUIRE-ET-CUIRE", "LYON", "SAINT-PRIEST", "VAULX-EN-VELIN", "VÉNISSIEUX",
-    "VILLEURBANNE", "ANNECY", "CHAMBERY"
-]
+import pandas as pd
+
+df["DATE"] = pd.to_datetime(df["DATE"])
+resultats = []
+
+for ville, groupe in df.groupby("ville_"):
+    last_date = groupe["DATE"].max()
+    previous_date = last_date - pd.DateOffset(years=1)
+
+    prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
+    prix_previous = groupe.loc[groupe["DATE"] == previous_date, "Prix_m2"]
+
+    if not prix_previous.empty:
+        evolution = ((prix_last.values[0] - prix_previous.values[0]) / prix_previous.values[0]) * 100
+        resultats.append({
+            "ville": ville,
+            "date_actuelle": last_date.date(),
+            "date_annee_precedente": previous_date.date(),
+            "evolution_%": round(evolution, 2)
+        })
+    else:
+        resultats.append({
+            "ville": ville,
+            "date_actuelle": last_date.date(),
+            "date_annee_precedente": previous_date.date(),
+            "evolution_%": None
+        })
+
+for r in resultats:
+    print(r)
