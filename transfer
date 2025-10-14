@@ -1,7 +1,12 @@
 resultats = []
 df_filtre = df_filtre.sort_values(["ville_","DATE"])
 
-df_filtre["moyenne_glissante_12m"] = df_filtre.groupby("ville_")["Prix_m2"].rolling(window = 12, min_period = 12)
+df_filtre["moyenne_glissante_12m"] = (
+    df_filtre.groupby("ville_")["Prix_m2"]
+    .rolling(window=12, min_periods=12)
+    .mean()
+    .reset_index(level=0, drop=True)
+)
 
 for ville, groupe in df_filtre.groupby("ville_"):
     groupe = groupe.sort_values("DATE")
@@ -9,24 +14,23 @@ for ville, groupe in df_filtre.groupby("ville_"):
     date_last = last_row["DATE"]
     moyenne_last = last_row["moyenne_glissante_12m"]
 
-    date_previous = date_last - pd.DateOffset(years = 1)
+    date_previous = date_last - pd.DateOffset(years=1)
     groupe_previous = groupe[groupe["DATE"] <= date_previous]
 
-    if not groupe_previous.empty: 
+    if not groupe_previous.empty:
         moyenne_previous = groupe_previous.iloc[-1]["moyenne_glissante_12m"]
-        evolution = ((moyenne_last - moyenne_previous)/moyenne_previous)*100
+        evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
         last_date = groupe["DATE"].max()
         prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
-
-
-    resultats.append({
-        "ville": ville,
-        "date_actuelle": last_date.date(),
-        "evolution_%": round(evolution, 2),
-        "prix_m2": prix_last.values[0]
+        resultats.append({
+            "ville": ville,
+            "date_actuelle": last_date.date(),
+            "evolution_%": round(evolution, 2),
+            "prix_m2": prix_last.values[0] if not prix_last.empty else None
         })
-    
     else:
+        last_date = groupe["DATE"].max()
+        prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
         resultats.append({
             "ville": ville,
             "date_la_plus_recente": last_date.date(),
