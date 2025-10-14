@@ -1,41 +1,70 @@
-import pandas as pd
+{
+	"name": "AttributeError",
+	"message": "'numpy.float64' object has no attribute 'keys'",
+	"stack": "---------------------------------------------------------------------------
+AttributeError                            Traceback (most recent call last)
+Cell In[78], line 39
+     31         resultats.append({
+     32             \"ville\": ville,
+     33             \"date_actuelle\": last_date.date() if pd.notnull(last_date) else None,
+   (...)     36             \"date_la_plus_recente\": last_date.date() if pd.notnull(last_date) else None
+     37         })
+     38 resultats.append(df_filtre[\"Prix_m2\"].values[0])
+---> 39 rdf = pd.DataFrame(resultats)
+     40 rdf
 
-df["DATE"] = pd.to_datetime(df["DATE"])
-resultats = []
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\frame.py:855, in DataFrame.__init__(self, data, index, columns, dtype, copy)
+    853     if columns is not None:
+    854         columns = ensure_index(columns)
+--> 855     arrays, columns, index = nested_data_to_arrays(
+    856         # error: Argument 3 to \"nested_data_to_arrays\" has incompatible
+    857         # type \"Optional[Collection[Any]]\"; expected \"Optional[Index]\"
+    858         data,
+    859         columns,
+    860         index,  # type: ignore[arg-type]
+    861         dtype,
+    862     )
+    863     mgr = arrays_to_mgr(
+    864         arrays,
+    865         columns,
+   (...)    868         typ=manager,
+    869     )
+    870 else:
 
-for ville, groupe in df.groupby("ville_"):
-    groupe = groupe.sort_values("DATE")
-    last_date = groupe["DATE"].max()
-    previous_date_target = last_date - pd.DateOffset(years=1)
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\internals\\construction.py:520, in nested_data_to_arrays(data, columns, index, dtype)
+    517 if is_named_tuple(data[0]) and columns is None:
+    518     columns = ensure_index(data[0]._fields)
+--> 520 arrays, columns = to_arrays(data, columns, dtype=dtype)
+    521 columns = ensure_index(columns)
+    523 if index is None:
 
-    prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
-    # On cherche la date la plus proche (inférieure ou égale à previous_date_target)
-    groupe_prev = groupe[groupe["DATE"] <= previous_date_target]
-    if not groupe_prev.empty:
-        previous_date = groupe_prev["DATE"].max()
-        prix_previous = groupe_prev.loc[groupe_prev["DATE"] == previous_date, "Prix_m2"]
-        if not prix_last.empty and not prix_previous.empty:
-            evolution = ((prix_last.values[0] - prix_previous.values[0]) / prix_previous.values[0]) * 100
-            resultats.append({
-                "ville": ville,
-                "date_actuelle": last_date.date(),
-                "date_annee_precedente": previous_date.date(),
-                "evolution_%": round(evolution, 2),
-                "date_la_plus_recente": last_date.date()
-            })
-        else:
-            resultats.append({
-                "ville": ville,
-                "date_actuelle": last_date.date(),
-                "date_annee_precedente": previous_date.date(),
-                "evolution_%": None,
-                "date_la_plus_recente": last_date.date()
-            })
-    else:
-        resultats.append({
-            "ville": ville,
-            "date_actuelle": last_date.date() if pd.notnull(last_date) else None,
-            "date_annee_precedente": None,
-            "evolution_%": None,
-            "date_la_plus_recente": last_date.date() if pd.notnull(last_date) else None
-        })
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\internals\\construction.py:837, in to_arrays(data, columns, dtype)
+    835     arr = _list_to_arrays(data)
+    836 elif isinstance(data[0], abc.Mapping):
+--> 837     arr, columns = _list_of_dict_to_arrays(data, columns)
+    838 elif isinstance(data[0], ABCSeries):
+    839     arr, columns = _list_of_series_to_arrays(data, columns)
+
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\internals\\construction.py:917, in _list_of_dict_to_arrays(data, columns)
+    915     gen = (list(x.keys()) for x in data)
+    916     sort = not any(isinstance(d, dict) for d in data)
+--> 917     pre_cols = lib.fast_unique_multiple_list_gen(gen, sort=sort)
+    918     columns = ensure_index(pre_cols)
+    920 # assure that they are of the base dict class and not of derived
+    921 # classes
+
+File pandas/_libs/lib.pyx:367, in pandas._libs.lib.fast_unique_multiple_list_gen()
+
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\internals\\construction.py:915, in <genexpr>(.0)
+    895 \"\"\"
+    896 Convert list of dicts to numpy arrays
+    897 
+   (...)    912 columns : Index
+    913 \"\"\"
+    914 if columns is None:
+--> 915     gen = (list(x.keys()) for x in data)
+    916     sort = not any(isinstance(d, dict) for d in data)
+    917     pre_cols = lib.fast_unique_multiple_list_gen(gen, sort=sort)
+
+AttributeError: 'numpy.float64' object has no attribute 'keys'"
+}
