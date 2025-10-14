@@ -1,6 +1,41 @@
-ville	date_actuelle	date_annee_precedente	evolution_%	date_la_plus_recente
-0	ALBI	2025-06-01	2024-06-01	NaN	NaN
-1	ALES	2025-06-01	2024-06-01	NaN	NaN
-2	ALFORTVILLE	2025-07-01	2024-07-01	NaN	NaN
-3	AMIENS	NaN	2024-09-01	-44.36	2025-09-01
-4	ANGERS	2025-07-01	2024-07-01	NaN	NaN
+import pandas as pd
+
+df["DATE"] = pd.to_datetime(df["DATE"])
+resultats = []
+
+for ville, groupe in df.groupby("ville_"):
+    groupe = groupe.sort_values("DATE")
+    last_date = groupe["DATE"].max()
+    previous_date_target = last_date - pd.DateOffset(years=1)
+
+    prix_last = groupe.loc[groupe["DATE"] == last_date, "Prix_m2"]
+    # On cherche la date la plus proche (inférieure ou égale à previous_date_target)
+    groupe_prev = groupe[groupe["DATE"] <= previous_date_target]
+    if not groupe_prev.empty:
+        previous_date = groupe_prev["DATE"].max()
+        prix_previous = groupe_prev.loc[groupe_prev["DATE"] == previous_date, "Prix_m2"]
+        if not prix_last.empty and not prix_previous.empty:
+            evolution = ((prix_last.values[0] - prix_previous.values[0]) / prix_previous.values[0]) * 100
+            resultats.append({
+                "ville": ville,
+                "date_actuelle": last_date.date(),
+                "date_annee_precedente": previous_date.date(),
+                "evolution_%": round(evolution, 2),
+                "date_la_plus_recente": last_date.date()
+            })
+        else:
+            resultats.append({
+                "ville": ville,
+                "date_actuelle": last_date.date(),
+                "date_annee_precedente": previous_date.date(),
+                "evolution_%": None,
+                "date_la_plus_recente": last_date.date()
+            })
+    else:
+        resultats.append({
+            "ville": ville,
+            "date_actuelle": last_date.date() if pd.notnull(last_date) else None,
+            "date_annee_precedente": None,
+            "evolution_%": None,
+            "date_la_plus_recente": last_date.date() if pd.notnull(last_date) else None
+        })
