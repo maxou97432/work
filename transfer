@@ -1,52 +1,31 @@
-import pandas as pd
-
-resultats = []
-
-# Calcul de la moyenne glissante
-df_filtre["moyenne_glissante_12m"] = (
-    df_filtre.groupby("ville_")["Prix_m2"]
-    .rolling(window=12, min_periods=10)
-    .mean()
-    .reset_index(level=0, drop=True)
-)
-
-for ville, groupe in df_filtre.groupby("ville_"):
-    # Trier par date pour être sûr d'avoir la dernière chronologiquement
-    groupe = groupe.sort_values("DATE").reset_index(drop=True)
-
-    # Dernière valeur valide de Prix_m2
-    groupe_prix_valide = groupe[groupe["Prix_m2"].notna()]
-    if groupe_prix_valide.empty:
-        continue
-    last_row = groupe_prix_valide.iloc[-1]
-    date_last = last_row["DATE"]
-    prix_last = last_row["Prix_m2"]
-
-    # Dernière valeur valide de la moyenne glissante
-    groupe_moy_valide = groupe[groupe["moyenne_glissante_12m"].notna()]
-    if groupe_moy_valide.empty:
-        continue
-    moyenne_last = groupe_moy_valide.iloc[-1]["moyenne_glissante_12m"]
-
-    # Date de référence pour l'année précédente
-    date_previous = date_last - pd.DateOffset(years=1)
-    groupe_previous = groupe[groupe["DATE"] <= date_previous]
-
-    # Calcul de l'évolution annuelle
-    evolution = None
-    if not groupe_previous.empty:
-        groupe_prev_moy_valide = groupe_previous[groupe_previous["moyenne_glissante_12m"].notna()]
-        if not groupe_prev_moy_valide.empty:
-            moyenne_previous = groupe_prev_moy_valide.iloc[-1]["moyenne_glissante_12m"]
-            evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
-
-    resultats.append({
-        "ville": ville,
-        "derniere_date_valide": date_last.date(),
-        "evolution_%": round(evolution, 2) if evolution is not None else None,
-        "prix_m2_derniere_date_enregistree": prix_last
-    })
-
-# Création du DataFrame final
-rdf = pd.DataFrame(resultats)
-rdf
+villes = [
+    "STRASBOURG", "COLMAR", "MULHOUSE", "BORDEAUX", "MÉRIGNAC", "PESSAC", "TALENCE", "PAU",
+    "ANGLET", "BAYONNE", "CLERMONT-FERRAND", "CAEN", "CHERBOURG-EN-COTENTIN", "CHALON-SUR-SAÔNE",
+    "DIJON", "SAINT-BRIEUC", "BREST", "QUIMPER", "RENNES", "SAINT-MALO", "LORIENT", "VANNES",
+    "CHARTRES", "BLOIS", "BOURGES", "CHATEAUROUX", "TOURS", "ORLÉANS", "CHARLEVILLE-MEZIERES",
+    "TROYES", "CHALONS-EN-CHAMPAGNE", "REIMS", "BELFORT", "BESANÇON", "EVREUX", "LE HAVRE",
+    "ROUEN", "VINCENNES", "ANTONY", "ASNIÈRES-SUR-SEINE", "BAGNEUX", "BOULOGNE-BILLANCOURT",
+    "CLAMART", "CLICHY", "COLOMBES", "COURBEVOIE", "ISSY-LES-MOULINEAUX", "LEVALLOIS-PERRET",
+    "MEUDON", "MONTROUGE", "NANTERRE", "NEUILLY-SUR-SEINE", "PUTEAUX", "RUEIL-MALMAISON",
+    "SURESNES", "PARIS", "AUBERVILLIERS", "AULNAY-SOUS-BOIS", "BOBIGNY", "BONDY", "DRANCY",
+    "EPINAY-SUR-SEINE", "GAGNY", "LA COURNEUVE", "LE BLANC-MESNIL", "MONTREUIL", "NOISY-LE-GRAND",
+    "NOISY-LE-SEC", "PANTIN", "ROSNY-SOUS-BOIS", "SAINT-DENIS", "SAINT-OUEN-SUR-SEINE", "SEVRAN",
+    "IVRY-SUR-SEINE", "ALFORTVILLE", "CHAMPIGNY-SUR-MARNE", "CHOISY-LE-ROI", "CRÉTEIL",
+    "FONTENAY-SOUS-BOIS", "MAISONS-ALFORT", "SAINT-MAUR-DES-FOSSÉS", "VILLEJUIF", "VITRY-SUR-SEINE",
+    "ARGENTEUIL", "CERGY", "GARGES-LES-GONESSE", "SARCELLES", "VERSAILLES", "CORBEIL-ESSONNES",
+    "EVRY-COURCOURONNES", "MASSY", "CHELLES", "MEAUX", "MELUN", "SAINT-GERMAIN-EN-LAYE",
+    "SARTROUVILLE", "CARCASSONNE", "NARBONNE", "NÎMES", "BÉZIERS", "MONTPELLIER", "SÈTE",
+    "PERPIGNAN", "BRIVE-LA-GAILLARDE", "LIMOGES", "NANCY", "METZ", "THIONVILLE", "TARBES",
+    "TOULOUSE", "MONTAUBAN", "DOUAI", "DUNKERQUE", "LILLE", "MARCQ-EN-BAROEUL", "ROUBAIX",
+    "TOURCOING", "VALENCIENNES", "VILLENEUVE-D'ASCQ", "WATTRELOS", "ARRAS", "BOULOGNE-SUR-MER",
+    "CALAIS", "ALES", "ALBI", "CASTRES", "NANTES", "REZE", "SAINT-HERBLAIN", "SAINT-NAZAIRE",
+    "ANGERS", "CHOLET", "LAVAL", "LE MANS", "LA ROCHE-SUR-YON", "LES SABLES-D'OLONNE",
+    "SAINT-QUENTIN", "BEAUVAIS", "COMPIÈGNE", "AMIENS", "ANGOULEME", "LA ROCHELLE", "NIORT",
+    "POITIERS", "ANTIBES", "CAGNES-SUR-MER", "CANNES", "GRASSE", "LE CANNET", "NICE",
+    "AIX-EN-PROVENCE", "ARLES", "AUBAGNE", "MARSEILLE", "MARTIGUES", "SALON-DE-PROVENCE",
+    "GAP", "DRAGUIGNAN", "FRÉJUS", "HYÈRES", "LA SEYNE-SUR-MER", "TOULON", "AVIGNON",
+    "BOURG-EN-BRESSE", "GRAND GENÈVE", "MONTELIMAR", "VALENCE", "GRENOBLE", "SAINT-ÉTIENNE",
+    "BRON", "CALUIRE-ET-CUIRE", "LYON", "SAINT-PRIEST", "VAULX-EN-VELIN", "VÉNISSIEUX",
+    "VILLEURBANNE", "ANNECY", "CHAMBERY"
+]
+df_filtre = df[df["ville_"].isin(villes)]
