@@ -1,33 +1,62 @@
-import pandas as pd
-import matplotlib.pyplot as plt
+{
+	"name": "KeyError",
+	"message": "None",
+	"stack": "---------------------------------------------------------------------------
+KeyError                                  Traceback (most recent call last)
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
+   3811 try:
+-> 3812     return self._engine.get_loc(casted_key)
+   3813 except KeyError as err:
 
-# 1️⃣ Calcul du pourcentage de NA par ville
-na_par_ville = df_filtre.groupby("ville_")["Prix_m2"].apply(lambda x: x.isna().mean()*100)
+File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
 
-# 2️⃣ Initialiser la série de catégories
-categories = pd.Series(index=na_par_ville.index, dtype="object")
+File pandas/_libs/index.pyx:175, in pandas._libs.index.IndexEngine.get_loc()
 
-# 3️⃣ Attribuer les catégories spécifiques pour 0 et 100
-categories[na_par_ville == 0] = "0%"
-categories[na_par_ville == 100] = "100%"
+File pandas/_libs/index_class_helper.pxi:70, in pandas._libs.index.Int64Engine._check_type()
 
-# 4️⃣ Définir les intervalles pour les autres valeurs
-bins = [0, 10, 30, 50, 85, 100]
-labels = ["0-10%", "10-30%", "30-50%", "50-85%", "85-100%"]
+KeyError: None
 
-# 5️⃣ Catégoriser les autres valeurs (excluant 0 et 100 déjà assignés)
-mask = categories.isna()
-categories[mask] = pd.cut(na_par_ville[mask], bins=bins, labels=labels, include_lowest=True, right=False)
+The above exception was the direct cause of the following exception:
 
-# 6️⃣ Compter le nombre de villes par catégorie
-counts = categories.value_counts().sort_index()
+KeyError                                  Traceback (most recent call last)
+Cell In[66], line 23
+     21 # Dernière valeur connue pour la moyenne glissante
+     22 moyenne_last_idx = groupe[\"moyenne_glissante_12m\"].last_valid_index()
+---> 23 moyenne_last = groupe.loc[moyenne_last_idx, \"moyenne_glissante_12m\"]
+     25 # Calcul de la date de référence pour l'année précédente
+     26 date_previous = date_last - pd.DateOffset(years=1)
 
-print("Nombre de villes par catégorie :")
-print(counts)
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexing.py:1184, in _LocationIndexer.__getitem__(self, key)
+   1182     key = tuple(com.apply_if_callable(x, self.obj) for x in key)
+   1183     if self._is_scalar_access(key):
+-> 1184         return self.obj._get_value(*key, takeable=self._takeable)
+   1185     return self._getitem_tuple(key)
+   1186 else:
+   1187     # we by definition only have the 0th axis
 
-# 7️⃣ Tracer le graphique
-ax = counts.plot(kind="bar", figsize=(10,5), color="skyblue", edgecolor="k")
-ax.set_xlabel("Tranches de % de NA")
-ax.set_ylabel("Nombre de villes")
-ax.set_title("Répartition des villes selon le pourcentage de valeurs manquantes")
-plt.show()
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\frame.py:4232, in DataFrame._get_value(self, index, col, takeable)
+   4226 engine = self.index._engine
+   4228 if not isinstance(self.index, MultiIndex):
+   4229     # CategoricalIndex: Trying to use the engine fastpath may give incorrect
+   4230     #  results if our categories are integers that dont match our codes
+   4231     # IntervalIndex: IntervalTree has no get_loc
+-> 4232     row = self.index.get_loc(index)
+   4233     return series._values[row]
+   4235 # For MultiIndex going through engine effectively restricts us to
+   4236 #  same-length tuples; see test_get_set_value_no_partial_indexing
+
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
+   3814     if isinstance(casted_key, slice) or (
+   3815         isinstance(casted_key, abc.Iterable)
+   3816         and any(isinstance(x, slice) for x in casted_key)
+   3817     ):
+   3818         raise InvalidIndexError(key)
+-> 3819     raise KeyError(key) from err
+   3820 except TypeError:
+   3821     # If we have a listlike key, _check_indexing_error will raise
+   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
+   3823     #  the TypeError.
+   3824     self._check_indexing_error(key)
+
+KeyError: None"
+}
