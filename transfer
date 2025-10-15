@@ -1,17 +1,27 @@
-# Normaliser les villes dans le DataFrame
-df["ville_"] = (
-    df["ville_"]
-    .str.upper()                       # tout en majuscules
-    .str.strip()                        # enlever espaces avant/après
-    .str.normalize('NFKD')              # enlever accents
-    .str.encode('ascii', errors='ignore').str.decode()
-)
+{
+	"name": "TypeError",
+	"message": "StringMethods.decode() missing 1 required positional argument: 'encoding'",
+	"stack": "---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+Cell In[84], line 38
+      1 villes = [
+      2     \"STRASBOURG\", \"COLMAR\", \"MULHOUSE\", \"BORDEAUX\", \"MÉRIGNAC\", \"PESSAC\", \"TALENCE\", \"PAU\",
+      3     \"ANGLET\", \"BAYONNE\", \"CLERMONT-FERRAND\", \"CAEN\", \"CHERBOURG-EN-COTENTIN\", \"CHALON-SUR-SAÔNE\",
+   (...)     29     \"VILLEURBANNE\", \"ANNECY\", \"CHAMBERY\"
+     30 ]
+     32 # Normaliser les villes dans le DataFrame
+     33 df[\"ville_\"] = (
+     34     df[\"ville_\"]
+     35     .str.upper()                       # tout en majuscules
+     36     .str.strip()                        # enlever espaces avant/après
+     37     .str.normalize('NFKD')              # enlever accents
+---> 38     .str.encode('ascii', errors='ignore').str.decode()
+     39 )
+     41 # Normaliser la liste des villes
+     42 villes_norm = [
+     43     v.upper().strip().normalize('NFKD').encode('ascii', errors='ignore').decode() 
+     44     for v in villes
+     45 ]
 
-# Normaliser la liste des villes
-villes_norm = [
-    v.upper().strip().normalize('NFKD').encode('ascii', errors='ignore').decode() 
-    for v in villes
-]
-
-# Filtrer
-df_filtre = df[df["ville_"].isin(villes_norm)]
+TypeError: StringMethods.decode() missing 1 required positional argument: 'encoding'"
+}
