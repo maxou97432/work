@@ -1,9 +1,16 @@
-je veux que tu fasses la répartitions des na: tu comptes le nombre d'occurence de chaque porcentage et que tu traces leurs répartitions: df_filtre_prix_na = df_filtre["Prix_m2"].isna().sum()
-print(f"{df_filtre_prix_na} données manquantes")
+# 1️⃣ Calcul du pourcentage de NA par ville
+na_par_ville = df_filtre.groupby("ville_")["Prix_m2"].apply(lambda x: x.isna().mean()*100)
 
-na_par_ville = (df_filtre.groupby("ville_")["Prix_m2"].apply(lambda x: x.isna().mean()*100).sort_values(ascending = False))
-print(na_par_ville)
-ax = na_par_ville.plot(kind = "bar", figsize = (12,5))
-ax.set_xticklabels([])
-ax.set_ylabel("% NA")
-ax.set_xlabel("")
+# 2️⃣ Compter le nombre de villes pour chaque "bucket" de pourcentage
+# Optionnel : on arrondit à 1 décimale pour grouper
+na_counts = na_par_ville.round(1).value_counts().sort_index()
+
+print("Répartition des pourcentages de NA :")
+print(na_counts)
+
+# 3️⃣ Tracer la distribution
+ax = na_counts.plot(kind="bar", figsize=(12,5), color="skyblue", edgecolor="k")
+ax.set_xlabel("% de NA arrondi")
+ax.set_ylabel("Nombre de villes")
+ax.set_title("Distribution des valeurs manquantes par ville")
+
