@@ -1,5 +1,6 @@
 resultats = []
 
+# Calcul de la moyenne glissante
 df_filtre["moyenne_glissante_12m"] = (
     df_filtre.groupby("ville_")["Prix_m2"]
     .rolling(window=12, min_periods=10)
@@ -10,35 +11,31 @@ df_filtre["moyenne_glissante_12m"] = (
 for ville, groupe in df_filtre.groupby("ville_"):
     groupe = groupe.sort_values("DATE")
 
-    # Dernière valeur connue pour Prix_m2
+    # Dernière valeur valide de Prix_m2
     last_idx = groupe["Prix_m2"].last_valid_index()
     if last_idx is None:
-        continue  
+        continue  # aucune donnée valide pour cette ville
     last_row = groupe.loc[last_idx]
     date_last = last_row["DATE"]
     prix_last = last_row["Prix_m2"]
 
-    # Dernière valeur connue pour la moyenne glissante
+    # Dernière valeur valide de la moyenne glissante
     moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
-    if moyenne_last_idx is not None:
-        moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
-    else:
-        continue
-
+    if moyenne_last_idx is None:
+        continue  # aucune moyenne glissante valide
+    moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
 
     # Calcul de la date de référence pour l'année précédente
     date_previous = date_last - pd.DateOffset(years=1)
     groupe_previous = groupe[groupe["DATE"] <= date_previous]
 
+    # Calcul de l'évolution annuelle
+    evolution = None
     if not groupe_previous.empty:
         prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
         if prev_idx is not None:
             moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
             evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
-        else:
-            evolution = None
-    else:
-        evolution = None
 
     resultats.append({
         "ville": ville,
@@ -47,6 +44,6 @@ for ville, groupe in df_filtre.groupby("ville_"):
         "prix_m2_derniere_date_enregistree": prix_last
     })
 
-
+# Création du DataFrame final
 rdf = pd.DataFrame(resultats)
 rdf
