@@ -1,46 +1,9 @@
-resultats = []
+je veux que tu fasses la répartitions des na: tu comptes le nombre d'occurence de chaque porcentage et que tu traces leurs répartitions: df_filtre_prix_na = df_filtre["Prix_m2"].isna().sum()
+print(f"{df_filtre_prix_na} données manquantes")
 
-df_filtre["moyenne_glissante_12m"] = (
-    df_filtre.groupby("ville_")["Prix_m2"]
-    .rolling(window=12, min_periods=10)
-    .mean()
-    .reset_index(level=0, drop=True)
-)
-
-for ville, groupe in df_filtre.groupby("ville_"):
-    groupe = groupe.sort_values("DATE")
-
-    # Dernière valeur connue pour Prix_m2
-    last_idx = groupe["Prix_m2"].last_valid_index()
-    if last_idx is None:
-        continue  # aucune donnée valide pour cette ville
-    last_row = groupe.loc[last_idx]
-    date_last = last_row["DATE"]
-    prix_last = last_row["Prix_m2"]
-
-    # Dernière valeur connue pour la moyenne glissante
-    moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
-    moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
-
-    # Calcul de la date de référence pour l'année précédente
-    date_previous = date_last - pd.DateOffset(years=1)
-    groupe_previous = groupe[groupe["DATE"] <= date_previous]
-
-    if not groupe_previous.empty:
-        prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
-        if prev_idx is not None:
-            moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
-            evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
-        else:
-            evolution = None
-    else:
-        evolution = None
-
-    resultats.append({
-        "ville": ville,
-        "date_actuelle": date_last.date(),
-        "evolution_%": round(evolution, 2) if evolution is not None else None,
-        "prix_m2": prix_last
-    })
-
-rdf = pd.DataFrame(resultats)
+na_par_ville = (df_filtre.groupby("ville_")["Prix_m2"].apply(lambda x: x.isna().mean()*100).sort_values(ascending = False))
+print(na_par_ville)
+ax = na_par_ville.plot(kind = "bar", figsize = (12,5))
+ax.set_xticklabels([])
+ax.set_ylabel("% NA")
+ax.set_xlabel("")
