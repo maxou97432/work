@@ -9,36 +9,38 @@ df_filtre["moyenne_glissante_12m"] = (
 
 for ville, groupe in df_filtre.groupby("ville_"):
     groupe = groupe.sort_values("DATE")
-    groupe_non_na = groupe[groupe["Prix_m2"].notna()]
-    if groupe_non_na.empty:
-        continue
 
-    last_row = groupe.iloc[-1]
+    # Dernière valeur connue pour Prix_m2
+    last_idx = groupe["Prix_m2"].last_valid_index()
+    if last_idx is None:
+        continue  # aucune donnée valide pour cette ville
+    last_row = groupe.loc[last_idx]
     date_last = last_row["DATE"]
-    moyenne_last = last_row["moyenne_glissante_12m"]
+    prix_last = last_row["Prix_m2"]
 
+    # Dernière valeur connue pour la moyenne glissante
+    moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
+    moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
+
+    # Calcul de la date de référence pour l'année précédente
     date_previous = date_last - pd.DateOffset(years=1)
     groupe_previous = groupe[groupe["DATE"] <= date_previous]
 
     if not groupe_previous.empty:
-        group_previous_non_na = groupe_previous[groupe_previous["moyenne_glissante_12m"].notna()]
-        if group_previous_non_na.empty:
-            moyenne_previous = group_previous_non_na.iloc[-1]["moyenne_glissante_12m"]
-            moyenne_previous = groupe_previous.iloc[-1]["moyenne_glissante_12m"]
+        prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
+        if prev_idx is not None:
+            moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
             evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
         else:
             evolution = None
     else:
         evolution = None
-    prix_last = last_row["Prix_m2"]
-
 
     resultats.append({
-    "ville": ville,
-    "date_actuelle": date_last.date(),
-    "evolution_%": round(evolution, 2) if evolution is not None else None,
-    "prix_m2": prix_last
+        "ville": ville,
+        "date_actuelle": date_last.date(),
+        "evolution_%": round(evolution, 2) if evolution is not None else None,
+        "prix_m2": prix_last
     })
 
 rdf = pd.DataFrame(resultats)
-rdf
