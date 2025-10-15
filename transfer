@@ -1,62 +1,52 @@
-{
-	"name": "KeyError",
-	"message": "None",
-	"stack": "---------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
-   3811 try:
--> 3812     return self._engine.get_loc(casted_key)
-   3813 except KeyError as err:
+resultats = []
 
-File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
+df_filtre["moyenne_glissante_12m"] = (
+    df_filtre.groupby("ville_")["Prix_m2"]
+    .rolling(window=12, min_periods=10)
+    .mean()
+    .reset_index(level=0, drop=True)
+)
 
-File pandas/_libs/index.pyx:175, in pandas._libs.index.IndexEngine.get_loc()
+for ville, groupe in df_filtre.groupby("ville_"):
+    groupe = groupe.sort_values("DATE")
 
-File pandas/_libs/index_class_helper.pxi:70, in pandas._libs.index.Int64Engine._check_type()
+    # Dernière valeur connue pour Prix_m2
+    last_idx = groupe["Prix_m2"].last_valid_index()
+    if last_idx is None:
+        continue  
+    last_row = groupe.loc[last_idx]
+    date_last = last_row["DATE"]
+    prix_last = last_row["Prix_m2"]
 
-KeyError: None
+    # Dernière valeur connue pour la moyenne glissante
+    moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
+    if moyenne_last_idx is not None:
+        moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
+    else:
+        continue
 
-The above exception was the direct cause of the following exception:
 
-KeyError                                  Traceback (most recent call last)
-Cell In[66], line 23
-     21 # Dernière valeur connue pour la moyenne glissante
-     22 moyenne_last_idx = groupe[\"moyenne_glissante_12m\"].last_valid_index()
----> 23 moyenne_last = groupe.loc[moyenne_last_idx, \"moyenne_glissante_12m\"]
-     25 # Calcul de la date de référence pour l'année précédente
-     26 date_previous = date_last - pd.DateOffset(years=1)
+    # Calcul de la date de référence pour l'année précédente
+    date_previous = date_last - pd.DateOffset(years=1)
+    groupe_previous = groupe[groupe["DATE"] <= date_previous]
 
-File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexing.py:1184, in _LocationIndexer.__getitem__(self, key)
-   1182     key = tuple(com.apply_if_callable(x, self.obj) for x in key)
-   1183     if self._is_scalar_access(key):
--> 1184         return self.obj._get_value(*key, takeable=self._takeable)
-   1185     return self._getitem_tuple(key)
-   1186 else:
-   1187     # we by definition only have the 0th axis
+    if not groupe_previous.empty:
+        prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
+        if prev_idx is not None:
+            moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
+            evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
+        else:
+            evolution = None
+    else:
+        evolution = None
 
-File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\frame.py:4232, in DataFrame._get_value(self, index, col, takeable)
-   4226 engine = self.index._engine
-   4228 if not isinstance(self.index, MultiIndex):
-   4229     # CategoricalIndex: Trying to use the engine fastpath may give incorrect
-   4230     #  results if our categories are integers that dont match our codes
-   4231     # IntervalIndex: IntervalTree has no get_loc
--> 4232     row = self.index.get_loc(index)
-   4233     return series._values[row]
-   4235 # For MultiIndex going through engine effectively restricts us to
-   4236 #  same-length tuples; see test_get_set_value_no_partial_indexing
+    resultats.append({
+        "ville": ville,
+        "derniere_date_valide": date_last.date(),
+        "evolution_%": round(evolution, 2) if evolution is not None else None,
+        "prix_m2_derniere_date_enregistree": prix_last
+    })
 
-File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
-   3814     if isinstance(casted_key, slice) or (
-   3815         isinstance(casted_key, abc.Iterable)
-   3816         and any(isinstance(x, slice) for x in casted_key)
-   3817     ):
-   3818         raise InvalidIndexError(key)
--> 3819     raise KeyError(key) from err
-   3820 except TypeError:
-   3821     # If we have a listlike key, _check_indexing_error will raise
-   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
-   3823     #  the TypeError.
-   3824     self._check_indexing_error(key)
 
-KeyError: None"
-}
+rdf = pd.DataFrame(resultats)
+rdf
