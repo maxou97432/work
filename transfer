@@ -1,27 +1,48 @@
-{
-	"name": "TypeError",
-	"message": "StringMethods.decode() missing 1 required positional argument: 'encoding'",
-	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-Cell In[84], line 38
-      1 villes = [
-      2     \"STRASBOURG\", \"COLMAR\", \"MULHOUSE\", \"BORDEAUX\", \"MÉRIGNAC\", \"PESSAC\", \"TALENCE\", \"PAU\",
-      3     \"ANGLET\", \"BAYONNE\", \"CLERMONT-FERRAND\", \"CAEN\", \"CHERBOURG-EN-COTENTIN\", \"CHALON-SUR-SAÔNE\",
-   (...)     29     \"VILLEURBANNE\", \"ANNECY\", \"CHAMBERY\"
-     30 ]
-     32 # Normaliser les villes dans le DataFrame
-     33 df[\"ville_\"] = (
-     34     df[\"ville_\"]
-     35     .str.upper()                       # tout en majuscules
-     36     .str.strip()                        # enlever espaces avant/après
-     37     .str.normalize('NFKD')              # enlever accents
----> 38     .str.encode('ascii', errors='ignore').str.decode()
-     39 )
-     41 # Normaliser la liste des villes
-     42 villes_norm = [
-     43     v.upper().strip().normalize('NFKD').encode('ascii', errors='ignore').decode() 
-     44     for v in villes
-     45 ]
+resultats = []
 
-TypeError: StringMethods.decode() missing 1 required positional argument: 'encoding'"
-}
+base_ml["moyenne_glissante_12m"] = (
+    base_ml.groupby("ville_")["Prix_m2_moyen"]
+    .rolling(window=12, min_periods=12)
+    .mean()
+    .reset_index(level=0, drop=True)
+)
+
+for ville, groupe in base_ml.groupby("ville_"):
+    groupe = groupe.sort_values("DATE")
+
+    # Dernière valeur connue pour Prix_m2
+    last_idx = groupe["Prix_m2_moyen"].last_valid_index()
+    if last_idx is None:
+        continue  
+    last_row = groupe.loc[last_idx]
+    date_last = last_row["DATE"]
+    prix_last = last_row["Prix_m2_moyen"]
+
+    # Dernière valeur connue pour la moyenne glissante
+    moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
+    moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
+
+    # Calcul de la date de référence pour l'année précédente
+    date_previous = date_last - pd.DateOffset(years=1)
+    groupe_previous = groupe[groupe["DATE"] <= date_previous]
+
+    if not groupe_previous.empty:
+        prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
+        if prev_idx is not None:
+            moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
+            evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
+        else:
+            evolution = None
+    else:
+        evolution = None
+
+    resultats.append({
+        "Ville": ville,
+        "Derniere date valide": date_last.date(),
+        "Evolution (%)": round(evolution, 2) if evolution is not None else None,
+        "Prix_m2_moyen": prix_last
+    })
+
+
+rdf = pd.DataFrame(resultats)
+rdf
