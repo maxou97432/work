@@ -93,74 +93,46 @@ Data columns (total 90 columns):
  87  nb_TYPE_LOCAL_Appartement       float64       
  88  nb_TYPE_LOCAL_Dépendance        float64       
  89  NATURE_MUTATION                 object        
-dtypes: datetime64[ns](4), float32(14), float64(19), int32(1), int64(2), object(50)
-memory usage: 6.9+ GB
+
+
 import pandas as pd
-# --- Imports (au besoin) ---
-import pandas as pd
-import numpy as np
+import plotly.express as px
 
-# 1) Comptes bruts par YEAR x SOURCE
-df_counts = (base_ml
-             .groupby(['YEAR', 'SOURCE'], dropna=False)['ID']
-             .count()
-             .reset_index(name='Transactions'))
+# 1) Grouper les données
+df_grouped = (base_ml.groupby(['YEAR', 'SOURCE'])['ID']
+                        .count()
+                        .reset_index(name='Transactions'))
 
-# 2) Tableau des comptes (valeurs absolues) – pratique pour l’audit
-tab_counts = (df_counts
-              .pivot(index='YEAR', columns='SOURCE', values='Transactions')
-              .fillna(0)
-              .astype(int))
+# 2) Calcul des %
+df_total = df_grouped.groupby('YEAR')['Transactions'].sum().reset_index(name='Total')
+df_merged = df_grouped.merge(df_total, on='YEAR')
+df_merged['Pourcentage'] = df_merged['Transactions'] / df_merged['Total'] * 100
 
-# 3) Tableau des pourcentages par année (lignes normalisées)
-tab_pct = tab_counts.div(tab_counts.sum(axis=1), axis=0).mul(100)
+# 3) Graphique en barres empilées 100%
+fig = px.bar(
+    df_merged,
+    x="YEAR",
+    y="Pourcentage",
+    color="SOURCE",
+    text="Pourcentage",
+    title="Répartition des transactions par source (%)",
+    barmode="stack"
+)
 
-# 4) (Optionnel) Ajouter les totaux colonnes + ligne pour le tableau de comptes
-tab_counts['_Total'] = tab_counts.sum(axis=1)
-tab_counts.loc['_Total'] = tab_counts.sum(axis=0)
+fig.update_traces(texttemplate='%{text:.1f}%', textposition='inside')
+fig.update_yaxes(title="Pourcentage", range=[0, 100])
+fig.update_xaxes(title="Année")
+fig.show()
 
-# 5) Affichage propre en notebook : style + heatmap Plotly
-try:
-    # Styling pandas (notebook / Jupyter)
-    styled_pct = (
-        tab_pct.round(2)
-        .style.format("{:.2f}%")
-        .set_caption("Couverture des transactions par source (en %)")
-        .background_gradient(axis=None, cmap="Blues")
-        .highlight_max(axis=1, color="#D1FAE5")  # met en avant la source dominante par année
-    )
-    display(styled_pct)
-    
-    # Carte thermique (heatmap) – super lisible en réunion
-    import plotly.express as px
-    fig_heat = px.imshow(
-        tab_pct,
-        aspect='auto',
-        color_continuous_scale='Blues',
-        labels=dict(color="%"),
-        title="Répartition % des transactions par source (Heatmap)"
-    )
-    fig_heat.update_xaxes(title="SOURCE")
-    fig_heat.update_yaxes(title="YEAR")
-    fig_heat.show()
+import plotly.express as px
 
-    # Stacked bar en % (lecture “quelle source pèse combien chaque année ?”)
-    df_for_bar = df_counts.copy()
-    import plotly.express as px
-    fig_bar = px.bar(
-        df_for_bar, x="YEAR", y="Transactions", color="SOURCE",
-        barmode="stack", text_auto=True, title="Part des sources par année (en %)",
-        # groupnorm='fraction' mettra en proportion; pour Plotly <5.17, utilisez 'percent'
-        groupnorm='percent'
-    )
-    fig_bar.update_layout(yaxis_title="Pourcentage", xaxis_title="Année")
-    fig_bar.show()
+pivot_pct = df_merged.pivot(index='YEAR', columns='SOURCE', values='Pourcentage')
 
-except Exception as e:
-    # Fallback console si pas en environnement notebook/plotly
-    print("Tableau de couverture des transactions par source (en %):")
-    print(tab_pct.round(2).to_string())
-    print("\nTableau des transactions (valeurs absolues) avec totaux:")
-    print(tab_counts.to_string())
-    print(f"\n(Note: affichage enrichi non disponible ici) Détails: {e}")
-
+fig = px.imshow(
+    pivot_pct,
+    color_continuous_scale='Blues',
+    aspect='auto',
+    labels=dict(color="Pourcentage"),
+    title="Heatmap de couverture par source (%)"
+)
+fig.show()
