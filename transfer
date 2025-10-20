@@ -95,4 +95,21 @@ Data columns (total 90 columns):
  89  NATURE_MUTATION                 object        
 dtypes: datetime64[ns](4), float32(14), float64(19), int32(1), int64(2), object(50)
 memory usage: 6.9+ GB
-None
+import pandas as pd
+
+# Regrouper par année et source pour compter les transactions
+df_grouped = base_ml.groupby(['YEAR', 'SOURCE'])['ID'].count().reset_index(name='Nombre_transactions')
+
+# Calculer le total des transactions par année
+df_total = df_grouped.groupby('YEAR')['Nombre_transactions'].sum().reset_index(name='Total_transactions')
+
+# Fusionner pour calculer les pourcentages
+df_merged = pd.merge(df_grouped, df_total, on='YEAR')
+df_merged['Pourcentage'] = (df_merged['Nombre_transactions'] / df_merged['Total_transactions']) * 100
+
+# Créer le tableau de couverture en pourcentage
+tableau_couverture = df_merged.pivot(index='YEAR', columns='SOURCE', values='Pourcentage')
+
+# Afficher le tableau
+print("Tableau de couverture des transactions par source (en %):")
+print(tableau_couverture.round(2))
