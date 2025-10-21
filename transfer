@@ -93,27 +93,43 @@ Data columns (total 90 columns):
  87  nb_TYPE_LOCAL_Appartement       float64       
  88  nb_TYPE_LOCAL_Dépendance        float64       
  89  NATURE_MUTATION                 object        
-<class 'pandas.core.frame.DataFrame'>
-RangeIndex: 2143166 entries, 0 to 2143165
-Data columns (total 18 columns):
- #   Column            Dtype         
----  ------            -----         
- 0   ID                int64         
- 1   ville_            object        
- 2   LIBELLE_DEPT      object        
- 3   DEPT_Corse_2A_2B  object        
- 4   TYPE_BIEN         object        
- 5   DATE              datetime64[ns]
- 6   YEAR              int64         
- 7   Prix_m2           float64       
- 8   SOURCE            object        
- 9   CD_NATUR_OP       object        
- 10  NB_SURF_HAB       float64       
- 11  NB_PIECES         float64       
- 12  CODE_POSTAL       object        
- 13  NATURE_MUTATION   object        
- 14  BIEN_NEUF         object        
- 15  NB_PIECES_RANGE   object        
- 16  NB_SURF_HAB_NA    bool          
- 17  REGION            object        
 
+import pandas as pd
+import numpy as np
+
+# df = ton DataFrame déjà nettoyé
+
+# 1️⃣ Définir les dimensions de ton univers
+dims = ["REGION", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
+
+# 2️⃣ Calculer les indicateurs de base par univers
+univers = (
+    df.groupby(dims, dropna=False)
+      .agg(
+          n_tx = ("ID", "size"),
+          median_price = ("Prix_m2", "median"),
+          mean_price = ("Prix_m2", "mean"),
+          p25 = ("Prix_m2", lambda x: np.nanpercentile(x, 25)),
+          p75 = ("Prix_m2", lambda x: np.nanpercentile(x, 75)),
+      )
+      .reset_index()
+)
+
+# 3️⃣ Construire la grille exhaustive des combinaisons possibles
+grille = (
+    pd.MultiIndex.from_product(
+        [df["REGION"].unique(),
+         df["BIEN_NEUF"].unique(),
+         df["TYPE_BIEN"].unique(),
+         df["NB_PIECES_RANGE"].unique()],
+        names=dims
+    ).to_frame(index=False)
+)
+
+# 4️⃣ Fusionner les indicateurs sur la grille complète
+univers_complet = grille.merge(univers, on=dims, how="left").sort_values(dims)
+
+# 5️⃣ (Optionnel) Remplacer les NaN par 0 pour les volumes sans transactions
+univers_complet["n_tx"] = univers_complet["n_tx"].fillna(0).astype(int)
+
+print(univers_complet.head(10))
