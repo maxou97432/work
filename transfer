@@ -94,75 +94,204 @@ Data columns (total 90 columns):
  88  nb_TYPE_LOCAL_Dépendance        float64       
  89  NATURE_MUTATION                 object        
 
-# Dictionnaire complet département → région (France 2025)
-dep_to_region = {
-    # Île-de-France
-    '75': 'Île-de-France', '77': 'Île-de-France', '78': 'Île-de-France',
-    '91': 'Île-de-France', '92': 'Île-de-France', '93': 'Île-de-France',
-    '94': 'Île-de-France', '95': 'Île-de-France',
+import pandas as pd
+import numpy as np
+from typing import Literal, Optional, Sequence, List
 
-    # Provence-Alpes-Côte d’Azur
-    '04': 'Provence-Alpes-Côte d’Azur', '05': 'Provence-Alpes-Côte d’Azur',
-    '06': 'Provence-Alpes-Côte d’Azur', '13': 'Provence-Alpes-Côte d’Azur',
-    '83': 'Provence-Alpes-Côte d’Azur', '84': 'Provence-Alpes-Côte d’Azur',
+GeoLevel = Literal["city", "department"]
 
-    # Auvergne-Rhône-Alpes
-    '01': 'Auvergne-Rhône-Alpes', '03': 'Auvergne-Rhône-Alpes', '07': 'Auvergne-Rhône-Alpes',
-    '15': 'Auvergne-Rhône-Alpes', '26': 'Auvergne-Rhône-Alpes', '38': 'Auvergne-Rhône-Alpes',
-    '42': 'Auvergne-Rhône-Alpes', '43': 'Auvergne-Rhône-Alpes', '63': 'Auvergne-Rhône-Alpes',
-    '69': 'Auvergne-Rhône-Alpes', '73': 'Auvergne-Rhône-Alpes', '74': 'Auvergne-Rhône-Alpes',
+# ---------------------------------------------------------
+# 1️⃣ Fonctions utilitaires pour normaliser la base
+# ---------------------------------------------------------
 
-    # Nouvelle-Aquitaine
-    '16': 'Nouvelle-Aquitaine', '17': 'Nouvelle-Aquitaine', '19': 'Nouvelle-Aquitaine',
-    '23': 'Nouvelle-Aquitaine', '24': 'Nouvelle-Aquitaine', '33': 'Nouvelle-Aquitaine',
-    '40': 'Nouvelle-Aquitaine', '47': 'Nouvelle-Aquitaine', '64': 'Nouvelle-Aquitaine',
-    '79': 'Nouvelle-Aquitaine', '86': 'Nouvelle-Aquitaine', '87': 'Nouvelle-Aquitaine',
+def _to_anciennete(x) -> str:
+    if isinstance(x, str):
+        s = x.strip().lower()
+        if s in {"neuf","neuve","vefa","v.e.f.a"}:
+            return "neuf"
+        if s in {"ancien","ancienne","existant"}:
+            return "ancien"
+    if isinstance(x, (bool, np.bool_)):
+        return "neuf" if x else "ancien"
+    return "ancien"
 
-    # Hauts-de-France
-    '02': 'Hauts-de-France', '59': 'Hauts-de-France', '60': 'Hauts-de-France',
-    '62': 'Hauts-de-France', '80': 'Hauts-de-France',
+def _to_type(x) -> str:
+    if x is None:
+        return "appartement"
+    s = str(x).strip().lower()
+    if "mais" in s:
+        return "maison"
+    return "appartement"
 
-    # Grand Est
-    '08': 'Grand Est', '10': 'Grand Est', '51': 'Grand Est', '52': 'Grand Est',
-    '54': 'Grand Est', '55': 'Grand Est', '57': 'Grand Est', '67': 'Grand Est', '68': 'Grand Est', '88': 'Grand Est',
+def _bin_pieces(property_type: str, rooms: Optional[float]) -> str:
+    if pd.isna(rooms):
+        return "NA"
+    r = int(rooms)
+    if property_type == "appartement":
+        if r <= 2:
+            return "[1–2]"
+        elif r <= 4:
+            return "[3–4]"
+        else:
+            return "5+"
+    else:
+        return "<=4" if r <= 4 else ">=5"
 
-    # Bourgogne-Franche-Comté
-    '21': 'Bourgogne-Franche-Comté', '25': 'Bourgogne-Franche-Comté',
-    '39': 'Bourgogne-Franche-Comté', '58': 'Bourgogne-Franche-Comté',
-    '70': 'Bourgogne-Franche-Comté', '71': 'Bourgogne-Franche-Comté',
-    '89': 'Bourgogne-Franche-Comté', '90': 'Bourgogne-Franche-Comté',
+def prepare_base(df: pd.DataFrame, geo_level: GeoLevel = "department") -> pd.DataFrame:
+    """Prépare la base en homogénéisant les noms et types de colonnes"""
+    d = df.copy()
 
-    # Bretagne
-    '22': 'Bretagne', '29': 'Bretagne', '35': 'Bretagne', '56': 'Bretagne',
+    # --- Colonnes date / prix / surface ---
+    if "date" not in d.columns:
+        for c in ["DATE","Date","date_transaction","dt"]:
+            if c in d.columns:
+                d["date"] = d[c]; break
+    d["date"] = pd.to_datetime(d.get("date"), errors="coerce")
 
-    # Centre-Val de Loire
-    '18': 'Centre-Val de Loire', '28': 'Centre-Val de Loire', '36': 'Centre-Val de Loire',
-    '37': 'Centre-Val de Loire', '41': 'Centre-Val de Loire', '45': 'Centre-Val de Loire',
+    if "price" not in d.columns:
+        for c in ["PRICE","prix","montant","amount"]:
+            if c in d.columns:
+                d["price"] = pd.to_numeric(d[c], errors="coerce"); break
 
-    # Normandie
-    '14': 'Normandie', '27': 'Normandie', '50': 'Normandie',
-    '61': 'Normandie', '76': 'Normandie',
+    if "surface_m2" not in d.columns:
+        for c in ["SURFACE_M2","surface","surface_habitable","surface_carrez"]:
+            if c in d.columns:
+                d["surface_m2"] = pd.to_numeric(d[c], errors="coerce"); break
 
-    # Occitanie
-    '09': 'Occitanie', '11': 'Occitanie', '12': 'Occitanie', '30': 'Occitanie',
-    '31': 'Occitanie', '32': 'Occitanie', '34': 'Occitanie', '46': 'Occitanie',
-    '48': 'Occitanie', '65': 'Occitanie', '66': 'Occitanie', '81': 'Occitanie', '82': 'Occitanie',
+    # --- Zone géographique ---
+    if geo_level == "city":
+        if "city" not in d.columns:
+            for c in ["CITY","commune","ville","nom_commune"]:
+                if c in d.columns:
+                    d["city"] = d[c]; break
+        d["zone"] = d["city"].astype(str)
+    else:
+        if "department" not in d.columns:
+            for c in ["DEPARTMENT","DEPARTEMENT","dept","code_departement"]:
+                if c in d.columns:
+                    d["department"] = d[c]; break
+        d["zone"] = d["department"].astype(str)
 
-    # Pays de la Loire
-    '44': 'Pays de la Loire', '49': 'Pays de la Loire', '53': 'Pays de la Loire',
-    '72': 'Pays de la Loire', '85': 'Pays de la Loire',
+    # --- Type / ancienneté / nb pièces ---
+    if "property_type" not in d.columns:
+        for c in ["TYPE","property","type_local"]:
+            if c in d.columns:
+                d["property_type"] = d[c]; break
+    d["property_type"] = d["property_type"].map(_to_type)
 
-    # Corse
-    '2A': 'Corse', '2B': 'Corse',
+    if "is_new" not in d.columns:
+        for c in ["IS_NEW","neuf","anciennete","new"]:
+            if c in d.columns:
+                d["is_new"] = d[c]; break
+    d["anciennete"] = d["is_new"].map(_to_anciennete)
 
-    # DROM
-    '971': 'Guadeloupe', '972': 'Martinique', '973': 'Guyane', '974': 'La Réunion', '976': 'Mayotte',
+    if "rooms" not in d.columns:
+        for c in ["ROOMS","nb_pieces","pieces","nombre_pieces"]:
+            if c in d.columns:
+                d["rooms"] = d[c]; break
+    d["bin_pieces"] = [_bin_pieces(t, r) for t, r in zip(d["property_type"], d["rooms"])]
 
-    # Collectivités d’outre-mer (si présentes dans ta base)
-    '975': 'Saint-Pierre-et-Miquelon', '977': 'Saint-Barthélemy',
-    '978': 'Saint-Martin', '987': 'Polynésie française',
-    '986': 'Wallis-et-Futuna', '988': 'Nouvelle-Calédonie'
-}
+    # --- Prix au m² ---
+    d["ppm2"] = d["price"] / d["surface_m2"]
+    return d
+
+# ---------------------------------------------------------
+# 2️⃣ Construction de la grille complète des univers
+# ---------------------------------------------------------
+
+def build_universe_grid(zones, include_periods=None) -> pd.DataFrame:
+    """Construit le tableau exhaustif de toutes les combinaisons possibles"""
+    zones = list(pd.Index(zones).astype(str).unique())
+    anc = ["neuf","ancien"]
+    app_bins = ["[1–2]","[3–4]","5+"]
+    maison_bins = ["<=4",">=5"]
+
+    def _mk(property_type: str, bins: List[str]) -> pd.DataFrame:
+        return pd.MultiIndex.from_product(
+            [zones, anc, [property_type], bins],
+            names=["zone","anciennete","property_type","bin_pieces"]
+        ).to_frame(index=False)
+
+    if include_periods is None:
+        grid = pd.concat([_mk("appartement", app_bins), _mk("maison", maison_bins)], ignore_index=True)
+        return grid
+    else:
+        periods = list(pd.Index(include_periods).astype("datetime64[ns]").unique())
+        grid_app = pd.MultiIndex.from_product(
+            [periods, zones, anc, ["appartement"], app_bins],
+            names=["periode","zone","anciennete","property_type","bin_pieces"]
+        ).to_frame(index=False)
+        grid_maison = pd.MultiIndex.from_product(
+            [periods, zones, anc, ["maison"], maison_bins],
+            names=["periode","zone","anciennete","property_type","bin_pieces"]
+        ).to_frame(index=False)
+        return pd.concat([grid_app, grid_maison], ignore_index=True)
+
+# ---------------------------------------------------------
+# 3️⃣ Calcul des métriques et reindexation sur la grille complète
+# ---------------------------------------------------------
+
+def compute_universe_table(
+    df: pd.DataFrame,
+    geo_level: GeoLevel = "department",
+    period: Optional[Literal["M","Q","A"]] = "Q",
+    min_tx: Optional[int] = None,
+    keep_metrics: Optional[Sequence[str]] = ("n_tx","median_ppm2","p25_ppm2","p75_ppm2","mean_ppm2_trim"),
+) -> pd.DataFrame:
+    """Calcule les indicateurs par univers et renvoie le tableau complet"""
+    d = prepare_base(df, geo_level=geo_level).copy()
+
+    # --- Périodes ---
+    if period is not None:
+        d["periode"] = d["date"].dt.to_period(period).dt.to_timestamp()
+        group_cols = ["periode","zone","anciennete","property_type","bin_pieces"]
+    else:
+        group_cols = ["zone","anciennete","property_type","bin_pieces"]
+
+    # --- Moyenne tronquée ---
+    def _trimmed_mean(x: pd.Series, p: float = 0.05):
+        if len(x) == 0:
+            return np.nan
+        lo, hi = x.quantile([p, 1-p])
+        return x[(x>=lo) & (x<=hi)].mean()
+
+    gb = d.groupby(group_cols, observed=True)
+    agg = gb.agg(
+        n_tx=("price","size"),
+        median_ppm2=("ppm2","median"),
+        p25_ppm2=("ppm2", lambda s: s.quantile(0.25)),
+        p75_ppm2=("ppm2", lambda s: s.quantile(0.75)),
+        mean_ppm2_trim=("ppm2", _trimmed_mean),
+    ).reset_index()
+
+    # --- Grille exhaustive ---
+    if period is not None:
+        periods = d["periode"].dropna().sort_values().unique()
+        zones = d["zone"].dropna().astype(str).unique()
+        grid = build_universe_grid(zones, include_periods=periods)
+        key = ["periode","zone","anciennete","property_type","bin_pieces"]
+    else:
+        zones = d["zone"].dropna().astype(str).unique()
+        grid = build_universe_grid(zones, include_periods=None)
+        key = ["zone","anciennete","property_type","bin_pieces"]
+
+    out = grid.merge(agg, on=key, how="left")
+
+    # --- Application du seuil de volume ---
+    if min_tx is not None and "n_tx" in out.columns:
+        mask = out["n_tx"] < min_tx
+        for col in ["median_ppm2","p25_ppm2","p75_ppm2","mean_ppm2_trim"]:
+            if col in out.columns:
+                out.loc[mask, col] = np.nan
+
+    out = out.sort_values(key)
+
+    if keep_metrics is not None:
+        cols = key + [c for c in keep_metrics if c in out.columns]
+        out = out[cols]
+
+    return out
+
 
 # Ajout de la colonne région
 df['region'] = df['departement'].astype(str).map(dep_to_region)
