@@ -1,35 +1,65 @@
+import pandas as pd
+import plotly.express as px
+import plotly.io as pio
+
+pio.renderers.default = "notebook"  # ou "browser"
+
+# --- 1️⃣ Comptage global des valeurs manquantes ---
 df_surf_na = base_ml["NB_SURF_HAB"].isna().sum()
-print(f"{df_surf_na} données manquantes soit {df_surf_na / len(base_ml) * 100} %")
+pourcent_global = round(df_surf_na / len(base_ml) * 100, 2)
+print(f"{df_surf_na:,} données manquantes, soit {pourcent_global} % du total.")
+
+# --- 2️⃣ Calculs par année ---
 base_ml["NB_SURF_HAB_NA"] = base_ml["NB_SURF_HAB"].isna()
 
-
 total = base_ml.groupby("YEAR")["ID"].count()
-
-
 na = base_ml[base_ml["NB_SURF_HAB_NA"]].groupby("YEAR")["ID"].count()
 
 pourcentage = (na / total * 100).reset_index(name="Pourcentage_NA")
 
-pourcentage.plot(x='YEAR', y='Pourcentage_NA', kind='bar', legend=False)
-plt.title("Évolution annuelle du pourcentage de NB_SURF_HAB manquantes")
-plt.xlabel("Année")
-plt.ylabel("Pourcentage de valeurs manquantes")
-plt.tight_layout()
-plt.show()
+# --- 3️⃣ Graphique 1 : % de valeurs manquantes global par année ---
+fig1 = px.bar(
+    pourcentage,
+    x="YEAR",
+    y="Pourcentage_NA",
+    text="Pourcentage_NA",
+    color="Pourcentage_NA",
+    color_continuous_scale="Reds",
+    title=f"Évolution annuelle du pourcentage de valeurs manquantes (NB_SURF_HAB) — {pourcent_global}% global"
+)
+fig1.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+fig1.update_layout(
+    xaxis_title="Année",
+    yaxis_title="Pourcentage de valeurs manquantes",
+    title_x=0.5,
+    plot_bgcolor="white",
+    coloraxis_showscale=False
+)
+fig1.show()
 
-
+# --- 4️⃣ Graphique 2 : % de valeurs manquantes par source ---
 df_miss = base_ml[base_ml["NB_SURF_HAB_NA"]]
-df_grouped = df_miss.groupby(['YEAR', 'SOURCE'])['ID'].count().reset_index(name='Nombre_transactions_na')
+df_grouped = df_miss.groupby(["YEAR", "SOURCE"])["ID"].count().reset_index(name="Nombre_transactions_na")
 
-total_na = df_miss.groupby("YEAR")["NB_SURF_HAB_NA"].count()
-pivot_df = df_grouped.pivot(index='YEAR', columns='SOURCE', values='Nombre_transactions_na')
-pourcentage_df = pivot_df.div(total_na, axis = 0)*100
+total_na = df_miss.groupby("YEAR")["NB_SURF_HAB_NA"].count().reset_index(name="Total_na")
+df_grouped = df_grouped.merge(total_na, on="YEAR", how="left")
+df_grouped["Pourcentage"] = df_grouped["Nombre_transactions_na"] / df_grouped["Total_na"] * 100
 
-
-pourcentage_df.plot(kind='bar', stacked=False)
-plt.title("Évolution annuelle du pourcentage de NB_SURF_HAB manquantes par source")
-plt.xlabel("Année")
-plt.ylabel("Pourcentage de valeurs manquantes")
-plt.legend(title="Source")
-plt.tight_layout()
-plt.show()
+fig2 = px.bar(
+    df_grouped.sort_values("YEAR"),
+    x="YEAR",
+    y="Pourcentage",
+    color="SOURCE",
+    barmode="group",
+    text="Pourcentage",
+    title="Évolution annuelle du pourcentage de valeurs manquantes (NB_SURF_HAB) par source"
+)
+fig2.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+fig2.update_layout(
+    xaxis_title="Année",
+    yaxis_title="Pourcentage de valeurs manquantes",
+    title_x=0.5,
+    plot_bgcolor="white",
+    legend_title="Source"
+)
+fig2.show()
