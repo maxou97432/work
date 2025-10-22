@@ -1,52 +1,12 @@
-import pandas as pd
-import numpy as np
-
-# === 0) Préparation
-base_ml2 = base_ml2.copy()
-base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"], errors="coerce")
-base_ml2 = base_ml2.dropna(subset=["DATE", "Ville", "TYPE_BIEN"])
-base_ml2 = base_ml2.sort_values(["Ville", "TYPE_BIEN", "DATE"])
-
-# Colonne prix utilisée (adapte si ton nom diffère)
-col_prix = "Prix_m2_moyen"
-
-# === 1) Agréger au MOIS par (Ville, TYPE_BIEN)
-# -> Si tu as plusieurs lignes par mois, on prend la moyenne mensuelle
-monthly = (
-    base_ml2
-    .set_index("DATE")
-    .groupby(["Ville", "TYPE_BIEN"])[col_prix]
-    .resample("MS")  # "MS" = début de mois ; sinon "M" fin de mois
-    .mean()
-    .reset_index()
-)
-
-# Option (décommenter si tu veux boucher les trous AVANT la rolling) :
-# monthly[col_prix] = (
-#     monthly.groupby(["Ville","TYPE_BIEN"])[col_prix]
-#            .apply(lambda s: s.interpolate(method="time").ffill().bfill())
-# )
-
-# === 2) Moyenne glissante 12 mois par (Ville, TYPE_BIEN)
-monthly["prix_glissant_12m"] = (
-    monthly
-    .groupby(["Ville", "TYPE_BIEN"], group_keys=False)[col_prix]
-    .apply(lambda s: s.rolling(window=12, min_periods=12).mean())
-)
-
-# === 3) Évolution vs N-12 (en %) sur la série glissante
-# (ratio de la valeur glissante du mois sur celle d'il y a 12 mois)
-monthly["prix_glissant_12m_lag12"] = (
-    monthly.groupby(["Ville", "TYPE_BIEN"])["prix_glissant_12m"].shift(12)
-)
-monthly["evol_12m_pct"] = (
-    (monthly["prix_glissant_12m"] / monthly["prix_glissant_12m_lag12"] - 1.0) * 100
-)
-
-# === 4) Résultat final par période (Ville, TYPE_BIEN, mois)
-result_ts = monthly.rename(columns={"DATE": "Periode"})
-# Colonnes utiles : Periode, Ville, TYPE_BIEN, prix mensuel, glissant 12m, évolution
-result_ts = result_ts[["Periode", "Ville", "TYPE_BIEN", col_prix, "prix_glissant_12m", "evol_12m_pct"]]
-
-# Aperçu
-result_ts.head(12)
+def ensure_monthly_and_interpolate(g):
+    # g est un DataFrame d'une (Ville, TYPE_BIEN)
+    g = g.set_index(col_date).sort_index()
+    # index complet mensuel du min au max
+    full_idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(full_idx)
+    # conserver les métadonnées de groupe
+    g[col_ville] = g[col_ville].ffill().bfill()
+    g[col_type]  = g[col_type].ffill().bfill()
+    # interpolation temporelle du prix (si des mois manquent)
+    g[col_prix] = g[col_prix].interpolate(method="time")
+    return g.reset_index().rename(columns={"index": "Periode"})
