@@ -1,3 +1,35 @@
-by_year = base_ml.groupby("YEAR")["ID"].count()
-print(by_year)
-print(f"Nombre de transactions totales sur 2015-2025: {by_year.sum()}")
+import plotly.express as px
+import plotly.io as pio
+import pandas as pd
+
+pio.renderers.default = "notebook"  # ou "browser"
+
+# ---- Agrégation ----
+by_year = base_ml.groupby("YEAR")["ID"].count().reset_index(name="Nombre de transactions")
+
+# ---- Somme totale ----
+total_tx = by_year["Nombre de transactions"].sum()
+print(f"Nombre de transactions totales sur 2015–2025 : {total_tx:,}")
+
+# ---- Graphique Plotly ----
+fig = px.bar(
+    by_year.sort_values("YEAR"),
+    x="YEAR",
+    y="Nombre de transactions",
+    text="Nombre de transactions",
+    color="Nombre de transactions",
+    color_continuous_scale="Viridis",
+    title=f"Évolution annuelle du nombre de transactions (Total 2015–2025 : {total_tx:,})"
+)
+
+fig.update_traces(textposition="outside")
+fig.update_layout(
+    xaxis_title="Année",
+    yaxis_title="Nombre de transactions",
+    title_x=0.5,
+    plot_bgcolor="white",
+    xaxis_tickmode="linear",  # pour forcer un axe propre par année
+    coloraxis_showscale=False
+)
+
+fig.show()
