@@ -1,28 +1,53 @@
-import numpy as np
-import pandas as pd
 
-# Sûr que c’est numérique
-base_ml['NB_PIECES'] = pd.to_numeric(base_ml['NB_PIECES'], errors='coerce')
+dims = ["REGION", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
 
-# Ré-initialise la colonne
-base_ml['NB_PIECES_RANGE'] = np.nan
 
-# APT : 1-2 / 3-4 / 5+
-bins_apt   = [0, 2, 4, np.inf]
-labels_apt = ["APT: 1-2", "APT: 3-4", "APT: 5+"]
-
-mask_apt = base_ml['TYPE_BIEN'].eq('APT')
-base_ml.loc[mask_apt, 'NB_PIECES_RANGE'] = pd.cut(
-    base_ml.loc[mask_apt, 'NB_PIECES'],
-    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
+univers = (
+    base_ml.groupby(dims, dropna=False)
+      .agg(
+          nb_transac = ("ID", "size"),
+          median_price = ("Prix_m2", "median"),
+          mean_price = ("Prix_m2", "mean"),
+      )
+      .reset_index()
 )
 
-# MAI : <=4 / 5+
-bins_mai   = [0, 4, np.inf]
-labels_mai = ["MAI: <=4", "MAI: 5+"]
 
-mask_mai = base_ml['TYPE_BIEN'].eq('MAI')
-base_ml.loc[mask_mai, 'NB_PIECES_RANGE'] = pd.cut(
-    base_ml.loc[mask_mai, 'NB_PIECES'],
-    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
+grille = (
+    pd.MultiIndex.from_product(
+        [base_ml["REGION"].unique(),
+         base_ml["BIEN_NEUF"].unique(),
+         base_ml["TYPE_BIEN"].unique(),
+         base_ml["NB_PIECES_RANGE"].unique()],
+        names=dims
+    ).to_frame(index=False)
 )
+
+univers_complet = grille.merge(univers, on=dims, how="left").sort_values(dims)
+
+univers_complet["nb_transac"] = univers_complet["nb_transac"].fillna(0).astype(int)
+
+univers_complet
+
+                  REGION BIEN_NEUF TYPE_BIEN  NB_PIECES_RANGE  nb_transac  \
+25  Auvergne-Rhône-Alpes    Ancien       APT         APT: 1-2       64673   
+24  Auvergne-Rhône-Alpes    Ancien       APT         APT: 3-4       81303   
+26  Auvergne-Rhône-Alpes    Ancien       APT   APT: 5 et plus       15381   
+27  Auvergne-Rhône-Alpes    Ancien       APT  MAI: 4 et moins           0   
+29  Auvergne-Rhône-Alpes    Ancien       APT  MAI: 5 et moins           0   
+28  Auvergne-Rhône-Alpes    Ancien       APT              NaN        2444   
+31  Auvergne-Rhône-Alpes    Ancien       MAI         APT: 1-2           0   
+30  Auvergne-Rhône-Alpes    Ancien       MAI         APT: 3-4           0   
+32  Auvergne-Rhône-Alpes    Ancien       MAI   APT: 5 et plus           0   
+33  Auvergne-Rhône-Alpes    Ancien       MAI  MAI: 4 et moins        7155   
+35  Auvergne-Rhône-Alpes    Ancien       MAI  MAI: 5 et moins        7065   
+34  Auvergne-Rhône-Alpes    Ancien       MAI              NaN         510   
+37  Auvergne-Rhône-Alpes      Neuf       APT         APT: 1-2        ... 
+36  Auvergne-Rhône-Alpes      Neuf       APT         APT: 3-4        
+38  Auvergne-Rhône-Alpes      Neuf       APT   APT: 5 et plus          
+39  Auvergne-Rhône-Alpes      Neuf       APT  MAI: 4 et moins             
+41  Auvergne-Rhône-Alpes      Neuf       APT  MAI: 5 et moins            
+40  Auvergne-Rhône-Alpes      Neuf       APT              NaN         
+43  Auvergne-Rhône-Alpes      Neuf       MAI         APT: 1-2             
+42  Auvergne-Rhône-Alpes      Neuf       MAI         APT: 3-4             
+
