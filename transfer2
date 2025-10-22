@@ -1,18 +1,13 @@
-# Création des colonnes standardisées
-base_ml["PB"] = (
-    base_ml["NB_PIECES_RANGE"]
-    .astype(str)
-    .str.strip()
-    .str[:3]
-    .str.upper()
-)
-base_ml["TYPE_BIEN"] = base_ml["TYPE_BIEN"].astype(str).str.strip().str.upper()
+         Date     Region Departement     Ville Prix m2 en euros  \
+0  01/08/2025     Alsace   HAUT-RHIN  MULHOUSE             1677   
+1  01/08/2025  Aquitaine     GIRONDE  BORDEAUX             4312   
+2  01/08/2025  Aquitaine     GIRONDE  MÉRIGNAC             3391   
+3  01/08/2025  Aquitaine     GIRONDE    PESSAC             3810   
+4  01/08/2025  Aquitaine     GIRONDE   TALENCE             3482   
 
-# Supprimer les lignes incohérentes (TYPE_BIEN ≠ PB)
-mask = base_ml["TYPE_BIEN"] != base_ml["PB"]
-print("Lignes supprimées :", mask.sum())
-
-base_ml = base_ml.loc[~mask].copy()
-
-# Vérification
-print(base_ml[["TYPE_BIEN", "NB_PIECES_RANGE", "PB"]].head())
+  Evolution en pourcent (sur un an)  
+0                               5.2  
+1                              -0.5  
+2                               0.4  
+3                              -2.4  
+4                              -7.6  
