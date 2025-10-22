@@ -1,41 +1,19 @@
-import numpy as np
 import pandas as pd
 
-# 1) S'assurer que NB_PIECES est numérique
-base_ml["NB_PIECES"] = pd.to_numeric(base_ml["NB_PIECES"], errors="coerce")
-base_ml["TYPE_BIEN"] = base_ml["TYPE_BIEN"].str.strip().str.upper()
+# On s'assure que ce sont bien des chaînes
+base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype(str)
+base_ml["TYPE_BIEN"] = base_ml["TYPE_BIEN"].astype(str).str.upper().str.strip()
 
-# 2) Définir les bins + labels par type
-bins_apt   = [0, 2, 4, np.inf]
-labels_apt = ["1-2 pièces", "3-4 pièces", "5 pièces et plus"]
+# Définir les règles d’incohérence
+mask_bad_apt = base_ml["TYPE_BIEN"].eq("APT") & base_ml["NB_PIECES_RANGE"].str.startswith("MAI")
+mask_bad_mai = base_ml["TYPE_BIEN"].eq("MAI") & base_ml["NB_PIECES_RANGE"].str.startswith("APT")
 
-bins_mai   = [0, 4, np.inf]
-labels_mai = ["4 pièces et moins", "5 pièces et plus"]
+# Compter avant suppression (utile pour vérifier)
+print(f"Lignes à supprimer (APT avec bins MAI) : {mask_bad_apt.sum()}")
+print(f"Lignes à supprimer (MAI avec bins APT) : {mask_bad_mai.sum()}")
 
-# 3) Initialiser, puis découper conditionnellement
-base_ml["NB_PIECES_RANGE"] = np.nan
+# Supprimer les lignes incohérentes
+base_ml = base_ml.loc[~(mask_bad_apt | mask_bad_mai)].copy()
 
-mask_apt = base_ml["TYPE_BIEN"].eq("APT")
-mask_mai = base_ml["TYPE_BIEN"].eq("MAI")
-
-base_ml.loc[mask_apt, "NB_PIECES_RANGE"] = pd.cut(
-    base_ml.loc[mask_apt, "NB_PIECES"],
-    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
-)
-
-base_ml.loc[mask_mai, "NB_PIECES_RANGE"] = pd.cut(
-    base_ml.loc[mask_mai, "NB_PIECES"],
-    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
-)
-
-# 4) Remplir les NaN avec un "Non renseigné" spécifique au type
-base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype("object")
-
-base_ml.loc[mask_apt & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "Non renseigné (APT)"
-base_ml.loc[mask_mai & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "Non renseigné (MAI)"
-
-# (si d’autres TYPE_BIEN existent, leur attribuer un libellé générique)
-base_ml.loc[~(mask_apt | mask_mai) & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "Non renseigné"
-
-# --- Vérif rapide
-print(pd.crosstab(base_ml["TYPE_BIEN"], base_ml["NB_PIECES_RANGE"]))
+# Vérification
+pd.crosstab(base_ml["TYPE_BIEN"], base_ml["NB_PIECES_RANGE"])
