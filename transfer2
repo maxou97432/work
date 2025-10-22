@@ -1,69 +1,30 @@
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.io as pio
 
-pio.renderers.default = "notebook"  # ou "browser"
+r = base_ml[base_ml['TYPE_BIEN'] == 'APT'].groupby('YEAR')['ID'].count().sort_values(ascending=False)
+l = base_ml[base_ml['TYPE_BIEN'] == 'MAI'].groupby('YEAR')['ID'].count().sort_values(ascending=False)
 
-# ---- Détermination du type de bien ----
-base_ml["BIEN_NEUF"] = np.where(
-    (base_ml["NATURE_MUTATION"] == "Vente en l'état futur d'achèvement") |
-    (base_ml["CD_NATUR_OP"] == "AQN"),
-    "Neuf",
-    "Ancien"
-)
+print("Répartition du nombre de transactions d'appartements sur 10 ans :")
+print(r)
+print("\nRépartition du nombre de transactions de maisons sur 10 ans :")
+print(l)
 
-# ---- Comptage global ----
-counts = base_ml["BIEN_NEUF"].value_counts()
-percentages = (counts / len(base_ml)) * 100
 
-result_df = pd.DataFrame({
-    "Type de bien": counts.index,
-    "Nombre": counts.values,
-    "Pourcentage (%)": percentages.round(2)
-})
+df_grouped = base_ml.groupby(['YEAR', 'TYPE_BIEN'])['ID'].count().reset_index(name='Nombre_transactions')
 
-print("Répartition de l'ancienneté des biens sur l'ensemble de la base")
-print("--" * 22)
-print(result_df)
 
-# ---- Répartition par année ----
-df_grouped = (
-    base_ml.groupby(["YEAR", "BIEN_NEUF"])["ID"]
-    .count()
-    .reset_index(name="Nombre_transactions")
-)
+total_per_year = df_grouped.groupby('YEAR')['Nombre_transactions'].sum()
 
-total_per_year = df_grouped.groupby("YEAR")["Nombre_transactions"].sum()
-pivot_df = df_grouped.pivot(index="YEAR", columns="BIEN_NEUF", values="Nombre_transactions")
+
+pivot_df = df_grouped.pivot(index='YEAR', columns='TYPE_BIEN', values='Nombre_transactions')
+
+
 pourcentage_df = pivot_df.div(total_per_year, axis=0) * 100
 
-# ---- Conversion du pivot en DataFrame "long" pour Plotly ----
-pourcentage_df = pourcentage_df.reset_index().melt(
-    id_vars="YEAR",
-    var_name="Type de bien",
-    value_name="Pourcentage"
-)
 
-# ---- Graphique interactif ----
-fig = px.bar(
-    pourcentage_df,
-    x="YEAR",
-    y="Pourcentage",
-    color="Type de bien",
-    barmode="group",
-    text="Pourcentage",
-    color_discrete_map={"Neuf": "#1f77b4", "Ancien": "#ff7f0e"},
-    title="Évolution annuelle du pourcentage de transactions par ancienneté de bien"
-)
+pourcentage_df.plot(kind='bar', stacked=False)
+plt.title("Évolution annuelle du pourcentage de transactions par type de bien")
+plt.xlabel("Année")
+plt.ylabel("Pourcentage de transactions")
+plt.legend(title="Type de bien")
+plt.tight_layout()
+plt.show()
 
-fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
-fig.update_layout(
-    xaxis_title="Année",
-    yaxis_title="Pourcentage de transactions",
-    title_x=0.5,
-    plot_bgcolor="white",
-    legend_title="Type de bien"
-)
-
-fig.show()
