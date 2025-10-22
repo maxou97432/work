@@ -1,51 +1,63 @@
+import plotly.express as px
+import plotly.io as pio
 
-base_ml["NB_PIECES"] = pd.to_numeric(base_ml["NB_PIECES"], errors="coerce")
+pio.renderers.default = "notebook"   # ou "browser" si besoin
 
-
-bins_apt   = [0, 2, 4, np.inf]
-labels_apt = ["APT: 1-2 pièces", "APT : 3-4 pièces", "APT: 5 pièces et plus"]
-
-bins_mai   = [0, 4, np.inf]
-labels_mai = ["MAI: 4 pièces et moins", "MAI: 5 pièces et plus"]
-
-
-base_ml["NB_PIECES_RANGE"] = np.nan
-
-mask_apt = base_ml["TYPE_BIEN"].eq("APT")
-mask_mai = base_ml["TYPE_BIEN"].eq("MAI")
-
-base_ml.loc[mask_apt, "NB_PIECES_RANGE"] = pd.cut(
-    base_ml.loc[mask_apt, "NB_PIECES"],
-    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
+# --- Ton calcul (inchangé) ---
+distribution = (
+    base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID']
+           .count()
+           .reset_index(name='Nombre')
 )
-
-base_ml.loc[mask_mai, "NB_PIECES_RANGE"] = pd.cut(
-    base_ml.loc[mask_mai, "NB_PIECES"],
-    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
-)
-
-base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype("object")
-
-base_ml.loc[mask_apt & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "APT: Non renseigné"
-base_ml.loc[mask_mai & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "MAI: Non renseigné"
-
-
-
-
-# Calculer la distribution
-distribution = base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID'].count().reset_index(name='Nombre')
 tot = distribution.groupby("TYPE_BIEN")["Nombre"].transform("sum")
-distribution['Pourcentage'] =(distribution['Nombre'] / tot) * 100
+distribution['Pourcentage'] = (distribution['Nombre'] / tot) * 100
 
-fig, ax = plt.subplots(figsize=(12, 6))
-for bien in distribution['TYPE_BIEN'].unique():
-    subset = distribution[distribution['TYPE_BIEN'] == bien]
-    ax.bar(subset['NB_PIECES_RANGE'], subset['Pourcentage'], label=bien)
+# (Optionnel) ordre des catégories pour affichage plus propre
+categorie_order = [
+    "APT: 1-2 pièces", "APT : 3-4 pièces", "APT: 5 pièces et plus", "APT: Non renseigné",
+    "MAI: 4 pièces et moins", "MAI: 5 pièces et plus", "MAI: Non renseigné"
+]
+distribution['NB_PIECES_RANGE'] = pd.Categorical(distribution['NB_PIECES_RANGE'],
+                                                 categories=categorie_order, ordered=True)
 
-plt.title("Distribution du nombre de pièces par type de bien en pourcentage")
-plt.xlabel("Nombre de pièces")
-plt.ylabel("Pourcentage de transactions")
-plt.xticks(rotation=45)
-plt.legend(title="Type de bien")
-plt.tight_layout()
-plt.show()
+# 1) Barres groupées: même axe X, couleur = type de bien
+fig_group = px.bar(
+    distribution.sort_values(['NB_PIECES_RANGE','TYPE_BIEN']),
+    x='NB_PIECES_RANGE', y='Pourcentage',
+    color='TYPE_BIEN',
+    barmode='group',
+    text=distribution['Pourcentage'].round(1).astype(str) + '%',
+    title="Distribution du nombre de pièces par type de bien (en %)"
+)
+fig_group.update_traces(textposition='outside')
+fig_group.update_layout(
+    xaxis_title="Classe de pièces",
+    yaxis_title="Pourcentage de transactions",
+    title_x=0.5,
+    xaxis_tickangle=45,
+    plot_bgcolor="white",
+    legend_title="Type de bien",
+    uniformtext_minsize=8, uniformtext_mode='hide'
+)
+fig_group.show()
+
+# 2) Facettes par type (plus lisible car classes différentes APT vs MAI)
+fig_facet = px.bar(
+    distribution,
+    x='NB_PIECES_RANGE', y='Pourcentage',
+    color='NB_PIECES_RANGE',
+    text=distribution['Pourcentage'].round(1).astype(str) + '%',
+    facet_col='TYPE_BIEN',
+    facet_col_spacing=0.08,
+    title="Distribution du nombre de pièces — Facetté par type de bien (en %)"
+)
+fig_facet.update_traces(textposition='outside', showlegend=False)
+fig_facet.update_layout(
+    xaxis_title=None, yaxis_title="Pourcentage de transactions",
+    title_x=0.5, plot_bgcolor="white",
+)
+# Rotation des ticks x sur chaque facette
+for ax in fig_facet.layout.annotations:
+    ax.text = ax.text.replace("TYPE_BIEN=", "")
+fig_facet.update_xaxes(tickangle=45)
+fig_facet.show()
