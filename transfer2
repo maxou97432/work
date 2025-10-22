@@ -1,63 +1,53 @@
 import plotly.express as px
 import plotly.io as pio
+import pandas as pd
 
-pio.renderers.default = "notebook"   # ou "browser" si besoin
+pio.renderers.default = "notebook"  # ou "browser"
 
-# --- Ton calcul (inchangé) ---
-distribution = (
+# --- Calcul des parts globales ---
+distribution_global = (
     base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID']
            .count()
            .reset_index(name='Nombre')
 )
-tot = distribution.groupby("TYPE_BIEN")["Nombre"].transform("sum")
-distribution['Pourcentage'] = (distribution['Nombre'] / tot) * 100
 
-# (Optionnel) ordre des catégories pour affichage plus propre
+# Pourcentage par rapport au total global (tous types confondus)
+total_global = distribution_global['Nombre'].sum()
+distribution_global['Pourcentage_total'] = (
+    distribution_global['Nombre'] / total_global * 100
+)
+
+# Optionnel : trier les catégories
 categorie_order = [
     "APT: 1-2 pièces", "APT : 3-4 pièces", "APT: 5 pièces et plus", "APT: Non renseigné",
     "MAI: 4 pièces et moins", "MAI: 5 pièces et plus", "MAI: Non renseigné"
 ]
-distribution['NB_PIECES_RANGE'] = pd.Categorical(distribution['NB_PIECES_RANGE'],
-                                                 categories=categorie_order, ordered=True)
-
-# 1) Barres groupées: même axe X, couleur = type de bien
-fig_group = px.bar(
-    distribution.sort_values(['NB_PIECES_RANGE','TYPE_BIEN']),
-    x='NB_PIECES_RANGE', y='Pourcentage',
-    color='TYPE_BIEN',
-    barmode='group',
-    text=distribution['Pourcentage'].round(1).astype(str) + '%',
-    title="Distribution du nombre de pièces par type de bien (en %)"
+distribution_global['NB_PIECES_RANGE'] = pd.Categorical(
+    distribution_global['NB_PIECES_RANGE'],
+    categories=categorie_order,
+    ordered=True
 )
-fig_group.update_traces(textposition='outside')
-fig_group.update_layout(
-    xaxis_title="Classe de pièces",
-    yaxis_title="Pourcentage de transactions",
+
+# --- Graphique Plotly ---
+fig = px.bar(
+    distribution_global.sort_values('Pourcentage_total', ascending=False),
+    x='NB_PIECES_RANGE',
+    y='Pourcentage_total',
+    color='TYPE_BIEN',
+    text=distribution_global['Pourcentage_total'].round(1).astype(str) + '%',
+    title="Répartition des catégories de nombre de pièces (tous biens confondus)",
+    color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
+    barmode='group'  # tu peux changer en 'stack' pour voir la contribution cumulée
+)
+
+fig.update_traces(textposition='outside')
+fig.update_layout(
+    xaxis_title="Catégorie (nombre de pièces)",
+    yaxis_title="Part dans le total (%)",
     title_x=0.5,
     xaxis_tickangle=45,
     plot_bgcolor="white",
-    legend_title="Type de bien",
-    uniformtext_minsize=8, uniformtext_mode='hide'
+    legend_title="Type de bien"
 )
-fig_group.show()
 
-# 2) Facettes par type (plus lisible car classes différentes APT vs MAI)
-fig_facet = px.bar(
-    distribution,
-    x='NB_PIECES_RANGE', y='Pourcentage',
-    color='NB_PIECES_RANGE',
-    text=distribution['Pourcentage'].round(1).astype(str) + '%',
-    facet_col='TYPE_BIEN',
-    facet_col_spacing=0.08,
-    title="Distribution du nombre de pièces — Facetté par type de bien (en %)"
-)
-fig_facet.update_traces(textposition='outside', showlegend=False)
-fig_facet.update_layout(
-    xaxis_title=None, yaxis_title="Pourcentage de transactions",
-    title_x=0.5, plot_bgcolor="white",
-)
-# Rotation des ticks x sur chaque facette
-for ax in fig_facet.layout.annotations:
-    ax.text = ax.text.replace("TYPE_BIEN=", "")
-fig_facet.update_xaxes(tickangle=45)
-fig_facet.show()
+fig.show()
