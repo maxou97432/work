@@ -1,90 +1,10 @@
-import plotly.express as px
-import plotly.io as pio
-import pandas as pd
-
-pio.renderers.default = "notebook"  # ou "browser"
-
-# ---- Agrégations ----
-prix_moy_dept = (
-    base_ml.groupby('DEPT_Corse_2A_2B')["Prix_m2"].mean()
-    .reset_index(name="Prix moyen €/m²")
-)
-
-prix_med_dept = (
-    base_ml.groupby('DEPT_Corse_2A_2B')["Prix_m2"].median()
-    .reset_index(name="Prix médian €/m²")
-)
-
-nb_trans_dept = (
-    base_ml.groupby('DEPT_Corse_2A_2B')["ID"].count()
-    .reset_index(name="Nombre de transactions")
-    .sort_values(by="Nombre de transactions", ascending=False)
-)
-
-# ---- Filtrage sur les 10 départements les plus actifs ----
-top10_depts = nb_trans_dept.head(10)["DEPT_Corse_2A_2B"]
-prix_moy_dept = prix_moy_dept[prix_moy_dept["DEPT_Corse_2A_2B"].isin(top10_depts)]
-prix_med_dept = prix_med_dept[prix_med_dept["DEPT_Corse_2A_2B"].isin(top10_depts)]
-nb_trans_dept = nb_trans_dept[nb_trans_dept["DEPT_Corse_2A_2B"].isin(top10_depts)]
-
-# ---- Graphique 1 : Prix moyen ----
-fig1 = px.bar(
-    prix_moy_dept.sort_values(by="Prix moyen €/m²", ascending=False),
-    x="DEPT_Corse_2A_2B",
-    y="Prix moyen €/m²",
-    title="Prix moyen par département (€ / m²) — Top 10 départements",
-    text="Prix moyen €/m²",
-    color="Prix moyen €/m²",
-    color_continuous_scale="Viridis"
-)
-fig1.update_traces(texttemplate="%{text:.0f}", textposition="outside")
-fig1.update_layout(
-    xaxis_title="Département",
-    yaxis_title="Prix moyen (€ / m²)",
-    title_x=0.5,
-    xaxis_tickangle=45,
-    plot_bgcolor="white"
-)
-
-# ---- Graphique 2 : Prix médian ----
-fig2 = px.bar(
-    prix_med_dept.sort_values(by="Prix médian €/m²", ascending=False),
-    x="DEPT_Corse_2A_2B",
-    y="Prix médian €/m²",
-    title="Prix médian par département (€ / m²) — Top 10 départements",
-    text="Prix médian €/m²",
-    color="Prix médian €/m²",
-    color_continuous_scale="Blues"
-)
-fig2.update_traces(texttemplate="%{text:.0f}", textposition="outside")
-fig2.update_layout(
-    xaxis_title="Département",
-    yaxis_title="Prix médian (€ / m²)",
-    title_x=0.5,
-    xaxis_tickangle=45,
-    plot_bgcolor="white"
-)
-
-# ---- Graphique 3 : Nombre de transactions ----
-fig3 = px.bar(
-    nb_trans_dept.sort_values(by="Nombre de transactions", ascending=False),
-    x="DEPT_Corse_2A_2B",
-    y="Nombre de transactions",
-    title="Nombre de transactions par département (sur 10 ans) — Top 10",
-    text="Nombre de transactions",
-    color="Nombre de transactions",
-    color_continuous_scale="Sunset"
-)
-fig3.update_traces(texttemplate="%{text:.0f}", textposition="outside")
-fig3.update_layout(
-    xaxis_title="Département",
-    yaxis_title="Nombre de transactions",
-    title_x=0.5,
-    xaxis_tickangle=45,
-    plot_bgcolor="white"
-)
-
-# ---- Affichage ----
-fig1.show()
-fig2.show()
-fig3.show()
+print(f"Prix moyen par commune:")
+base_ml_prixm2_com_moy = base_ml.groupby('CODE_POSTAL')["Prix_m2"].mean()
+print(base_ml_prixm2_com_moy)
+print("--" * 25)
+print(f"Prix médian par commune")
+base_ml_prixm2_com_median = base_ml.groupby('CODE_POSTAL')["Prix_m2"].quantile(0.5)
+print(base_ml_prixm2_com_median)
+print("--" * 25)
+nb_trans_com = base_ml.groupby('CODE_POSTAL')['ID'].count().sort_values(ascending = False)
+print(f"Répartition du nombre de transactions par commune sur 10 ans :{nb_trans_com}")
