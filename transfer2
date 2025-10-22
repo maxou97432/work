@@ -1,38 +1,47 @@
-comment je modifie ce code pour avoir de sprix moyens glissants sur 12 mois par type de bien: resultats = []
+import pandas as pd
 
+# 1) Sécurité + tri
+base_ml2 = base_ml2.copy()
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"], errors="coerce")
+base_ml2 = base_ml2.sort_values(["Ville", "TYPE_BIEN", "DATE"])
+
+# 2) Moyenne glissante 12 mois PAR VILLE ET TYPE
 base_ml2["moyenne_glissante_12m"] = (
-    base_ml2.groupby("Ville")["Prix_m2_moyen"]
-    .rolling(window=12, min_periods=12)
-    .mean()
-    .reset_index(level=0, drop=True)
+    base_ml2.groupby(["Ville", "TYPE_BIEN"])["Prix_m2_moyen"]
+            .transform(lambda s: s.rolling(window=12, min_periods=12).mean())
 )
 
-for ville, groupe in base_ml2.groupby("Ville"):
-    groupe = groupe.sort_values("DATE")
+# 3) Extraction des derniers niveaux + évolution vs ~12 mois avant
+resultats = []
 
-    # Dernière valeur connue pour Prix_m2
+for (ville, type_bien), groupe in base_ml2.groupby(["Ville", "TYPE_BIEN"], sort=False):
+    # déjà trié
+    # Dernière valeur observée
     last_idx = groupe["Prix_m2_moyen"].last_valid_index()
     if last_idx is None:
-        continue  
-    last_row = groupe.loc[last_idx]
-    date_last = last_row["DATE"]
-    prix_last = last_row["Prix_m2_moyen"]
-    Q1_last = last_row["Q1"]
-    median_last = last_row["Median"]
-    Q3_last = last_row["Q3"]
+        continue
 
-    # Dernière valeur connue pour la moyenne glissante
+    last_row   = groupe.loc[last_idx]
+    date_last  = last_row["DATE"]
+    prix_last  = last_row["Prix_m2_moyen"]
+    Q1_last    = last_row.get("Q1", pd.NA)
+    median_last= last_row.get("Median", pd.NA)
+    Q3_last    = last_row.get("Q3", pd.NA)
+
+    # Dernière moyenne glissante disponible
     moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
+    if moyenne_last_idx is None:
+        # pas assez d'historique pour une 12m
+        continue
     moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
 
-    # Calcul de la date de référence pour l'année précédente
+    # Cherche la dernière moyenne glissante <= (date_last - 12 mois)
     date_previous = date_last - pd.DateOffset(years=1)
     groupe_previous = groupe[groupe["DATE"] <= date_previous]
-
     if not groupe_previous.empty:
         prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
-        if prev_idx is not None:
-            moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
+        if prev_idx is not None and pd.notna(groupe.loc[prev_idx, "moyenne_glissante_12m"]):
+            moyenne_previous = groupe.loc[prev_idx, "moyenne_glissante_12m"]
             evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
         else:
             evolution = None
@@ -41,14 +50,15 @@ for ville, groupe in base_ml2.groupby("Ville"):
 
     resultats.append({
         "Ville": ville,
-        "Derniere date valide": date_last.date(),
-        "Evolution en % - CL": round(evolution, 2) if evolution is not None else None,
-        "Prix moyen du m2 - CL": prix_last,
-        "Prix du m2 (Q1) - CL" : Q1_last ,
-        "Prix du m2 (médian) - CL" : median_last,
-        "Prix du m2 (Q3) - CL" : Q3_last
+        "TYPE_BIEN": type_bien,
+        "Derniere date valide": date_last.normalize(),
+        "Evolution 12m (%)": round(evolution, 2) if evolution is not None else None,
+        "Prix moyen du m² (dernier)": prix_last,
+        "Prix du m² (Q1) - CL": Q1_last,
+        "Prix du m² (médian) - CL": median_last,
+        "Prix du m² (Q3) - CL": Q3_last,
+        "Moyenne glissante 12m (dernier)": moyenne_last
     })
-
 
 rdf = pd.DataFrame(resultats)
 rdf["Derniere date valide"] = pd.to_datetime(rdf["Derniere date valide"])
