@@ -1,29 +1,36 @@
-import plotly.express as px
-import pandas as pd
+{
+	"name": "ValueError",
+	"message": "Mime type rendering requires nbformat>=4.2.0 but it is not installed",
+	"stack": "---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[159], line 25
+     14 fig.update_traces(textposition='outside')
+     15 fig.update_layout(
+     16     xaxis_title=\"Année\",
+     17     yaxis_title=\"Nombre de transactions\",
+   (...)     22     bargap=0.2
+     23 )
+---> 25 fig.show()
 
-# Agrégation
-j = base_ml.groupby('YEAR')['ID'].count().reset_index(name='Nombre de transactions')
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\basedatatypes.py:3420, in BaseFigure.show(self, *args, **kwargs)
+   3387 \"\"\"
+   3388 Show a figure using either the default renderer(s) or the renderer(s)
+   3389 specified by the renderer argument
+   (...)   3416 None
+   3417 \"\"\"
+   3418 import plotly.io as pio
+-> 3420 return pio.show(self, *args, **kwargs)
 
-# Graphique interactif
-fig = px.bar(
-    j,
-    x='YEAR',
-    y='Nombre de transactions',
-    text='Nombre de transactions',
-    title="Évolution annuelle du nombre de transactions",
-    color_discrete_sequence=['#1f77b4']
-)
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\io\\_renderers.py:415, in show(fig, renderer, validate, **kwargs)
+    410     raise ValueError(
+    411         \"Mime type rendering requires ipython but it is not installed\"
+    412     )
+    414 if not nbformat or Version(nbformat.__version__) < Version(\"4.2.0\"):
+--> 415     raise ValueError(
+    416         \"Mime type rendering requires nbformat>=4.2.0 but it is not installed\"
+    417     )
+    419 display_jupyter_version_warnings()
+    421 ipython_display.display(bundle, raw=True)
 
-# Mise en forme
-fig.update_traces(textposition='outside')
-fig.update_layout(
-    xaxis_title="Année",
-    yaxis_title="Nombre de transactions",
-    title_x=0.5,
-    plot_bgcolor="white",
-    xaxis=dict(showgrid=False),
-    yaxis=dict(gridcolor="#e0e0e0"),
-    bargap=0.2
-)
-
-fig.show()
+ValueError: Mime type rendering requires nbformat>=4.2.0 but it is not installed"
+}
