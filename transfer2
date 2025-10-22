@@ -1,32 +1,55 @@
-import plotly.express as px
-import plotly.io as pio
+comment je modifie ce code pour avoir de sprix moyens glissants sur 12 mois par type de bien: resultats = []
 
-pio.renderers.default = "notebook"  # ou "browser"
+base_ml2["moyenne_glissante_12m"] = (
+    base_ml2.groupby("Ville")["Prix_m2_moyen"]
+    .rolling(window=12, min_periods=12)
+    .mean()
+    .reset_index(level=0, drop=True)
+)
 
-# Vérifie que DATE est bien au format datetime
-model_agg["DATE"] = pd.to_datetime(model_agg["DATE"], errors="coerce")
+for ville, groupe in base_ml2.groupby("Ville"):
+    groupe = groupe.sort_values("DATE")
 
-# Boucle sur chaque ville
-for ville in model_agg["ville_"].unique():
-    df_ville = model_agg[model_agg["ville_"] == ville].sort_values("DATE")
+    # Dernière valeur connue pour Prix_m2
+    last_idx = groupe["Prix_m2_moyen"].last_valid_index()
+    if last_idx is None:
+        continue  
+    last_row = groupe.loc[last_idx]
+    date_last = last_row["DATE"]
+    prix_last = last_row["Prix_m2_moyen"]
+    Q1_last = last_row["Q1"]
+    median_last = last_row["Median"]
+    Q3_last = last_row["Q3"]
 
-    # Graphique interactif
-    fig = px.line(
-        df_ville,
-        x="DATE",
-        y=["Prix_m2_moyen", "Median"],
-        title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
-        markers=True
-    )
+    # Dernière valeur connue pour la moyenne glissante
+    moyenne_last_idx = groupe["moyenne_glissante_12m"].last_valid_index()
+    moyenne_last = groupe.loc[moyenne_last_idx, "moyenne_glissante_12m"]
 
-    # Mise en forme
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix"
-    )
+    # Calcul de la date de référence pour l'année précédente
+    date_previous = date_last - pd.DateOffset(years=1)
+    groupe_previous = groupe[groupe["DATE"] <= date_previous]
 
-    fig.show()
+    if not groupe_previous.empty:
+        prev_idx = groupe_previous["moyenne_glissante_12m"].last_valid_index()
+        if prev_idx is not None:
+            moyenne_previous = groupe_previous.loc[prev_idx, "moyenne_glissante_12m"]
+            evolution = ((moyenne_last - moyenne_previous) / moyenne_previous) * 100
+        else:
+            evolution = None
+    else:
+        evolution = None
+
+    resultats.append({
+        "Ville": ville,
+        "Derniere date valide": date_last.date(),
+        "Evolution en % - CL": round(evolution, 2) if evolution is not None else None,
+        "Prix moyen du m2 - CL": prix_last,
+        "Prix du m2 (Q1) - CL" : Q1_last ,
+        "Prix du m2 (médian) - CL" : median_last,
+        "Prix du m2 (Q3) - CL" : Q3_last
+    })
+
+
+rdf = pd.DataFrame(resultats)
+rdf["Derniere date valide"] = pd.to_datetime(rdf["Derniere date valide"])
+rdf
