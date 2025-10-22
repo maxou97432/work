@@ -1,1 +1,2 @@
-Error loading script: https://cdn.jsdelivr.net/npm/vega@5?noext
+alt.renderers.set_embed_options(actions=False)
+alt.data_transformers.disable_max_rows()
