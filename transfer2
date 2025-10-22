@@ -1,23 +1,28 @@
-bins_apt = [0, 2, 4, np.inf]
-labels_apt = ["1-2 pièces", "3-4 pièces", "5 pièces  et plus"]
+import numpy as np
+import pandas as pd
 
-bins_mai = [0, 4, np.inf]
-labels_mai = ["4 pièces et moins", "5 pièces et plus"]
+# Sûr que c’est numérique
+base_ml['NB_PIECES'] = pd.to_numeric(base_ml['NB_PIECES'], errors='coerce')
 
-base_ml["NB_PIECES_RANGE"] = None
+# Ré-initialise la colonne
+base_ml['NB_PIECES_RANGE'] = np.nan
 
-base_ml.loc[base_ml['TYPE_BIEN'] == 'APT', 'NB_PIECES_RANGE'] = pd.cut(
-    base_ml.loc[base_ml['TYPE_BIEN'] == 'APT', 'NB_PIECES'],
-    bins = bins_apt,
-    labels = labels_apt,
-    right = True,
-    include_lowest = True
+# APT : 1-2 / 3-4 / 5+
+bins_apt   = [0, 2, 4, np.inf]
+labels_apt = ["APT: 1-2", "APT: 3-4", "APT: 5+"]
+
+mask_apt = base_ml['TYPE_BIEN'].eq('APT')
+base_ml.loc[mask_apt, 'NB_PIECES_RANGE'] = pd.cut(
+    base_ml.loc[mask_apt, 'NB_PIECES'],
+    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
 )
 
-base_ml.loc[base_ml['TYPE_BIEN'] == 'MAI', 'NB_PIECES_RANGE'] = pd.cut(
-    base_ml.loc[base_ml['TYPE_BIEN'] == 'MAI', 'NB_PIECES'],
-    bins = bins_mai,
-    labels = labels_mai,
-    right = True,
-    include_lowest = True
+# MAI : <=4 / 5+
+bins_mai   = [0, 4, np.inf]
+labels_mai = ["MAI: <=4", "MAI: 5+"]
+
+mask_mai = base_ml['TYPE_BIEN'].eq('MAI')
+base_ml.loc[mask_mai, 'NB_PIECES_RANGE'] = pd.cut(
+    base_ml.loc[mask_mai, 'NB_PIECES'],
+    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
 )
