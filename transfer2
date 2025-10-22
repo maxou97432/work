@@ -1,19 +1,4 @@
-import pandas as pd
-
-# On s'assure que ce sont bien des chaînes
-base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype(str)
-base_ml["TYPE_BIEN"] = base_ml["TYPE_BIEN"].astype(str).str.upper().str.strip()
-
-# Définir les règles d’incohérence
-mask_bad_apt = base_ml["TYPE_BIEN"].eq("APT") & base_ml["NB_PIECES_RANGE"].str.startswith("MAI")
-mask_bad_mai = base_ml["TYPE_BIEN"].eq("MAI") & base_ml["NB_PIECES_RANGE"].str.startswith("APT")
-
-# Compter avant suppression (utile pour vérifier)
-print(f"Lignes à supprimer (APT avec bins MAI) : {mask_bad_apt.sum()}")
-print(f"Lignes à supprimer (MAI avec bins APT) : {mask_bad_mai.sum()}")
-
-# Supprimer les lignes incohérentes
-base_ml = base_ml.loc[~(mask_bad_apt | mask_bad_mai)].copy()
-
-# Vérification
-pd.crosstab(base_ml["TYPE_BIEN"], base_ml["NB_PIECES_RANGE"])
+base_ml["PB"] = base_ml["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+base_ml["TYPE_BIEN"] = base_ml["TYPE_BIEN"].astype(str).str.strip().str.upper()
+base_ml = base_ml.drop(base_ml[base_ml["TYPE_BIEN"] != base_ml["PB"] ])
+base_ml.head()
