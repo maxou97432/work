@@ -1,2 +1,49 @@
-alt.renderers.set_embed_options(actions=False)
+# pip install altair==5.3.0 altair_saver vl-convert-python
+import pandas as pd
+import altair as alt
+
 alt.data_transformers.disable_max_rows()
+alt.renderers.enable('mimetype')  # affiche dans Jupyter sans CDN
+
+# 1) Évolution annuelle du nombre de transactions
+j = base_ml.groupby('YEAR')['ID'].count().reset_index(name='Nombre_transactions')
+
+chart1 = (
+    alt.Chart(j)
+    .mark_bar()
+    .encode(
+        x=alt.X('YEAR:O', title='Année', sort='ascending'),
+        y=alt.Y('Nombre_transactions:Q', title='Nombre de transactions'),
+        tooltip=['YEAR', alt.Tooltip('Nombre_transactions:Q', title='Transactions', format=',.0f')]
+    )
+    .properties(title='Évolution annuelle du nombre de transactions', width=700, height=400)
+)
+
+chart1  # s'affiche en notebook
+
+# 2) Pourcentage du nombre de transactions par SOURCE
+df_grouped = base_ml.groupby(['YEAR', 'SOURCE'])['ID'].count().reset_index(name='Nombre_transactions')
+df_grouped['Total_year'] = df_grouped.groupby('YEAR')['Nombre_transactions'].transform('sum')
+df_grouped['Pourcentage'] = df_grouped['Nombre_transactions'] / df_grouped['Total_year'] * 100
+
+chart2 = (
+    alt.Chart(df_grouped)
+    .mark_bar()
+    .encode(
+        x=alt.X('YEAR:O', title='Année', sort='ascending'),
+        y=alt.Y('Pourcentage:Q', title='Part des transactions (%)'),
+        color=alt.Color('SOURCE:N', title='Source'),
+        tooltip=['YEAR','SOURCE',
+                 alt.Tooltip('Pourcentage:Q', title='Part (%)', format='.2f'),
+                 alt.Tooltip('Nombre_transactions:Q', title='Transactions', format=',.0f')]
+    )
+    .properties(title='Évolution annuelle du pourcentage du nombre de transactions par source',
+                width=700, height=400)
+)
+
+chart2  # s'affiche en notebook
+
+# --- (Option) Export hors-ligne sans navigateur ---
+from altair_saver import save
+save(chart1, 'transactions_annuelles.png')      # ou 'transactions_annuelles.svg' / '.html'
+save(chart2, 'part_transactions_par_source.png')
