@@ -1,5 +1,6 @@
-base_ml["Prix_m2_na"] = base_ml["Prix_m2"].isna()
 
+df_prix_na = base_ml["Prix_m2"].isna().sum()
+print(f"{df_prix_na} données manquantes soit {df_prix_na / len(base_ml) * 100} %")base_ml["Prix_m2_na"] = base_ml["Prix_m2"].isna()
 
 total = base_ml.groupby("YEAR")["ID"].count()
 
