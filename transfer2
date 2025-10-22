@@ -1,3 +1,21 @@
+import pandas as pd
+import numpy as np
+
+# Paramètres
+col_ville = "Ville"
+col_type  = "TYPE_BIEN"
+col_date  = "DATE"
+col_prix  = "Prix_m2_moyen"
+win       = 12
+min_pts   = 12
+
+# Prépa
+base_ml2 = base_ml2.copy()
+base_ml2[col_date] = pd.to_datetime(base_ml2[col_date], errors="coerce")
+base_ml2 = base_ml2.dropna(subset=[col_date, col_ville, col_type])
+base_ml2 = base_ml2.sort_values([col_ville, col_type, col_date])
+
+# --- Étape A : garantir la continuité mensuelle par groupe (si trous)
 def ensure_monthly_and_interpolate(g):
     # g est un DataFrame d'une (Ville, TYPE_BIEN)
     g = g.set_index(col_date).sort_index()
@@ -10,3 +28,34 @@ def ensure_monthly_and_interpolate(g):
     # interpolation temporelle du prix (si des mois manquent)
     g[col_prix] = g[col_prix].interpolate(method="time")
     return g.reset_index().rename(columns={"index": "Periode"})
+
+monthly = (
+    base_ml2
+    .groupby([col_ville, col_type], group_keys=False)
+    .apply(ensure_monthly_and_interpolate)
+    .rename(columns={col_prix: "prix_mensuel"})
+)
+
+# --- Étape B : moyenne glissante 12 mois
+monthly["prix_glissant_12m"] = (
+    monthly
+    .groupby([col_ville, col_type], group_keys=False)["prix_mensuel"]
+    .apply(lambda s: s.rolling(window=win, min_periods=min_pts).mean())
+)
+
+# --- Étape C : évolution vs N-12 sur la série glissante
+monthly["prix_glissant_12m_lag12"] = (
+    monthly.groupby([col_ville, col_type])["prix_glissant_12m"].shift(12)
+)
+monthly["evol_12m_pct"] = (
+    (monthly["prix_glissant_12m"] / monthly["prix_glissant_12m_lag12"] - 1.0) * 100
+)
+
+# Résultat final
+result_ts = monthly[["Periode", col_ville, col_type, "prix_mensuel", "prix_glissant_12m", "evol_12m_pct"]]
+
+# Diagnostic : % de NaN restant sur le glissant
+pct_nan = result_ts["prix_glissant_12m"].isna().mean() * 100
+print(f"NaN restants sur prix_glissant_12m : {pct_nan:.1f}%")
+
+result_ts.head(12)
