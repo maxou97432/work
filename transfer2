@@ -1,36 +1,13 @@
-{
-	"name": "ValueError",
-	"message": "Mime type rendering requires nbformat>=4.2.0 but it is not installed",
-	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-Cell In[159], line 25
-     14 fig.update_traces(textposition='outside')
-     15 fig.update_layout(
-     16     xaxis_title=\"Année\",
-     17     yaxis_title=\"Nombre de transactions\",
-   (...)     22     bargap=0.2
-     23 )
----> 25 fig.show()
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\basedatatypes.py:3420, in BaseFigure.show(self, *args, **kwargs)
-   3387 \"\"\"
-   3388 Show a figure using either the default renderer(s) or the renderer(s)
-   3389 specified by the renderer argument
-   (...)   3416 None
-   3417 \"\"\"
-   3418 import plotly.io as pio
--> 3420 return pio.show(self, *args, **kwargs)
-
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\io\\_renderers.py:415, in show(fig, renderer, validate, **kwargs)
-    410     raise ValueError(
-    411         \"Mime type rendering requires ipython but it is not installed\"
-    412     )
-    414 if not nbformat or Version(nbformat.__version__) < Version(\"4.2.0\"):
---> 415     raise ValueError(
-    416         \"Mime type rendering requires nbformat>=4.2.0 but it is not installed\"
-    417     )
-    419 display_jupyter_version_warnings()
-    421 ipython_display.display(bundle, raw=True)
-
-ValueError: Mime type rendering requires nbformat>=4.2.0 but it is not installed"
-}
+# Ajout de la colonne région
+base_ml['REGION'] = base_ml['DEPT_Corse_2A_2B'].astype(str).map(dep_to_region)
+print(f"Prix moyen par région:")
+prix_my_reg = base_ml.groupby('REGION')["Prix_m2"].mean()
+print(prix_my_reg)
+print("--" * 25)
+print(f"Prix médian par région")
+prix_med_reg = base_ml.groupby('REGION')["Prix_m2"].quantile(0.5)
+print(prix_med_reg)
+print("--" * 25)
+nb_trans_reg = base_ml.groupby('REGION')['ID'].count().sort_values(ascending = False)
+print(f"Répartition du nombre de transactions par région sur 10 ans :{nb_trans_reg}")
