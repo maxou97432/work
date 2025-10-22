@@ -1,78 +1,51 @@
-import pandas as pd
-import plotly.express as px
-import plotly.io as pio
 
-# Affichage dans le notebook (change en "browser" si besoin)
-pio.renderers.default = "notebook"
+base_ml["NB_PIECES"] = pd.to_numeric(base_ml["NB_PIECES"], errors="coerce")
 
-# --- Comptes séparés APT / MAI (comme r et l) ---
-r = (base_ml[base_ml['TYPE_BIEN'] == 'APT']
-     .groupby('YEAR')['ID'].count()
-     .reset_index(name='Nombre_transactions'))
-l = (base_ml[base_ml['TYPE_BIEN'] == 'MAI']
-     .groupby('YEAR')['ID'].count()
-     .reset_index(name='Nombre_transactions'))
 
-fig_r = px.bar(
-    r.sort_values('YEAR'),
-    x='YEAR', y='Nombre_transactions',
-    title="Transactions d'appartements par année",
-    text='Nombre_transactions',
-    color_discrete_sequence=['#1f77b4']
+bins_apt   = [0, 2, 4, np.inf]
+labels_apt = ["APT: 1-2 pièces", "APT : 3-4 pièces", "APT: 5 pièces et plus"]
+
+bins_mai   = [0, 4, np.inf]
+labels_mai = ["MAI: 4 pièces et moins", "MAI: 5 pièces et plus"]
+
+
+base_ml["NB_PIECES_RANGE"] = np.nan
+
+mask_apt = base_ml["TYPE_BIEN"].eq("APT")
+mask_mai = base_ml["TYPE_BIEN"].eq("MAI")
+
+base_ml.loc[mask_apt, "NB_PIECES_RANGE"] = pd.cut(
+    base_ml.loc[mask_apt, "NB_PIECES"],
+    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
 )
-fig_r.update_traces(textposition='outside')
-fig_r.update_layout(xaxis_title="Année", yaxis_title="Nombre de transactions",
-                    title_x=0.5, plot_bgcolor="white")
-fig_r.show()
 
-fig_l = px.bar(
-    l.sort_values('YEAR'),
-    x='YEAR', y='Nombre_transactions',
-    title="Transactions de maisons par année",
-    text='Nombre_transactions',
-    color_discrete_sequence=['#ff7f0e']
+base_ml.loc[mask_mai, "NB_PIECES_RANGE"] = pd.cut(
+    base_ml.loc[mask_mai, "NB_PIECES"],
+    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
 )
-fig_l.update_traces(textposition='outside')
-fig_l.update_layout(xaxis_title="Année", yaxis_title="Nombre de transactions",
-                    title_x=0.5, plot_bgcolor="white")
-fig_l.show()
 
-# --- Pourcentages par année et type ---
-df_grouped = (base_ml.groupby(['YEAR', 'TYPE_BIEN'])['ID']
-                     .count()
-                     .reset_index(name='Nombre_transactions'))
+base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype("object")
 
-# Normalisation en pourcentage par année
-total_per_year = df_grouped.groupby('YEAR')['Nombre_transactions'].transform('sum')
-df_grouped['Pourcentage'] = df_grouped['Nombre_transactions'] / total_per_year * 100
+base_ml.loc[mask_apt & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "APT: Non renseigné"
+base_ml.loc[mask_mai & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "MAI: Non renseigné"
 
-# Barres groupées (comme ton plot non empilé)
-fig_pct = px.bar(
-    df_grouped.sort_values('YEAR'),
-    x='YEAR', y='Pourcentage', color='TYPE_BIEN',
-    barmode='group', text='Pourcentage',
-    color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
-    title="Évolution annuelle du pourcentage de transactions par type de bien"
-)
-fig_pct.update_traces(texttemplate="%{text:.1f}%", textposition='outside')
-fig_pct.update_layout(
-    xaxis_title="Année", yaxis_title="Pourcentage de transactions",
-    title_x=0.5, plot_bgcolor="white", legend_title="Type de bien"
-)
-fig_pct.show()
 
-# ----- Variante empilée à 100% (si tu veux) -----
-# fig_pct_stack = px.bar(
-#     df_grouped.sort_values('YEAR'),
-#     x='YEAR', y='Nombre_transactions', color='TYPE_BIEN',
-#     barmode='stack', text='Nombre_transactions',
-#     color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
-#     title="Répartition annuelle des transactions par type (100% empilé)"
-# )
-# fig_pct_stack.update_layout(
-#     xaxis_title="Année", yaxis_title="Part (%)",
-#     title_x=0.5, plot_bgcolor="white", legend_title="Type de bien",
-#     barmode='stack'
-# )
-# fig_pct_stack.update_yaxes(tickformat=".0%")
-# fig_pct_stack.show()
+
+
+# Calculer la distribution
+distribution = base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID'].count().reset_index(name='Nombre')
+tot = distribution.groupby("TYPE_BIEN")["Nombre"].transform("sum")
+distribution['Pourcentage'] =(distribution['Nombre'] / tot) * 100
+
+fig, ax = plt.subplots(figsize=(12, 6))
+for bien in distribution['TYPE_BIEN'].unique():
+    subset = distribution[distribution['TYPE_BIEN'] == bien]
+    ax.bar(subset['NB_PIECES_RANGE'], subset['Pourcentage'], label=bien)
+
+plt.title("Distribution du nombre de pièces par type de bien en pourcentage")
+plt.xlabel("Nombre de pièces")
+plt.ylabel("Pourcentage de transactions")
+plt.xticks(rotation=45)
+plt.legend(title="Type de bien")
+plt.tight_layout()
+plt.show()
