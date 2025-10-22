@@ -1,30 +1,78 @@
+import pandas as pd
+import plotly.express as px
+import plotly.io as pio
 
-r = base_ml[base_ml['TYPE_BIEN'] == 'APT'].groupby('YEAR')['ID'].count().sort_values(ascending=False)
-l = base_ml[base_ml['TYPE_BIEN'] == 'MAI'].groupby('YEAR')['ID'].count().sort_values(ascending=False)
+# Affichage dans le notebook (change en "browser" si besoin)
+pio.renderers.default = "notebook"
 
-print("Répartition du nombre de transactions d'appartements sur 10 ans :")
-print(r)
-print("\nRépartition du nombre de transactions de maisons sur 10 ans :")
-print(l)
+# --- Comptes séparés APT / MAI (comme r et l) ---
+r = (base_ml[base_ml['TYPE_BIEN'] == 'APT']
+     .groupby('YEAR')['ID'].count()
+     .reset_index(name='Nombre_transactions'))
+l = (base_ml[base_ml['TYPE_BIEN'] == 'MAI']
+     .groupby('YEAR')['ID'].count()
+     .reset_index(name='Nombre_transactions'))
 
+fig_r = px.bar(
+    r.sort_values('YEAR'),
+    x='YEAR', y='Nombre_transactions',
+    title="Transactions d'appartements par année",
+    text='Nombre_transactions',
+    color_discrete_sequence=['#1f77b4']
+)
+fig_r.update_traces(textposition='outside')
+fig_r.update_layout(xaxis_title="Année", yaxis_title="Nombre de transactions",
+                    title_x=0.5, plot_bgcolor="white")
+fig_r.show()
 
-df_grouped = base_ml.groupby(['YEAR', 'TYPE_BIEN'])['ID'].count().reset_index(name='Nombre_transactions')
+fig_l = px.bar(
+    l.sort_values('YEAR'),
+    x='YEAR', y='Nombre_transactions',
+    title="Transactions de maisons par année",
+    text='Nombre_transactions',
+    color_discrete_sequence=['#ff7f0e']
+)
+fig_l.update_traces(textposition='outside')
+fig_l.update_layout(xaxis_title="Année", yaxis_title="Nombre de transactions",
+                    title_x=0.5, plot_bgcolor="white")
+fig_l.show()
 
+# --- Pourcentages par année et type ---
+df_grouped = (base_ml.groupby(['YEAR', 'TYPE_BIEN'])['ID']
+                     .count()
+                     .reset_index(name='Nombre_transactions'))
 
-total_per_year = df_grouped.groupby('YEAR')['Nombre_transactions'].sum()
+# Normalisation en pourcentage par année
+total_per_year = df_grouped.groupby('YEAR')['Nombre_transactions'].transform('sum')
+df_grouped['Pourcentage'] = df_grouped['Nombre_transactions'] / total_per_year * 100
 
+# Barres groupées (comme ton plot non empilé)
+fig_pct = px.bar(
+    df_grouped.sort_values('YEAR'),
+    x='YEAR', y='Pourcentage', color='TYPE_BIEN',
+    barmode='group', text='Pourcentage',
+    color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
+    title="Évolution annuelle du pourcentage de transactions par type de bien"
+)
+fig_pct.update_traces(texttemplate="%{text:.1f}%", textposition='outside')
+fig_pct.update_layout(
+    xaxis_title="Année", yaxis_title="Pourcentage de transactions",
+    title_x=0.5, plot_bgcolor="white", legend_title="Type de bien"
+)
+fig_pct.show()
 
-pivot_df = df_grouped.pivot(index='YEAR', columns='TYPE_BIEN', values='Nombre_transactions')
-
-
-pourcentage_df = pivot_df.div(total_per_year, axis=0) * 100
-
-
-pourcentage_df.plot(kind='bar', stacked=False)
-plt.title("Évolution annuelle du pourcentage de transactions par type de bien")
-plt.xlabel("Année")
-plt.ylabel("Pourcentage de transactions")
-plt.legend(title="Type de bien")
-plt.tight_layout()
-plt.show()
-
+# ----- Variante empilée à 100% (si tu veux) -----
+# fig_pct_stack = px.bar(
+#     df_grouped.sort_values('YEAR'),
+#     x='YEAR', y='Nombre_transactions', color='TYPE_BIEN',
+#     barmode='stack', text='Nombre_transactions',
+#     color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
+#     title="Répartition annuelle des transactions par type (100% empilé)"
+# )
+# fig_pct_stack.update_layout(
+#     xaxis_title="Année", yaxis_title="Part (%)",
+#     title_x=0.5, plot_bgcolor="white", legend_title="Type de bien",
+#     barmode='stack'
+# )
+# fig_pct_stack.update_yaxes(tickformat=".0%")
+# fig_pct_stack.show()
