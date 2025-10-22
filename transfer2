@@ -1,14 +1,32 @@
-for ville in model_agg["ville_"].unique():
-    df_ville = model_agg[model_agg["ville_"] == ville]
+import plotly.express as px
+import plotly.io as pio
 
-    plt.figure(figsize = (10,6))
-    plt.plot(df_ville["DATE"], df_ville["Prix_m2_moyen"], label = "Prix moyen du m2")
-    plt.plot(df_ville["DATE"], df_ville["Median"], label = "Prix médian du m2")
-    
-    plt.legend()
-    plt.title(ville)
-    plt.xlabel("Date")
-    plt.ylabel("Prix du m2 en €")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
+pio.renderers.default = "notebook"  # ou "browser"
+
+# Vérifie que DATE est bien au format datetime
+model_agg["DATE"] = pd.to_datetime(model_agg["DATE"], errors="coerce")
+
+# Boucle sur chaque ville
+for ville in model_agg["ville_"].unique():
+    df_ville = model_agg[model_agg["ville_"] == ville].sort_values("DATE")
+
+    # Graphique interactif
+    fig = px.line(
+        df_ville,
+        x="DATE",
+        y=["Prix_m2_moyen", "Median"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        markers=True
+    )
+
+    # Mise en forme
+    fig.update_layout(
+        title_x=0.5,
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix"
+    )
+
+    fig.show()
