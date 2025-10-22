@@ -1,13 +1,30 @@
-         Date     Region Departement     Ville Prix m2 en euros  \
-0  01/08/2025     Alsace   HAUT-RHIN  MULHOUSE             1677   
-1  01/08/2025  Aquitaine     GIRONDE  BORDEAUX             4312   
-2  01/08/2025  Aquitaine     GIRONDE  MÉRIGNAC             3391   
-3  01/08/2025  Aquitaine     GIRONDE    PESSAC             3810   
-4  01/08/2025  Aquitaine     GIRONDE   TALENCE             3482   
+import pandas as pd
 
-  Evolution en pourcent (sur un an)  
-0                               5.2  
-1                              -0.5  
-2                               0.4  
-3                              -2.4  
-4                              -7.6  
+# Exemple : ton DataFrame s’appelle df
+# Conversion des dates
+df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="coerce")
+
+# On s’assure que les prix sont bien numériques
+df["Prix m2 en euros"] = pd.to_numeric(df["Prix m2 en euros"], errors="coerce")
+
+# Tri pour que les dates soient dans l’ordre croissant
+df = df.sort_values(["Ville", "Date"]).reset_index(drop=True)
+
+# Interpolation par ville (par défaut : linéaire)
+df["Prix m2 en euros (interp)"] = (
+    df.groupby("Ville")["Prix m2 en euros"]
+      .apply(lambda x: x.interpolate(method="linear"))
+)
+
+# --- Option : extrapoler aussi les bords (si début/fin manquants)
+df["Prix m2 en euros (interp)"] = (
+    df.groupby("Ville")["Prix m2 en euros (interp)"]
+      .apply(lambda x: x.fillna(method="ffill").fillna(method="bfill"))
+)
+
+# Vérification : les lignes interpolées (où il y avait NaN avant)
+mask_interpolées = df["Prix m2 en euros"].isna() & df["Prix m2 en euros (interp)"].notna()
+print("Nombre de valeurs interpolées :", mask_interpolées.sum())
+
+# Visualisation exemple
+df[df["Ville"].eq("MULHOUSE")].sort_values("Date")
