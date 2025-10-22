@@ -1,65 +1,33 @@
-import pandas as pd
-import plotly.express as px
-import plotly.io as pio
+base_ml["Prix_m2_na"] = base_ml["Prix_m2"].isna()
 
-# Affichage dans le notebook (change en "browser" si besoin)
-pio.renderers.default = "notebook"
 
-# --- 1) Nombre de transactions par an ---
-j = base_ml.groupby('YEAR')['ID'].count().reset_index(name='Nombre de transactions')
+total = base_ml.groupby("YEAR")["ID"].count()
 
-fig1 = px.bar(
-    j.sort_values('YEAR'),
-    x='YEAR', y='Nombre de transactions',
-    text='Nombre de transactions',
-    title="Évolution annuelle du nombre de transactions"
-)
-fig1.update_traces(textposition='outside')
-fig1.update_layout(
-    xaxis_title="Année",
-    yaxis_title="Nombre de transactions",
-    title_x=0.5,
-    plot_bgcolor="white"
-)
-fig1.show()
 
-# --- 2) % de transactions par source et par an ---
-df_grouped = (
-    base_ml.groupby(['YEAR', 'SOURCE'])['ID']
-           .count()
-           .reset_index(name='Nombre_transactions')
-)
+na = base_ml[base_ml["Prix_m2_na"]].groupby("YEAR")["ID"].count()
 
-# Normalisation en pourcentage par année
-df_grouped['Total_year'] = df_grouped.groupby('YEAR')['Nombre_transactions'].transform('sum')
-df_grouped['Pourcentage'] = df_grouped['Nombre_transactions'] / df_grouped['Total_year'] * 100
+pourcentage = (na / total * 100).reset_index(name="Pourcentage_NA")
 
-fig2 = px.bar(
-    df_grouped.sort_values('YEAR'),
-    x='YEAR', y='Pourcentage', color='SOURCE',
-    barmode='group', text='Pourcentage',
-    title="Évolution annuelle du pourcentage du nombre de transactions par source"
-)
-fig2.update_traces(texttemplate="%{text:.1f}%", textposition='outside')
-fig2.update_layout(
-    xaxis_title="Année",
-    yaxis_title="Pourcentage de transactions",
-    title_x=0.5,
-    plot_bgcolor="white",
-    legend_title="Source"
-)
-fig2.show()
+pourcentage.plot(x='YEAR', y='Pourcentage_NA', kind='bar', legend=False)
+plt.title("Évolution annuelle du pourcentage de Prix_m2 manquantes")
+plt.xlabel("Année")
+plt.ylabel("Pourcentage de valeurs manquantes")
+plt.tight_layout()
+plt.show()
 
-# ----- Variante empilée à 100% (si tu préfères) -----
-# fig2_stack = px.bar(
-#     df_grouped.sort_values('YEAR'),
-#     x='YEAR', y='Nombre_transactions', color='SOURCE',
-#     barmode='stack',
-#     title="Répartition annuelle des transactions par source (100% empilé)"
-# )
-# fig2_stack.update_layout(
-#     xaxis_title="Année", yaxis_title="Part (%)",
-#     title_x=0.5, plot_bgcolor="white"
-# )
-# fig2_stack.update_yaxes(tickformat=".0%")
-# fig2_stack.show()
+
+df_miss = base_ml[base_ml["Prix_m2_na"]]
+df_grouped = df_miss.groupby(['YEAR', 'SOURCE'])['ID'].count().reset_index(name='Nombre_transactions_na')
+
+total_na = df_miss.groupby("YEAR")["Prix_m2_na"].count()
+pivot_df = df_grouped.pivot(index='YEAR', columns='SOURCE', values='Nombre_transactions_na')
+pourcentage_df = pivot_df.div(total_na, axis = 0)*100
+
+
+pourcentage_df.plot(kind='bar', stacked=False)
+plt.title("Évolution annuelle du pourcentage de Prix_m2 manquantes par source")
+plt.xlabel("Année")
+plt.ylabel("Pourcentage de valeurs manquantes")
+plt.legend(title="Source")
+plt.tight_layout()
+plt.show()
