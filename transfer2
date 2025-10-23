@@ -1,49 +1,55 @@
+import plotly.express as px
+import pandas as pd
+
+# Harmonisation des noms de colonnes
 model_agg = city_month.rename(columns={
-    "Periode":"DATE",
-    "prix_moyen_pondere_ville":"Prix_m2_moyen_pondere",
-    "prix_glissant_pondere_12m_ville":"Glissant_pondere_12m"
+    "Periode": "DATE",
+    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
+    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m"
 })
 
-for ville in model_agg["Ville"].unique():
-    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
-    fig = px.line(
-        df_ville, x="DATE",
-        y=["Prix_m2_moyen_pondere","Glissant_pondere_12m"],
-        title=f"Évolution du prix au m² — {ville}",
-        labels={"value":"Prix du m² (€)","variable":"Indicateur","DATE":"Date"},
-        markers=True
-    )
-    fig.update_layout(
-        title_x=0.5, plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix", height=500
-    )
-    fig.show()
+# On enlève la colonne "Prix_m2_moyen_ponderer" comme demandé
+model_agg = model_agg.drop(columns=["Prix_m2_moyen_ponderere"], errors="ignore")
 
-
+# Conversion des dates
+model_agg["DATE"] = pd.to_datetime(model_agg["DATE"], errors="coerce")
 merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
 
-for ville in merge["Ville"].unique():
-    df_ville = merge[merge["Ville"] == ville].sort_values("DATE")
+# Fusion des deux tables sur Ville + DATE
+fusion = pd.merge(
+    model_agg,
+    merge,
+    on=["Ville", "DATE"],
+    how="outer"
+)
 
+# Boucle pour tracer un graphique par ville
+for ville in fusion["Ville"].dropna().unique():
+    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
+
+    # Liste des colonnes numériques à tracer
+    colonnes_a_tracer = [
+        col for col in df_ville.columns
+        if col not in ["Ville", "DATE"]
+        and df_ville[col].dtype != "object"
+    ]
 
     fig = px.line(
         df_ville,
         x="DATE",
-        y=["Prix moyen glissant 12 mois - LPI/IAD", "Prix moyen glissant 12 mois - CL"],
+        y=colonnes_a_tracer,
         title=f"Évolution du prix au m² — {ville}",
         labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
         markers=True
     )
-
 
     fig.update_layout(
         title_x=0.5,
         plot_bgcolor="white",
         xaxis=dict(showgrid=True, gridcolor="#eee"),
         yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix"
+        legend_title="Type de prix",
+        height=600
     )
 
     fig.show()
