@@ -1,52 +1,79 @@
-top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", " TOULOUSE", "BORDEAUX", "NICE", "STRASBOURG", "NANTES", "MONTPELLIER",
-         "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+# ——————————————
+# 1) Nettoyage léger (au cas où)
+# ——————————————
+univers_complet_ville = univers_complet_ville.copy()
 
-dims = ["Ville", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
-
-
-univers = (
-    base_ml2.groupby(dims, dropna=False)
-      .agg(
-          nb_transac = ("ID", "size"),
-          prix_median = ("Prix_m2", "median"),
-          prix_moyen = ("Prix_m2", "mean"),
-          surface_moyenne = ("NB_SURF_HAB", "mean")
-
-      )
-      .reset_index()
-)
-
-grille = (
-    pd.MultiIndex.from_product(
-        [base_ml2["Ville"].unique(),
-         base_ml2["BIEN_NEUF"].unique(),
-         base_ml2["TYPE_BIEN"].unique(),
-         base_ml2["NB_PIECES_RANGE"].unique()],
-        names=dims
-    ).to_frame(index=False)
-)
-
-
-univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
-
-
-univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
-
-univers_complet_ville["PB"] = (
-    univers_complet_ville["NB_PIECES_RANGE"]
-    .astype(str)
-    .str.strip()
-    .str[:3]
-    .str.upper()
-)
+# Harmoniser les noms de villes / types / classes pièces
+univers_complet_ville["Ville"] = univers_complet_ville["Ville"].astype(str).str.strip().str.upper()
 univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
+univers_complet_ville["NB_PIECES_RANGE"] = univers_complet_ville["NB_PIECES_RANGE"].astype(str).str.strip().str.upper()
 
+# On ignore les univers sans transactions ou sans prix (ils ne doivent pas peser)
+mask_valid = (univers_complet_ville["nb_transac"] > 0) & (
+    univers_complet_ville["prix_median"].notna() | univers_complet_ville["prix_moyen"].notna()
+)
+u = univers_complet_ville.loc[mask_valid].copy()
 
-mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
+# ——————————————
+# 2) Poids par ville (basés sur nb_transac)
+# ——————————————
+# Poids = nb_transac / somme(nb_transac) à l'intérieur de la ville
+u["poids"] = u["nb_transac"] / u.groupby("Ville")["nb_transac"].transform("sum")
 
-univers_complet_ville = univers_complet_ville.loc[~mask].copy()
-univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
-univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("Ville")["nb_transac"].transform(sum)) * 100
+# ——————————————
+# 3) Prix pondérés par ville
+# ——————————————
+# On peut pondérer indifféremment "prix_median" ou "prix_moyen".
+# Ici on sort les deux agrégats pour comparaison.
+def _wsum(series, weights):
+    # somme pondérée sûre en ignorant les NaN de la série
+    return (series.fillna(0) * weights).sum()
 
-univers_complet_ville
+agg = (
+    u.groupby("Ville", as_index=False)
+     .apply(lambda g: pd.Series({
+         "prix_pondere_median_proxy": _wsum(g["prix_median"], g["poids"]),
+         "prix_pondere_moyen": _wsum(g["prix_moyen"], g["poids"]),
+         "nb_transac_total": g["nb_transac"].sum(),
+         # Indicateur de couverture des univers (optionnel)
+         "nb_univers_non_nuls": ((g["prix_median"].notna()) | (g["prix_moyen"].notna())).sum()
+     }))
+)
+
+# ——————————————
+# 4) Plotly – bar chart des prix pondérés (proxy médian)
+# ——————————————
+import plotly.express as px
+
+df_plot = agg.sort_values("prix_pondere_median_proxy", ascending=False)
+
+fig = px.bar(
+    df_plot,
+    x="Ville",
+    y="prix_pondere_median_proxy",
+    hover_data={"nb_transac_total": True, "prix_pondere_moyen": ":.0f"},
+    text="prix_pondere_median_proxy"
+)
+
+fig.update_traces(texttemplate="%{text:.0f}", textposition="outside", cliponaxis=False)
+fig.update_layout(
+    title="Prix pondéré par ville (€ / m²) – pondération par répartition des transactions",
+    yaxis_title="€ / m²",
+    xaxis_title="Ville",
+    uniformtext_minsize=8,
+    uniformtext_mode="hide",
+    bargap=0.25,
+    height=520
+)
+fig.update_yaxes(tickformat=",")  # séparateurs de milliers
+
+fig.show()
+
+# ——————————————
+# 5) (Optionnel) Tableau final trié pour export
+# ——————————————
+result_ville = df_plot.assign(
+    prix_pondere_median_proxy=df_plot["prix_pondere_median_proxy"].round(0).astype("Int64"),
+    prix_pondere_moyen=df_plot["prix_pondere_moyen"].round(0).astype("Int64")
+)
+result_ville.head(15)
