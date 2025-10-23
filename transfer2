@@ -1,40 +1,76 @@
-{
-	"name": "ValueError",
-	"message": "MS is not supported as period frequency",
-	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-Cell In[238], line 10
-      6 base_ml2 = base_ml2[base_ml2[\"Ville\"].isin(top15)]
-      9 base_ml2[\"DATE\"] = pd.to_datetime(base_ml2[\"DATE\"])
----> 10 base_ml2[\"Periode\"] = base_ml2[\"DATE\"].dt.to_period(\"M\").dt.to_timestamp(\"MS\")
-     13 keys = [\"Ville\",\"BIEN_NEUF\",\"TYPE_BIEN\",\"NB_PIECES_RANGE\",\"Periode\"]
-     15 univers_mensuel = (
-     16     base_ml2
-     17       .groupby(keys, dropna=False)
-   (...)     24       .reset_index()
-     25 )
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\accessor.py:112, in PandasDelegate._add_delegate_accessors.<locals>._create_delegator_method.<locals>.f(self, *args, **kwargs)
-    111 def f(self, *args, **kwargs):
---> 112     return self._delegate_method(name, *args, **kwargs)
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\accessors.py:132, in Properties._delegate_method(self, name, *args, **kwargs)
-    129 values = self._get_values()
-    131 method = getattr(values, name)
---> 132 result = method(*args, **kwargs)
-    134 if not is_list_like(result):
-    135     return result
+base_ml2 = base_ml2.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\arrays\\period.py:684, in PeriodArray.to_timestamp(self, freq, how)
-    682     base = freq_code
-    683 else:
---> 684     freq = Period._maybe_convert_freq(freq)
-    685     base = freq._period_dtype_code
-    687 new_parr = self.asfreq(freq, how=how)
 
-File pandas/_libs/tslibs/period.pyx:1765, in pandas._libs.tslibs.period._Period._maybe_convert_freq()
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
 
-File pandas/_libs/tslibs/offsets.pyx:4970, in pandas._libs.tslibs.offsets.to_offset()
 
-ValueError: MS is not supported as period frequency"
-}
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
+
+
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
+)
+
+
+def rolling_weighted_mean(g):
+    g = g.sort_values("Periode")
+
+    g["poids_x_prix"] = g["prix_moyen"] * g["nb_transac"]
+    
+
+    somme_poids = g["nb_transac"].rolling(window=12, min_periods=1).sum()
+    somme_ponderee = g["poids_x_prix"].rolling(window=12, min_periods=1).sum()
+    
+    g["prix_moyen_glissant_pondere_12m"] = somme_ponderee / somme_poids
+    
+    return g
+
+univers_glissant = (
+    univers_complet
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(rolling_weighted_mean)
+)
+
+
+resultat = univers_glissant[
+    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
+].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
+
+resultat
