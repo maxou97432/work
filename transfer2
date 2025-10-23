@@ -1,55 +1,49 @@
-import plotly.express as px
-import pandas as pd
 
-# Harmonisation des noms de colonnes
-model_agg = city_month.rename(columns={
-    "Periode": "DATE",
-    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
-    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m"
-})
+dims = ["ville_", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
 
-# On enlève la colonne "Prix_m2_moyen_ponderer" comme demandé
-model_agg = model_agg.drop(columns=["Prix_m2_moyen_ponderere"], errors="ignore")
 
-# Conversion des dates
-model_agg["DATE"] = pd.to_datetime(model_agg["DATE"], errors="coerce")
-merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+univers = (
+    base_ml.groupby(dims, dropna=False)
+      .agg(
+          nb_transac = ("ID", "size"),
+          prix_median = ("Prix_m2", "median"),
+          prix_moyen = ("Prix_m2", "mean"),
+          surface_moyenne = ("NB_SURF_HAB", "mean")
 
-# Fusion des deux tables sur Ville + DATE
-fusion = pd.merge(
-    model_agg,
-    merge,
-    on=["Ville", "DATE"],
-    how="outer"
+      )
+      .reset_index()
 )
 
-# Boucle pour tracer un graphique par ville
-for ville in fusion["Ville"].dropna().unique():
-    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
+grille = (
+    pd.MultiIndex.from_product(
+        [base_ml["ville_"].unique(),
+         base_ml["BIEN_NEUF"].unique(),
+         base_ml["TYPE_BIEN"].unique(),
+         base_ml["NB_PIECES_RANGE"].unique()],
+        names=dims
+    ).to_frame(index=False)
+)
 
-    # Liste des colonnes numériques à tracer
-    colonnes_a_tracer = [
-        col for col in df_ville.columns
-        if col not in ["Ville", "DATE"]
-        and df_ville[col].dtype != "object"
-    ]
 
-    fig = px.line(
-        df_ville,
-        x="DATE",
-        y=colonnes_a_tracer,
-        title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
-        markers=True
-    )
+univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
 
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=600
-    )
 
-    fig.show()
+univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
+
+univers_complet_ville["PB"] = (
+    univers_complet_ville["NB_PIECES_RANGE"]
+    .astype(str)
+    .str.strip()
+    .str[:3]
+    .str.upper()
+)
+univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
+
+
+mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
+
+univers_complet_ville = univers_complet_ville.loc[~mask].copy()
+univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
+univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("ville_")["nb_transac"].transform(sum)) * 100
+
+univers_complet_ville
