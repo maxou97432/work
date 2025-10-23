@@ -1,121 +1,3 @@
-
-top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
-         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
-
-base_ml2 = base_ml2.copy()
-base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
-
-
-base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
-base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
-
-
-keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
-
-univers_mensuel = (
-    base_ml2
-      .groupby(keys, dropna=False)
-      .agg(
-          nb_transac     = ("ID", "size"),
-          prix_moyen     = ("Prix_m2", "mean"),
-          prix_median    = ("Prix_m2", "median"),
-          surface_moyenne= ("NB_SURF_HAB", "mean")
-      )
-      .reset_index()
-)
-
-
-univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
-univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
-mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
-
-
-def complete_months(g):
-    g = g.sort_values("Periode").set_index("Periode")
-    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
-    g = g.reindex(idx)
-    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
-        g[col] = g[col].ffill().bfill()
-    g["nb_transac"] = g["nb_transac"].fillna(0)
-    return g.reset_index().rename(columns={"index":"Periode"})
-
-univers_complet = (
-    univers_mensuel
-      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
-      .apply(complete_months)
-)
-
-
-def rolling_weighted_mean(g):
-    g = g.sort_values("Periode")
-
-    g["poids_x_prix"] = g["prix_moyen"] * g["nb_transac"]
-    
-
-    somme_poids = g["nb_transac"].rolling(window=12, min_periods=1).sum()
-    somme_ponderee = g["poids_x_prix"].rolling(window=12, min_periods=1).sum()
-    
-    g["prix_moyen_glissant_pondere_12m"] = somme_ponderee / somme_poids
-    
-    return g
-
-univers_glissant = (
-    univers_complet
-      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
-      .apply(rolling_weighted_mean)
-)
-
-
-resultat = univers_glissant[
-    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
-     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
-].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
-
-resultat
-
-
-
-df = resultat.copy()
-df["Periode"] = pd.to_datetime(df["Periode"])
-df["Ville"]   = df["Ville"].str.strip().str.upper()
-
-city_month = (
-    df.assign(prod=lambda x: x["prix_moyen"] * x["nb_transac"])
-      .groupby(["Ville","Periode"], as_index=False)
-      .agg(nb_transac_total=("nb_transac","sum"),
-           sum_prod=("prod","sum"))
-)
-city_month["prix_moyen_pondere_ville"] = (
-    city_month["sum_prod"] / city_month["nb_transac_total"].where(city_month["nb_transac_total"]>0)
-)
-
-def complete_city(g):
-    g = g.sort_values("Periode").set_index("Periode")
-    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
-    g = g.reindex(idx)
-    g["Ville"] = g["Ville"].ffill().bfill()
-    g["nb_transac_total"] = g["nb_transac_total"].fillna(0)
-    g["sum_prod"] = g["sum_prod"].fillna(0)
-
-    g["prix_moyen_pondere_ville"] = g["sum_prod"] / g["nb_transac_total"].where(g["nb_transac_total"]>0)
-    return g.reset_index().rename(columns={"index":"Periode"})
-
-city_month = (
-    city_month.groupby("Ville", group_keys=False).apply(complete_city)
-)
-
-def rolling_city(g):
-    g = g.sort_values("Periode")
-    num = g["sum_prod"].rolling(12, min_periods=1).sum()
-    den = g["nb_transac_total"].rolling(12, min_periods=1).sum()
-    g["prix_glissant_pondere_12m_ville"] = num / den.where(den>0)
-    return g
-
-city_month = city_month.groupby("Ville", group_keys=False).apply(rolling_city)
-
-
 model_agg = city_month.rename(columns={
     "Periode":"DATE",
     "prix_moyen_pondere_ville":"Prix_m2_moyen_pondere",
@@ -139,3 +21,29 @@ for ville in model_agg["Ville"].unique():
     )
     fig.show()
 
+
+merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+
+for ville in merge["Ville"].unique():
+    df_ville = merge[merge["Ville"] == ville].sort_values("DATE")
+
+
+    fig = px.line(
+        df_ville,
+        x="DATE",
+        y=["Prix moyen glissant 12 mois - LPI/IAD", "Prix moyen glissant 12 mois - CL"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        markers=True
+    )
+
+
+    fig.update_layout(
+        title_x=0.5,
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix"
+    )
+
+    fig.show()
