@@ -1,49 +1,40 @@
-import plotly.express as px
+{
+	"name": "ValueError",
+	"message": "MS is not supported as period frequency",
+	"stack": "---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[238], line 10
+      6 base_ml2 = base_ml2[base_ml2[\"Ville\"].isin(top15)]
+      9 base_ml2[\"DATE\"] = pd.to_datetime(base_ml2[\"DATE\"])
+---> 10 base_ml2[\"Periode\"] = base_ml2[\"DATE\"].dt.to_period(\"M\").dt.to_timestamp(\"MS\")
+     13 keys = [\"Ville\",\"BIEN_NEUF\",\"TYPE_BIEN\",\"NB_PIECES_RANGE\",\"Periode\"]
+     15 univers_mensuel = (
+     16     base_ml2
+     17       .groupby(keys, dropna=False)
+   (...)     24       .reset_index()
+     25 )
 
-# On repart de ton DataFrame "resultat"
-# Colonnes attendues :
-# ["Periode", "Ville", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE",
-#  "prix_moyen", "prix_moyen_glissant_pondere_12m"]
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\accessor.py:112, in PandasDelegate._add_delegate_accessors.<locals>._create_delegator_method.<locals>.f(self, *args, **kwargs)
+    111 def f(self, *args, **kwargs):
+--> 112     return self._delegate_method(name, *args, **kwargs)
 
-# On renomme pour correspondre à ton exemple
-model_agg = resultat.rename(columns={
-    "Periode": "DATE",
-    "Ville": "ville_",
-    "prix_moyen": "Prix_m2_moyen",
-    "prix_moyen_glissant_pondere_12m": "Glissant_pondere_12m"
-})
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\accessors.py:132, in Properties._delegate_method(self, name, *args, **kwargs)
+    129 values = self._get_values()
+    131 method = getattr(values, name)
+--> 132 result = method(*args, **kwargs)
+    134 if not is_list_like(result):
+    135     return result
 
-model_agg["DATE"] = pd.to_datetime(model_agg["DATE"], errors="coerce")
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\arrays\\period.py:684, in PeriodArray.to_timestamp(self, freq, how)
+    682     base = freq_code
+    683 else:
+--> 684     freq = Period._maybe_convert_freq(freq)
+    685     base = freq._period_dtype_code
+    687 new_parr = self.asfreq(freq, how=how)
 
-# Optionnel : filtrer sur un sous-ensemble de types de biens si c’est trop chargé
-# model_agg = model_agg[model_agg["TYPE_BIEN"] == "APP"]
+File pandas/_libs/tslibs/period.pyx:1765, in pandas._libs.tslibs.period._Period._maybe_convert_freq()
 
-# ————————————
-#  Boucle simple : une figure Plotly par ville
-# ————————————
-for ville in model_agg["ville_"].unique():
-    df_ville = model_agg[model_agg["ville_"] == ville].sort_values("DATE")
+File pandas/_libs/tslibs/offsets.pyx:4970, in pandas._libs.tslibs.offsets.to_offset()
 
-    fig = px.line(
-        df_ville,
-        x="DATE",
-        y=["Prix_m2_moyen", "Glissant_pondere_12m"],
-        title=f"Évolution du prix au m² — {ville}",
-        labels={
-            "value": "Prix du m² (€)",
-            "variable": "Indicateur",
-            "DATE": "Date"
-        },
-        markers=True
-    )
-
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=500
-    )
-
-    fig.show()
+ValueError: MS is not supported as period frequency"
+}
