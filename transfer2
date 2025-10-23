@@ -1,28 +1,49 @@
+import plotly.express as px
 
+# On repart de ton DataFrame "resultat"
+# Colonnes attendues :
+# ["Periode", "Ville", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE",
+#  "prix_moyen", "prix_moyen_glissant_pondere_12m"]
+
+# On renomme pour correspondre à ton exemple
+model_agg = resultat.rename(columns={
+    "Periode": "DATE",
+    "Ville": "ville_",
+    "prix_moyen": "Prix_m2_moyen",
+    "prix_moyen_glissant_pondere_12m": "Glissant_pondere_12m"
+})
 
 model_agg["DATE"] = pd.to_datetime(model_agg["DATE"], errors="coerce")
 
+# Optionnel : filtrer sur un sous-ensemble de types de biens si c’est trop chargé
+# model_agg = model_agg[model_agg["TYPE_BIEN"] == "APP"]
+
+# ————————————
+#  Boucle simple : une figure Plotly par ville
+# ————————————
 for ville in model_agg["ville_"].unique():
     df_ville = model_agg[model_agg["ville_"] == ville].sort_values("DATE")
-
 
     fig = px.line(
         df_ville,
         x="DATE",
-        y=["Prix_m2_moyen", "Median"],
+        y=["Prix_m2_moyen", "Glissant_pondere_12m"],
         title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        labels={
+            "value": "Prix du m² (€)",
+            "variable": "Indicateur",
+            "DATE": "Date"
+        },
         markers=True
     )
-
 
     fig.update_layout(
         title_x=0.5,
         plot_bgcolor="white",
         xaxis=dict(showgrid=True, gridcolor="#eee"),
         yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix"
+        legend_title="Type de prix",
+        height=500
     )
 
     fig.show()
-
