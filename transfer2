@@ -1,25 +1,23 @@
 import pandas as pd
 import numpy as np
-import plotly.express as px
 
-# -----------------------------
-# 0) Filtre + normalisation
-# -----------------------------
+# -------------------------
+# 0) Filtre + nettoyage
+# -------------------------
 top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
          "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
 
-# Normaliser ville (strip + upper) puis filtrer
 base_ml2 = base_ml2.copy()
 base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
 base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
-# Date -> début de mois
+# Normalisation temporelle : début de mois
 base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
 base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp("MS")
 
-# -----------------------------
-# 1) Agrégation mensuelle par univers
-# -----------------------------
+# -------------------------
+# 1) Agrégation mensuelle par univers élémentaire
+# -------------------------
 keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
 
 univers_mensuel = (
@@ -27,33 +25,29 @@ univers_mensuel = (
       .groupby(keys, dropna=False)
       .agg(
           nb_transac     = ("ID", "size"),
-          prix_median    = ("Prix_m2", "median"),
           prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
           surface_moyenne= ("NB_SURF_HAB", "mean")
       )
       .reset_index()
 )
 
-# -----------------------------
-# 2) Harmoniser TYPE_BIEN vs NB_PIECES_RANGE (comme chez toi)
-# -----------------------------
-univers_mensuel["PB"] = (univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper())
+# Harmoniser TYPE_BIEN et NB_PIECES_RANGE (comme d’habitude)
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
 univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
 mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB").copy()
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
 
-# -----------------------------
-# 3) Compléter les mois manquants par univers
-#    (index mensuel complet par groupe puis asfreq)
-# -----------------------------
+# -------------------------
+# 2) Compléter les mois manquants dans chaque univers
+# -------------------------
 def complete_months(g):
     g = g.sort_values("Periode").set_index("Periode")
-    # index complet du min au max
-    full_idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
-    g = g.reindex(full_idx)  # crée les mois manquants (NaN)
-    # réinjecter les dimensions constantes du groupe
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
     for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
         g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
     return g.reset_index().rename(columns={"index":"Periode"})
 
 univers_complet = (
@@ -62,56 +56,35 @@ univers_complet = (
       .apply(complete_months)
 )
 
-# Assurer types
-univers_complet["nb_transac"] = univers_complet["nb_transac"].fillna(0).astype(int)
-
-# (optionnel) interpolation des prix si tu veux lisser les trous avant le rolling
-# univers_complet["prix_moyen"]  = univers_complet.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)["prix_moyen"].apply(lambda s: s.interpolate("time"))
-# univers_complet["prix_median"] = univers_complet.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)["prix_median"].apply(lambda s: s.interpolate("time"))
-
-# -----------------------------
-# 4) Rolling 12 mois par univers
-# -----------------------------
-def rolling_12(g):
+# -------------------------
+# 3) Calcul du prix pondéré glissant 12 mois
+# -------------------------
+def rolling_weighted_mean(g):
     g = g.sort_values("Periode")
-    g["prix_moyen_glissant_12m"]  = g["prix_moyen"].rolling(window=12, min_periods=12).mean()
-    g["prix_median_glissant_12m"] = g["prix_median"].rolling(window=12, min_periods=12).mean()
-    # (optionnel) nb_transac_glissant_12m pour un volume glissant
-    g["nb_transac_glissant_12m"]  = g["nb_transac"].rolling(window=12, min_periods=1).sum()
+    
+    # Produits pondérés
+    g["poids_x_prix"] = g["prix_moyen"] * g["nb_transac"]
+    
+    # Somme glissante pondérée sur 12 mois
+    somme_poids = g["nb_transac"].rolling(window=12, min_periods=1).sum()
+    somme_ponderee = g["poids_x_prix"].rolling(window=12, min_periods=1).sum()
+    
+    g["prix_moyen_glissant_pondere_12m"] = somme_ponderee / somme_poids
+    
     return g
 
 univers_glissant = (
     univers_complet
       .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
-      .apply(rolling_12)
+      .apply(rolling_weighted_mean)
 )
 
-# -----------------------------
-# 5) Exemple de visualisation Plotly
-#    (une ville, tous les univers, ligne = prix moyen glissant 12m)
-# -----------------------------
-ville_focus = "PARIS"  # change au besoin
-df_plot = univers_glissant[univers_glissant["Ville"] == ville_focus]
+# -------------------------
+# 4) Résultat final
+# -------------------------
+resultat = univers_glissant[
+    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
+].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
 
-fig = px.line(
-    df_plot,
-    x="Periode",
-    y="prix_moyen_glissant_12m",
-    color="NB_PIECES_RANGE",
-    line_dash="TYPE_BIEN",
-    facet_row="BIEN_NEUF",
-    markers=True,
-    title=f"{ville_focus} — Prix moyen glissant 12 mois par univers"
-)
-fig.update_layout(height=700, legend_title_text="NB_PIECES_RANGE")
-fig.show()
-
-# -----------------------------
-# 6) Jeu final prêt à exploiter
-# -----------------------------
-cols_finales = [
-    "Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
-    "nb_transac","prix_moyen","prix_median",
-    "prix_moyen_glissant_12m","prix_median_glissant_12m","nb_transac_glissant_12m"
-]
-result_univers_12m = univers_glissant[cols_finales].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
+resultat.head(20)
