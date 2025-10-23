@@ -1,131 +1,52 @@
-{
-	"name": "ValueError",
-	"message": "cannot reindex on an axis with duplicate labels",
-	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-Cell In[20], line 23
-     16     g[\"Prix_m2\"] = g[\"Prix_m2\"].interpolate(method=\"time\")
-     17     return g.reset_index().rename(columns={\"index\": \"Periode\"})
-     20 monthly = (
-     21     base_ml2
-     22     .groupby([\"Ville\", \"TYPE_BIEN\"], group_keys=False)
----> 23     .apply(lambda g: ensure_monthly_and_interpolate(g.reset_index()))
-     24     .rename(columns={\"Prix_m2\": \"prix_mensuel\"})
-     25 )
-     30 monthly[\"prix_glissant_12m\"] = (
-     31     monthly
-     32     .groupby([\"Ville\", \"TYPE_BIEN\"], group_keys=False)[\"Prix_m2\"]
-     33     .apply(lambda s: s.rolling(window=12, min_periods=12).mean()) #CHOIX ARBITRAIRE
-     34 )
-     37 result_ts = monthly[[\"Periode\", \"Ville\", \"TYPE_BIEN\",\"Prix_m2\", \"prix_glissant_12m\"]]
+top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", " TOULOUSE", "BORDEAUX", "NICE", "STRASBOURG", "NANTES", "MONTPELLIER",
+         "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\groupby.py:1826, in GroupBy.apply(self, func, include_groups, *args, **kwargs)
-   1824 with option_context(\"mode.chained_assignment\", None):
-   1825     try:
--> 1826         result = self._python_apply_general(f, self._selected_obj)
-   1827         if (
-   1828             not isinstance(self.obj, Series)
-   1829             and self._selection is None
-   1830             and self._selected_obj.shape != self._obj_with_exclusions.shape
-   1831         ):
-   1832             warnings.warn(
-   1833                 message=_apply_groupings_depr.format(
-   1834                     type(self).__name__, \"apply\"
-   (...)   1837                 stacklevel=find_stack_level(),
-   1838             )
+dims = ["Ville", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\groupby.py:1887, in GroupBy._python_apply_general(self, f, data, not_indexed_same, is_transform, is_agg)
-   1852 @final
-   1853 def _python_apply_general(
-   1854     self,
-   (...)   1859     is_agg: bool = False,
-   1860 ) -> NDFrameT:
-   1861     \"\"\"
-   1862     Apply function f in python space
-   1863 
-   (...)   1885         data after applying f
-   1886     \"\"\"
--> 1887     values, mutated = self._grouper.apply_groupwise(f, data, self.axis)
-   1888     if not_indexed_same is None:
-   1889         not_indexed_same = mutated
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\ops.py:928, in BaseGrouper.apply_groupwise(self, f, data, axis)
-    926 # group might be modified
-    927 group_axes = group.axes
---> 928 res = f(group)
-    929 if not mutated and not _is_indexed_like(res, group_axes, axis):
-    930     mutated = True
+univers = (
+    base_ml2.groupby(dims, dropna=False)
+      .agg(
+          nb_transac = ("ID", "size"),
+          prix_median = ("Prix_m2", "median"),
+          prix_moyen = ("Prix_m2", "mean"),
+          surface_moyenne = ("NB_SURF_HAB", "mean")
 
-Cell In[20], line 23, in <lambda>(g)
-     16     g[\"Prix_m2\"] = g[\"Prix_m2\"].interpolate(method=\"time\")
-     17     return g.reset_index().rename(columns={\"index\": \"Periode\"})
-     20 monthly = (
-     21     base_ml2
-     22     .groupby([\"Ville\", \"TYPE_BIEN\"], group_keys=False)
----> 23     .apply(lambda g: ensure_monthly_and_interpolate(g.reset_index()))
-     24     .rename(columns={\"Prix_m2\": \"prix_mensuel\"})
-     25 )
-     30 monthly[\"prix_glissant_12m\"] = (
-     31     monthly
-     32     .groupby([\"Ville\", \"TYPE_BIEN\"], group_keys=False)[\"Prix_m2\"]
-     33     .apply(lambda s: s.rolling(window=12, min_periods=12).mean()) #CHOIX ARBITRAIRE
-     34 )
-     37 result_ts = monthly[[\"Periode\", \"Ville\", \"TYPE_BIEN\",\"Prix_m2\", \"prix_glissant_12m\"]]
+      )
+      .reset_index()
+)
 
-Cell In[20], line 11, in ensure_monthly_and_interpolate(g)
-      9 # index complet mensuel du min au max
-     10 full_idx = pd.date_range(g.index.min(), g.index.max(), freq=\"MS\")
----> 11 g = g.reindex(full_idx)
-     12 # conserver les métadonnées de groupe
-     13 g[\"Ville\"] = g[\"Ville\"].ffill().bfill()
+grille = (
+    pd.MultiIndex.from_product(
+        [base_ml2["Ville"].unique(),
+         base_ml2["BIEN_NEUF"].unique(),
+         base_ml2["TYPE_BIEN"].unique(),
+         base_ml2["NB_PIECES_RANGE"].unique()],
+        names=dims
+    ).to_frame(index=False)
+)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\frame.py:5400, in DataFrame.reindex(self, labels, index, columns, axis, method, copy, level, fill_value, limit, tolerance)
-   5381 @doc(
-   5382     NDFrame.reindex,
-   5383     klass=_shared_doc_kwargs[\"klass\"],
-   (...)   5398     tolerance=None,
-   5399 ) -> DataFrame:
--> 5400     return super().reindex(
-   5401         labels=labels,
-   5402         index=index,
-   5403         columns=columns,
-   5404         axis=axis,
-   5405         method=method,
-   5406         copy=copy,
-   5407         level=level,
-   5408         fill_value=fill_value,
-   5409         limit=limit,
-   5410         tolerance=tolerance,
-   5411     )
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\generic.py:5632, in NDFrame.reindex(self, labels, index, columns, axis, method, copy, level, fill_value, limit, tolerance)
-   5629     return self._reindex_multi(axes, copy, fill_value)
-   5631 # perform the reindex on the axes
--> 5632 return self._reindex_axes(
-   5633     axes, level, limit, tolerance, method, fill_value, copy
-   5634 ).__finalize__(self, method=\"reindex\")
+univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\generic.py:5655, in NDFrame._reindex_axes(self, axes, level, limit, tolerance, method, fill_value, copy)
-   5652     continue
-   5654 ax = self._get_axis(a)
--> 5655 new_index, indexer = ax.reindex(
-   5656     labels, level=level, limit=limit, tolerance=tolerance, method=method
-   5657 )
-   5659 axis = self._get_axis_number(a)
-   5660 obj = obj._reindex_with_indexers(
-   5661     {axis: [new_index, indexer]},
-   5662     fill_value=fill_value,
-   5663     copy=copy,
-   5664     allow_dups=False,
-   5665 )
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:4436, in Index.reindex(self, target, method, level, limit, tolerance)
-   4433     raise ValueError(\"cannot handle a non-unique multi-index!\")
-   4434 elif not self.is_unique:
-   4435     # GH#42568
--> 4436     raise ValueError(\"cannot reindex on an axis with duplicate labels\")
-   4437 else:
-   4438     indexer, _ = self.get_indexer_non_unique(target)
+univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
 
-ValueError: cannot reindex on an axis with duplicate labels"
-}
+univers_complet_ville["PB"] = (
+    univers_complet_ville["NB_PIECES_RANGE"]
+    .astype(str)
+    .str.strip()
+    .str[:3]
+    .str.upper()
+)
+univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
+
+
+mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
+
+univers_complet_ville = univers_complet_ville.loc[~mask].copy()
+univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
+univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("Ville")["nb_transac"].transform(sum)) * 100
+
+univers_complet_ville
