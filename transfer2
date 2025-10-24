@@ -1,49 +1,62 @@
+import pandas as pd
+import plotly.express as px
 
-dims = ["ville_", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
+# --- Étape 1 : détection des univers extrêmes et médian pour chaque ville ---
 
+def resume_ville(g):
+    g = g.dropna(subset=["prix_median"]).sort_values("prix_median")
+    
+    if len(g) == 0:
+        return pd.DataFrame()
+    
+    idx_min = g["prix_median"].idxmin()
+    idx_max = g["prix_median"].idxmax()
+    idx_med = g.index[len(g)//2]
+    
+    return pd.DataFrame([
+        {"Ville": g.loc[idx_min, "ville_"], "Univers": "Plus petit", **g.loc[idx_min, ["BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","prix_median","nb_transac"]].to_dict()},
+        {"Ville": g.loc[idx_med, "ville_"], "Univers": "Médian", **g.loc[idx_med, ["BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","prix_median","nb_transac"]].to_dict()},
+        {"Ville": g.loc[idx_max, "ville_"], "Univers": "Plus grand", **g.loc[idx_max, ["BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","prix_median","nb_transac"]].to_dict()}
+    ])
 
-univers = (
-    base_ml.groupby(dims, dropna=False)
-      .agg(
-          nb_transac = ("ID", "size"),
-          prix_median = ("Prix_m2", "median"),
-          prix_moyen = ("Prix_m2", "mean"),
-          surface_moyenne = ("NB_SURF_HAB", "mean")
+resume_global = univers_complet_ville.groupby("ville_", group_keys=False).apply(resume_ville).reset_index(drop=True)
 
-      )
-      .reset_index()
+# --- Étape 2 : visualisation Plotly ---
+
+fig = px.bar(
+    resume_global,
+    x="Ville",
+    y="prix_median",
+    color="Univers",
+    text="nb_transac",
+    hover_data=["BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"],
+    barmode="group",
+    title="Comparaison des univers extrêmes et médians par ville (prix médian du m²)",
+    color_discrete_map={
+        "Plus petit": "#2ca02c",
+        "Médian": "#1f77b4",
+        "Plus grand": "#d62728"
+    }
 )
 
-grille = (
-    pd.MultiIndex.from_product(
-        [base_ml["ville_"].unique(),
-         base_ml["BIEN_NEUF"].unique(),
-         base_ml["TYPE_BIEN"].unique(),
-         base_ml["NB_PIECES_RANGE"].unique()],
-        names=dims
-    ).to_frame(index=False)
+fig.update_traces(
+    texttemplate="%{text} ventes",
+    textposition="outside"
 )
 
-
-univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
-
-
-univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
-
-univers_complet_ville["PB"] = (
-    univers_complet_ville["NB_PIECES_RANGE"]
-    .astype(str)
-    .str.strip()
-    .str[:3]
-    .str.upper()
+fig.update_layout(
+    title_x=0.5,
+    yaxis_title="Prix médian au m² (€)",
+    xaxis_title="Ville",
+    plot_bgcolor="white",
+    xaxis_tickangle=45,
+    legend_title="Type d'univers",
+    uniformtext_minsize=8,
+    uniformtext_mode='hide',
+    height=600
 )
-univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
 
+fig.show()
 
-mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
-
-univers_complet_ville = univers_complet_ville.loc[~mask].copy()
-univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
-univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("ville_")["nb_transac"].transform(sum)) * 100
-
-univers_complet_ville
+# --- Étape 3 (optionnelle) : aperçu du tableau résumé ---
+display(resume_global)
