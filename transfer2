@@ -1,55 +1,96 @@
-import matplotlib.pyplot as plt
-from scipy.stats import linregress, ttest_rel
-import itertools
 
-# === Liste des colonnes à comparer ===
-cols = [
-    "Prix moyen glissant 12 mois - Univ Elem",
-    "Prix moyen glissant 12 mois - LPI/IAD",
-    "Prix moyen glissant 12 mois - CL"
-]
+base_ml["NB_PIECES"] = pd.to_numeric(base_ml["NB_PIECES"], errors="coerce")
 
-# === Boucle sur toutes les paires possibles ===
-for col1, col2 in itertools.combinations(cols, 2):
-    print("="*80)
-    print(f"Comparaison : {col1}  vs  {col2}")
-    
-    # Corrélation
-    corr_prix = fusion[col1].corr(fusion[col2])
-    print(f"Corrélation prix du m² : {corr_prix:.3f}")
-    
-    # Différences
-    diff_prix = fusion[col1] - fusion[col2]
-    print("\nRésumé des différences :")
-    print(diff_prix.describe())
-    
-    # Régression linéaire
-    df_valid = fusion.dropna(subset=[col1, col2])
-    slope, intercept, r_value, p_value, std_err = linregress(df_valid[col1], df_valid[col2])
-    print(f"\nPente = {slope:.3f}, Intercept = {intercept:.2f}, R² = {r_value**2:.3f}, p = {p_value:.4f}")
-    
-    # Histogramme des écarts
-    diff_prix.hist(bins=30)
-    plt.axvline(0, color='red', linestyle='--')
-    plt.title(f"Distribution des écarts : {col1} - {col2}")
-    plt.xlabel("Différence de prix au m² (€)")
-    plt.ylabel("Fréquence")
-    plt.show()
-    
-    # Nuage de points
-    plt.figure(figsize=(8, 8))
-    plt.scatter(df_valid[col1], df_valid[col2], alpha=0.6)
-    plt.axline((0, 0), slope=1, color="red", linestyle="--")
-    plt.xlabel(col1)
-    plt.ylabel(col2)
-    plt.title(f"Comparaison des prix moyens glissants — {col1} vs {col2}")
-    plt.grid(True)
-    plt.show()
-    
-    # Test t apparié
-    stat, pval = ttest_rel(df_valid[col1], df_valid[col2])
-    print(f"Test t apparié : p-value = {pval:.4e}")
-    if pval < 0.05:
-        print("→ Différence significative entre les deux séries (p < 0.05)")
-    else:
-        print("→ Aucune différence significative détectée (p ≥ 0.05)")
+
+bins_apt   = [0, 2, 4, np.inf]
+labels_apt = ["APT: 1-2 pièces", "APT : 3-4 pièces", "APT: 5 pièces et plus"]
+
+bins_mai   = [0, 4, np.inf]
+labels_mai = ["MAI: 4 pièces et moins", "MAI: 5 pièces et plus"]
+
+
+base_ml["NB_PIECES_RANGE"] = np.nan
+
+mask_apt = base_ml["TYPE_BIEN"].eq("APT")
+mask_mai = base_ml["TYPE_BIEN"].eq("MAI")
+
+base_ml.loc[mask_apt, "NB_PIECES_RANGE"] = pd.cut(
+    base_ml.loc[mask_apt, "NB_PIECES"],
+    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
+)
+
+base_ml.loc[mask_mai, "NB_PIECES_RANGE"] = pd.cut(
+    base_ml.loc[mask_mai, "NB_PIECES"],
+    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
+)
+
+base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype("object")
+
+base_ml.loc[mask_apt & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "APT: Non renseigné"
+base_ml.loc[mask_mai & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "MAI: Non renseigné"
+
+distribution = (
+    base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID']
+           .count()
+           .reset_index(name='Nombre')
+)
+tot = distribution.groupby("TYPE_BIEN")["Nombre"].transform("sum")
+distribution['Pourcentage'] = (distribution['Nombre'] / tot) * 100
+
+
+
+
+fig_group = px.bar(
+    distribution.sort_values(['NB_PIECES_RANGE','TYPE_BIEN']),
+    x='NB_PIECES_RANGE', y='Pourcentage',
+    color='TYPE_BIEN',
+    barmode='group',
+    text=distribution['Pourcentage'].round(1).astype(str) + '%',
+    title="Distribution du nombre de pièces par type de bien (en %)"
+)
+fig_group.update_traces(textposition='outside')
+fig_group.update_layout(
+    xaxis_title="Classe de pièces",
+    yaxis_title="Pourcentage de transactions",
+    title_x=0.5,
+    xaxis_tickangle=45,
+    plot_bgcolor="white",
+    legend_title="Type de bien",
+    uniformtext_minsize=8, uniformtext_mode='hide'
+)
+fig_group.show()
+
+distribution_global = (
+    base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID']
+           .count()
+           .reset_index(name='Nombre')
+)
+
+
+total_global = distribution_global['Nombre'].sum()
+distribution_global['Pourcentage_total'] = (
+    distribution_global['Nombre'] / total_global * 100
+)
+
+fig = px.bar(
+    distribution_global.sort_values('Pourcentage_total', ascending=False),
+    x='NB_PIECES_RANGE',
+    y='Pourcentage_total',
+    color='TYPE_BIEN',
+    text=distribution_global['Pourcentage_total'].round(1).astype(str) + '%',
+    title="Répartition des catégories de nombre de pièces (tous biens confondus)",
+    color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
+    barmode='group'  
+)
+
+fig.update_traces(textposition='outside')
+fig.update_layout(
+    xaxis_title="Catégorie (nombre de pièces)",
+    yaxis_title="Part dans le total (%)",
+    title_x=0.5,
+    xaxis_tickangle=45,
+    plot_bgcolor="white",
+    legend_title="Type de bien"
+)
+
+fig.show()
