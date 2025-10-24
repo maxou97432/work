@@ -1,86 +1,28 @@
-
-base_ml["NB_PIECES"] = pd.to_numeric(base_ml["NB_PIECES"], errors="coerce")
-
-
-bins_apt   = [0, 2, 4, np.inf]
-labels_apt = ["APT: 1-2 pièces", "APT : 3-4 pièces", "APT: 5 pièces et plus"]
-
-bins_mai   = [0, 4, np.inf]
-labels_mai = ["MAI: 4 pièces et moins", "MAI: 5 pièces et plus"]
-
-
-base_ml["NB_PIECES_RANGE"] = np.nan
-
-mask_apt = base_ml["TYPE_BIEN"].eq("APT")
-mask_mai = base_ml["TYPE_BIEN"].eq("MAI")
-
-base_ml.loc[mask_apt, "NB_PIECES_RANGE"] = pd.cut(
-    base_ml.loc[mask_apt, "NB_PIECES"],
-    bins=bins_apt, labels=labels_apt, right=True, include_lowest=True
-)
-
-base_ml.loc[mask_mai, "NB_PIECES_RANGE"] = pd.cut(
-    base_ml.loc[mask_mai, "NB_PIECES"],
-    bins=bins_mai, labels=labels_mai, right=True, include_lowest=True
-)
-
-base_ml["NB_PIECES_RANGE"] = base_ml["NB_PIECES_RANGE"].astype("object")
-
-base_ml.loc[mask_apt & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "APT: Non renseigné"
-base_ml.loc[mask_mai & base_ml["NB_PIECES_RANGE"].isna(), "NB_PIECES_RANGE"] = "MAI: Non renseigné"
-
-distribution = (
-    base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID']
-           .count()
-           .reset_index(name='Nombre')
-)
-tot = distribution.groupby("TYPE_BIEN")["Nombre"].transform("sum")
-distribution['Pourcentage'] = (distribution['Nombre'] / tot) * 100
-
-
-
-
-fig_group = px.bar(
-    distribution.sort_values(['NB_PIECES_RANGE','TYPE_BIEN']),
-    x='NB_PIECES_RANGE', y='Pourcentage',
-    color='TYPE_BIEN',
-    barmode='group',
-    text=distribution['Pourcentage'].round(1).astype(str) + '%',
-    title="Distribution du nombre de pièces par type de bien (en %)"
-)
-fig_group.update_traces(textposition='outside')
-fig_group.update_layout(
-    xaxis_title="Classe de pièces",
-    yaxis_title="Pourcentage de transactions",
-    title_x=0.5,
-    xaxis_tickangle=45,
-    plot_bgcolor="white",
-    legend_title="Type de bien",
-    uniformtext_minsize=8, uniformtext_mode='hide'
-)
-fig_group.show()
-
+# Distribution globale
 distribution_global = (
     base_ml.groupby(['TYPE_BIEN', 'NB_PIECES_RANGE'])['ID']
            .count()
            .reset_index(name='Nombre')
 )
 
-
 total_global = distribution_global['Nombre'].sum()
 distribution_global['Pourcentage_total'] = (
     distribution_global['Nombre'] / total_global * 100
 )
 
+# 🔧 Tri cohérent AVANT le graphique
+distribution_global = distribution_global.sort_values(['NB_PIECES_RANGE', 'TYPE_BIEN'])
+
+# 🔹 Création du graphique corrigé
 fig = px.bar(
-    distribution_global.sort_values('Pourcentage_total', ascending=False),
+    distribution_global,
     x='NB_PIECES_RANGE',
     y='Pourcentage_total',
     color='TYPE_BIEN',
     text=distribution_global['Pourcentage_total'].round(1).astype(str) + '%',
     title="Répartition des catégories de nombre de pièces (tous biens confondus)",
     color_discrete_map={'APT': '#1f77b4', 'MAI': '#ff7f0e'},
-    barmode='group'  
+    barmode='group'
 )
 
 fig.update_traces(textposition='outside')
