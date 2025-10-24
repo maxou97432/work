@@ -1,18 +1,61 @@
-"""
-Dans un premier temps, nous procédons à la détection et au traitement des anomalies.
-On se place dans le cas où l’effectif est supérieur à 7.
-Pour chaque groupe défini par **année**, **ville** et **type de bien**, 
-on calcule la médiane des prix au mètre carré.
+# Méthodes de calcul des prix — LPI et CL/CSA
 
-Nous supprimons ensuite les biens dont le prix au mètre carré vérifie l’une des conditions suivantes :
-    - inférieur à (médiane / 4)
-    - supérieur à (4 × médiane)
-    - inférieur à 200
-    - supérieur à 20 000
+---
 
-La variable DATE est transformée en PERIOD, en prenant comme référence la date la plus récente.
-Les périodes sont alors construites relativement à une année de référence (l’année en cours)
-et croissent au fur et à mesure que l’on s’éloigne de cette année de référence.
+## 🔹 Méthode LPI
 
-Par ailleurs, seules les années supérieures ou égales à 2009 sont conservées.
-"""
+### 1️⃣ Segmentation
+- **Appartements (APT)** : 1, 2, 3, 4, 5, 6 pièces et plus  
+- **Maisons (MAI)** : 3 et –, 4, 5, 6, 7, 8 pièces et plus
+
+### 2️⃣ Calcul du prix moyen dans chaque segment
+\[
+P_{\text{segm}} = \frac{1}{n_{\text{seg}}} \sum_i P_i
+\]
+où \( n_{\text{seg}} \) est le nombre de transactions dans le segment.
+
+### 3️⃣ Prix réajusté (pondéré)
+\[
+P_{\text{ville}} = \sum_{\text{segm}} W_{\text{segm}} \times P_{\text{segm}}
+\]
+avec \( W_{\text{segm}} \) = part de ce segment dans les transactions totales de la ville.
+
+### 4️⃣ Moyenne glissante
+Application d’une **moyenne glissante sur les 12 derniers mois** pour lisser les variations.
+
+---
+
+## 🔹 Méthode CL/CSA
+
+### Étape 0️⃣ : Détection d’anomalies
+Nettoyage préalable des valeurs aberrantes avant calcul.
+
+### 1️⃣ Segmentation
+- **Distinction NEUF / ANCIEN**
+- **Appartements (APT)** : 1–2 / 3–4 / 5+ pièces  
+- **Maisons (MAI)** : 4– / 4+ pièces
+
+### 2️⃣ Calcul du prix moyen dans chaque segment
+Calcul du prix moyen au mètre carré par segment.
+
+### 3️⃣ Prix réajusté
+Moyenne pondérée :
+- par segment  
+- par type de bien (APT/MAI)
+
+### 4️⃣ Moyenne glissante
+Moyenne glissante sur **12 mois**.
+
+---
+
+## 🔸 Récapitulatif général (CL/CSA)
+
+- **Détection d’anomalies** : nettoyage des données aberrantes  
+- **Calcul du prix moyen** : sur les 12 mois glissants  
+- **Segmentation** :
+  - Neuf / Ancien  
+  - Type de bien : Appartement / Maison  
+  - Maille géographique (niveau spatial d’analyse)
+
+---
+
