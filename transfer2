@@ -1,55 +1,13 @@
-stats_ville = (
-    univers_complet_ville
-    .groupby("ville_", as_index=False)
-    .agg(
-        nb_total_transac=("nb_transac", "sum"),
-        prix_moyen_global=("prix_moyen", "mean"),
-        surface_moyenne_global=("surface_moyenne", "mean")
-    )
-    .sort_values("nb_total_transac", ascending=False)
-)
-
-display(stats_ville.head(10))
-
-repartition_type = (
-    univers_complet_ville
-    .groupby(["ville_", "TYPE_BIEN"], as_index=False)
-    .agg(nb_transac=("nb_transac", "sum"))
-)
-
-repartition_type["Part (%)"] = (
-    repartition_type["nb_transac"]
-    / repartition_type.groupby("ville_")["nb_transac"].transform("sum")
-    * 100
-)
-
-import plotly.express as px
-
-for ville in univers_complet_ville["ville_"].unique():
-    df_ville = univers_complet_ville[univers_complet_ville["ville_"] == ville]
-    fig = px.bar(
-        df_ville,
-        x="NB_PIECES_RANGE",
-        y="nb_transac",
-        color="TYPE_BIEN",
-        barmode="group",
-        facet_col="BIEN_NEUF",
-        title=f"Répartition des transactions — {ville}",
-        labels={
-            "nb_transac": "Nombre de transactions",
-            "NB_PIECES_RANGE": "Nb de pièces",
-            "TYPE_BIEN": "Type de bien"
-        }
-    )
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        height=600
-    )
-    fig.show()
-univers_summary = univers_complet_ville[
-    ["ville_", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE",
-     "nb_transac", "Repartition (%)", "prix_moyen", "prix_median", "surface_moyenne"]
-].sort_values(["ville_", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"])
+| **Critères** | **INSEE** | **Meilleurs Agents** | **Crédit Logement** | **LPI-IAD** |
+|:--------------|:---------:|:--------------------:|:-------------------:|:------------:|
+| France métropolitaine | ✅ | ✅ | ❌ | ✅ |
+| Régions | ✅ | ✅ | ❌ | ❌ |
+| Départements | ✅ | ✅ | > 50 transactions | ❌ |
+| Agglomération (Lyon, Marseille, Lille) | ❌ | ✅ | ❌ | ✅ |
+| IRIS | ❌ | ❌ | > 10 transactions | ❌ |
+| Distinction neuf / ancien | ✅ | ❌ | ❌ | ✅ |
+| Distinction appartement / maison | ✅ | ✅ | ✅ | ✅ |
+| Fréquence de mise à jour | Trimestrielle | Mensuelle | Mensuelle | Mensuelle |
+| Méthode de calcul | Hédonique | Hédonique | Quantile | Prix moyen |
+| Résultats publiés | Prix et IPI | Prix et IPI | Taux de variation | Prix et taux de variation |
+| Fenêtre temporelle d'observation | Base 2015 | Glissant (10, 5, 2, 1 an et mensuel) | Mensuel | 1 an |
