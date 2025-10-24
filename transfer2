@@ -1,37 +1,55 @@
-fusion["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
+import matplotlib.pyplot as plt
+from scipy.stats import linregress, ttest_rel
+import itertools
 
-corr_prix = merge["Prix moyen glissant 12 mois - LPI/IAD"].corr(merge["Prix moyen glissant 12 mois - CL"])
-print("Corrélation prix du m2", corr_prix)
+# === Liste des colonnes à comparer ===
+cols = [
+    "Prix moyen glissant 12 mois - Univ Elem",
+    "Prix moyen glissant 12 mois - LPI/IAD",
+    "Prix moyen glissant 12 mois - CL"
+]
 
-diff_prix = merge["Prix moyen glissant 12 mois - LPI/IAD"] - merge["Prix moyen glissant 12 mois - CL"]
-print(diff_prix.describe())
-
-from scipy.stats import linregress
-
-df_valid = merge.dropna(subset=["Prix moyen glissant 12 mois - LPI/IAD", "Prix moyen glissant 12 mois - CL"])
-
-slope, intercept, r_value, p_value, std_err = linregress(
-    df_valid["Prix moyen glissant 12 mois - LPI/IAD"],
-    df_valid["Prix moyen glissant 12 mois - CL"]
-)
-
-print(f"Pente = {slope:.3f}, Intercept = {intercept:.2f}, R² = {r_value**2:.3f}")
-
-diff_prix.hist(bins=30)
-plt.axvline(0, color='red', linestyle='--')
-plt.title('Distribution des écarts de prix du m2')
-plt.show()
-
-plt.figure(figsize=(10,10))
-plt.scatter(merge["Prix moyen glissant 12 mois - LPI/IAD"], merge["Prix moyen glissant 12 mois - CL"], alpha= 0.6)
-plt.axline((0,0), slope = 1, color = "red", linestyle = "--")
-plt.xlabel("Prix moyen glissant 12 mois - LPI/IAD")
-plt.ylabel("Prix moyen glissant 12 mois - CL")
-plt.title("Comparaison des prix du m2")
-plt.grid(True)
-plt.show()
-
-from scipy.stats import ttest_rel
-df_valid = merge.dropna(subset=["Prix moyen glissant 12 mois - LPI/IAD", "Prix moyen glissant 12 mois - CL"])
-stat, pval = ttest_rel(df_valid["Prix moyen glissant 12 mois - LPI/IAD"], df_valid["Prix moyen glissant 12 mois - CL"])
-print("p-value :", pval)
+# === Boucle sur toutes les paires possibles ===
+for col1, col2 in itertools.combinations(cols, 2):
+    print("="*80)
+    print(f"Comparaison : {col1}  vs  {col2}")
+    
+    # Corrélation
+    corr_prix = fusion[col1].corr(fusion[col2])
+    print(f"Corrélation prix du m² : {corr_prix:.3f}")
+    
+    # Différences
+    diff_prix = fusion[col1] - fusion[col2]
+    print("\nRésumé des différences :")
+    print(diff_prix.describe())
+    
+    # Régression linéaire
+    df_valid = fusion.dropna(subset=[col1, col2])
+    slope, intercept, r_value, p_value, std_err = linregress(df_valid[col1], df_valid[col2])
+    print(f"\nPente = {slope:.3f}, Intercept = {intercept:.2f}, R² = {r_value**2:.3f}, p = {p_value:.4f}")
+    
+    # Histogramme des écarts
+    diff_prix.hist(bins=30)
+    plt.axvline(0, color='red', linestyle='--')
+    plt.title(f"Distribution des écarts : {col1} - {col2}")
+    plt.xlabel("Différence de prix au m² (€)")
+    plt.ylabel("Fréquence")
+    plt.show()
+    
+    # Nuage de points
+    plt.figure(figsize=(8, 8))
+    plt.scatter(df_valid[col1], df_valid[col2], alpha=0.6)
+    plt.axline((0, 0), slope=1, color="red", linestyle="--")
+    plt.xlabel(col1)
+    plt.ylabel(col2)
+    plt.title(f"Comparaison des prix moyens glissants — {col1} vs {col2}")
+    plt.grid(True)
+    plt.show()
+    
+    # Test t apparié
+    stat, pval = ttest_rel(df_valid[col1], df_valid[col2])
+    print(f"Test t apparié : p-value = {pval:.4e}")
+    if pval < 0.05:
+        print("→ Différence significative entre les deux séries (p < 0.05)")
+    else:
+        print("→ Aucune différence significative détectée (p ≥ 0.05)")
