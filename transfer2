@@ -1,3 +1,5 @@
+fusion["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
+
 corr_prix = merge["Prix moyen glissant 12 mois - LPI/IAD"].corr(merge["Prix moyen glissant 12 mois - CL"])
 print("Corrélation prix du m2", corr_prix)
 
