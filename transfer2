@@ -1,4 +1,4 @@
-# Méthodes de calcul des prix — LPI et CL/CSA
+# 🏠 Méthodes de calcul des prix immobiliers
 
 ---
 
@@ -8,54 +8,67 @@
 - **Appartements (APT)** : 1, 2, 3, 4, 5, 6 pièces et plus  
 - **Maisons (MAI)** : 3 et –, 4, 5, 6, 7, 8 pièces et plus
 
-### 2️⃣ Calcul du prix moyen dans chaque segment
+### 2️⃣ Prix moyen dans chaque segment
 \[
 P_{\text{segm}} = \frac{1}{n_{\text{seg}}} \sum_i P_i
 \]
-où \( n_{\text{seg}} \) est le nombre de transactions dans le segment.
 
 ### 3️⃣ Prix réajusté (pondéré)
 \[
 P_{\text{ville}} = \sum_{\text{segm}} W_{\text{segm}} \times P_{\text{segm}}
 \]
-avec \( W_{\text{segm}} \) = part de ce segment dans les transactions totales de la ville.
+avec \( W_{\text{segm}} \) = part du segment dans les transactions totales de la ville.
 
 ### 4️⃣ Moyenne glissante
-Application d’une **moyenne glissante sur les 12 derniers mois** pour lisser les variations.
+Application d’une **moyenne glissante sur 12 mois** pour lisser les variations.
 
 ---
 
 ## 🔹 Méthode CL/CSA
 
-### Étape 0️⃣ : Détection d’anomalies
-Nettoyage préalable des valeurs aberrantes avant calcul.
+### 0️⃣ Détection d’anomalies
+Filtrage des valeurs aberrantes avant le calcul.
 
 ### 1️⃣ Segmentation
-- **Distinction NEUF / ANCIEN**
+- **Neuf / Ancien**
 - **Appartements (APT)** : 1–2 / 3–4 / 5+ pièces  
 - **Maisons (MAI)** : 4– / 4+ pièces
 
-### 2️⃣ Calcul du prix moyen dans chaque segment
-Calcul du prix moyen au mètre carré par segment.
+### 2️⃣ Prix moyen dans chaque segment
+Calcul du **prix moyen au m²** pour chaque segment.
 
 ### 3️⃣ Prix réajusté
 Moyenne pondérée :
 - par segment  
-- par type de bien (APT/MAI)
+- par type de bien (APT / MAI)
 
 ### 4️⃣ Moyenne glissante
 Moyenne glissante sur **12 mois**.
 
 ---
 
-## 🔸 Récapitulatif général (CL/CSA)
+## 🔹 Méthode CL
 
-- **Détection d’anomalies** : nettoyage des données aberrantes  
-- **Calcul du prix moyen** : sur les 12 mois glissants  
-- **Segmentation** :
-  - Neuf / Ancien  
-  - Type de bien : Appartement / Maison  
-  - Maille géographique (niveau spatial d’analyse)
+### 0️⃣ Détection d’anomalies
+Nettoyage des valeurs aberrantes dans les transactions.
+
+### 1️⃣ Calcul du prix moyen
+Calcul du **prix moyen sur les 12 derniers mois glissants** :
+- par **type de bien** (Appartement / Maison)  
+- et par **maille géographique** (commune, département, etc.)
+
+### 2️⃣ Segmentation
+- Neuf / Ancien  
+- Appartement / Maison  
+- Maille géographique
 
 ---
 
+✅ **Synthèse :**
+| Méthode | Segmentation principale | Pondération | Glissant 12 mois | Spécificité |
+|----------|--------------------------|--------------|------------------|--------------|
+| **LPI** | Par nombre de pièces | Oui (pondération par parts de segments) | ✅ | Très détaillée |
+| **CL/CSA** | Neuf/Ancien + Nb de pièces | Oui (par type et segment) | ✅ | Distinction par âge du bien |
+| **CL** | Neuf/Ancien + Type de bien + Maille géographique | Non | ✅ | Plus agrégée, plus simple |
+
+---
