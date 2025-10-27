@@ -1,14 +1,16 @@
+c'est normal que j'obtiennes que 3 courbes sur 4? (Prix moyen glissant 12 mois - Univ Elem n'apparait pas)
 
 top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
          "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
-base_ml = base_ml.rename(columns={"ville_":"Ville"})
-base_ml2 = base_ml.copy()
+
+base_ml2 = base_ml2.copy()
 base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
 base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
 
 base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
-base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
+base_ml2 = base_ml2[base_ml2["DATE"] < "2025-08-01"]
+base_ml2["Periode"] = base_ml2["DATE"]
 
 
 keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
@@ -54,10 +56,15 @@ def rolling_weighted_mean(g):
     g["poids_x_prix"] = g["prix_moyen"] * g["nb_transac"]
     
 
-    somme_poids = g["nb_transac"].rolling(window=12, min_periods=3).sum()
-    somme_ponderee = g["poids_x_prix"].rolling(window=12, min_periods=3).sum()
+    somme_poids_12m = g["nb_transac"].rolling(window=12, min_periods=3).sum()
+    somme_ponderee_12m = g["poids_x_prix"].rolling(window=12, min_periods=3).sum()
     
-    g["prix_moyen_glissant_pondere_12m"] = somme_ponderee / somme_poids
+    g["prix_moyen_glissant_pondere_12m"] = somme_ponderee_12m / somme_poids_12m
+
+    somme_poids_3m = g["nb_transac"].rolling(window=3, min_periods=1).sum()
+    somme_ponderee_3m = g["poids_x_prix"].rolling(window=3, min_periods=1).sum()
+    
+    g["prix_moyen_glissant_pondere_3m"] = somme_ponderee_3m / somme_poids_3m
     
     return g
 
@@ -70,7 +77,7 @@ univers_glissant = (
 
 resultat = univers_glissant[
     ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
-     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m","prix_moyen_glissant_pondere_3m"]
 ].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
 
 resultat
@@ -108,9 +115,13 @@ city_month = (
 
 def rolling_city(g):
     g = g.sort_values("Periode")
-    num = g["sum_prod"].rolling(12, min_periods=3).sum()
-    den = g["nb_transac_total"].rolling(12, min_periods=3).sum()
-    g["prix_glissant_pondere_12m_ville"] = num / den.where(den>0)
+    num_12m = g["sum_prod"].rolling(12, min_periods=3).sum()
+    den_12m = g["nb_transac_total"].rolling(12, min_periods=3).sum()
+    g["prix_glissant_pondere_12m_ville"] = num_12m / den_12m.where(den_12m>0)
+
+    num_3m = g["sum_prod"].rolling(12, min_periods=3).sum()
+    den_3m = g["nb_transac_total"].rolling(12, min_periods=3).sum()
+    g["prix_glissant_pondere_3m_ville"] = num_3m / den_3m.where(den_3m>0)
     return g
 
 city_month = city_month.groupby("Ville", group_keys=False).apply(rolling_city)
@@ -119,23 +130,58 @@ city_month = city_month.groupby("Ville", group_keys=False).apply(rolling_city)
 model_agg = city_month.rename(columns={
     "Periode":"DATE",
     "prix_moyen_pondere_ville":"Prix_m2_moyen_pondere",
-    "prix_glissant_pondere_12m_ville":"Glissant_pondere_12m"
+    "prix_glissant_pondere_12m_ville":"Glissant_pondere_12m",
+    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
 })
-model_agg = model_agg[model_agg["DATE"] < "2025-08-01"]
-for ville in model_agg["Ville"].unique():
-    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
+
+
+# Harmonisation des noms de colonnes
+model_agg = city_month.rename(columns={
+    "Periode": "DATE",
+    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
+    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m",
+    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
+})
+
+model_agg2 = model_agg.drop(columns=["Prix_m2_moyen_ponderere","nb_transac_total","sum_prod"], errors="ignore")
+
+
+model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
+merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+
+# Fusion des deux tables sur Ville + DATE
+fusion = pd.merge(
+    model_agg2,
+    merge,
+    on=["Ville", "DATE"],
+    how="outer"
+)
+fusion = fusion.rename(columns={"Glissant_pondere_12m":"Prix moyen glissant 12 mois - Univ Elem", 
+                                "Glissant_pondere_3m":"Prix moyen glissant 3 mois - Univ Elem"})
+# Boucle pour tracer un graphique par ville
+for ville in fusion["Ville"].dropna().unique():
+    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
+
+    # Liste des colonnes numériques à tracer
+    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
+                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
+
     fig = px.line(
-        df_ville, x="DATE",
-        y=["Prix_m2_moyen_pondere","Glissant_pondere_12m"],
+        df_ville,
+        x="DATE",
+        y=colonnes_a_tracer,
         title=f"Évolution du prix au m² — {ville}",
-        labels={"value":"Prix du m² (€)","variable":"Indicateur","DATE":"Date"},
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
         markers=True
     )
+
     fig.update_layout(
-        title_x=0.5, plot_bgcolor="white",
+        title_x=0.5,
+        plot_bgcolor="white",
         xaxis=dict(showgrid=True, gridcolor="#eee"),
         yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix", height=500
+        legend_title="Type de prix",
+        height=600
     )
-    fig.show()
 
+    fig.show()
