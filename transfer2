@@ -1,54 +1,11 @@
-import plotly.express as px
-import pandas as pd
+c'est possible de mettre les graphiques sous plotly: from prophet import Prophet
 
-# Harmonisation des noms de colonnes
-model_agg = city_month.rename(columns={
-    "Periode": "DATE",
-    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
-    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m",
-    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
-})
-
-model_agg2 = model_agg.drop(columns=["Prix_m2_moyen_ponderere","nb_transac_total","sum_prod"], errors="ignore")
-
-
-model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
-merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
-
-# Fusion des deux tables sur Ville + DATE
-fusion = pd.merge(
-    model_agg2,
-    merge,
-    on=["Ville", "DATE"],
-    how="outer",
-    suffixes = ("_univ","_ext")
-)
-fusion = fusion.rename(columns={"Glissant_pondere_12m":"Prix moyen glissant 12 mois - Univ Elem", 
-                                "Glissant_pondere_3m":"Prix moyen glissant 3 mois - Univ Elem"})
-# Boucle pour tracer un graphique par ville
-for ville in fusion["Ville"].dropna().unique():
-    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
-
-    # Liste des colonnes numériques à tracer
-    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
-                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
-
-    fig = px.line(
-        df_ville,
-        x="DATE",
-        y=colonnes_a_tracer,
-        title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
-        markers=True
-    )
-
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=600
-    )
-    fig.update_traces(opacity=0.7)
-    fig.show()
+for ville in fusion["Ville"].unique():
+    model = Prophet()
+    df_prophet = fusion[fusion["Ville"] == ville][["DATE","Prix moyen glissant 3 mois - Univ Elem"]].rename(columns={"DATE":"ds", "Prix moyen glissant 3 mois - Univ Elem": "y"})
+    model.fit(df_prophet)
+    future = model.make_future_dataframe(periods = 12, freq = "M")
+    forecast = model.predict(future)
+    fig = model.plot(forecast)
+    fig.suptitle(f"Prédiction - {ville}", fontsize = 14, y = 1.02)
+    plt.show()
