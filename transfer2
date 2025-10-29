@@ -1,7 +1,6 @@
 from prophet import Prophet
 import plotly.graph_objects as go
 import plotly.io as pio
-
 pio.renderers.default = "notebook"
 
 cols = [
@@ -11,52 +10,56 @@ cols = [
     "Prix moyen glissant 3 mois - Univ Elem"
 ]
 
+# Palette de couleurs (autant que de colonnes)
+colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+
 for ville in fusion["Ville"].unique():
     df_ville = fusion[fusion["Ville"] == ville].copy()
     fig = go.Figure()
 
-    for col in cols:
+    for i, col in enumerate(cols):
         if col not in df_ville.columns:
             continue
 
-        # Préparation des données
+        # Données pour Prophet
         df_col = df_ville[["DATE", col]].rename(columns={"DATE": "ds", col: "y"}).dropna(subset=["y"])
         if df_col.empty:
             continue
 
-        # Entraînement du modèle Prophet
         model = Prophet()
         model.fit(df_col)
 
-        # Prévision 12 mois dans le futur
         future = model.make_future_dataframe(periods=12, freq="M")
         forecast = model.predict(future)
 
-        # --- On sépare passé / futur ---
+        # Séparation passé / futur
         last_date = df_col["ds"].max()
         forecast_future = forecast[forecast["ds"] > last_date]
 
-        # Série réelle
+        # --- Couleur unique par méthode ---
+        color = colors[i % len(colors)]
+
+        # Données réelles (pleines)
         fig.add_trace(go.Scatter(
             x=df_col["ds"],
             y=df_col["y"],
             mode="lines+markers",
             name=f"{col} (réel)",
-            line=dict(width=2)
+            line=dict(color=color, width=2)
         ))
 
-        # Prévision Prophet (future seulement)
+        # Prévision (pointillée, même couleur)
         fig.add_trace(go.Scatter(
             x=forecast_future["ds"],
             y=forecast_future["yhat"],
             mode="lines",
             name=f"Prévision Prophet - {col}",
-            line=dict(dash="dot")
+            line=dict(color=color, dash="dot", width=2)
         ))
 
     # Mise en forme
     fig.update_layout(
-        title=f"📈 Prévision Prophet de toutes les méthodes - {ville}",
+        title=f"📈 Historique & Prévision Prophet – {ville}",
         xaxis_title="Date",
         yaxis_title="Prix au m²",
         template="plotly_white",
