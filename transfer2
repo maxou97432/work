@@ -1,46 +1,68 @@
 {
 	"name": "KeyError",
-	"message": "-1",
+	"message": "0",
 	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\range.py:413, in RangeIndex.get_loc(self, key)
-    412 try:
---> 413     return self._range.index(new_key)
-    414 except ValueError as err:
+KeyError                                  Traceback (most recent call last)
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
+   3811 try:
+-> 3812     return self._engine.get_loc(casted_key)
+   3813 except KeyError as err:
 
-ValueError: -1 is not in range
+File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
+
+File pandas/_libs/index.pyx:196, in pandas._libs.index.IndexEngine.get_loc()
+
+File pandas/_libs/hashtable_class_helper.pxi:2606, in pandas._libs.hashtable.Int64HashTable.get_item()
+
+File pandas/_libs/hashtable_class_helper.pxi:2630, in pandas._libs.hashtable.Int64HashTable.get_item()
+
+KeyError: 0
 
 The above exception was the direct cause of the following exception:
 
 KeyError                                  Traceback (most recent call last)
-Cell In[142], line 38
-     36 last_date = df_col[\"ds\"].max()
-     37 forecast_future = forecast[forecast[\"ds\"] > last_date]
----> 38 forecast_future.loc[forecast_future[\"ds\"] == forecast_future[\"ds\"].min(), \"yhat\"] = df_col[\"y\"][-1]
-     39 # --- Couleur unique par méthode ---
-     40 color = colors[i % len(colors)]
+Cell In[18], line 45
+     43 #Raccordement
+     44 first_idx = forecast[\"ds\"].idxmin()
+---> 45 forecast_future.loc[first_idx,\"yhat\"] = (df_col[\"y\"].iloc[-1] + forecast_future.loc[first_idx, 'yhat']) / 2
+     46 # Données réelles (pleines)
+     47 fig.add_trace(go.Scatter(
+     48     x=df_col[\"ds\"],
+     49     y=df_col[\"y\"],
+   (...)     52     line=dict(color=color, width=2)
+     53 ))
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\series.py:1133, in Series.__getitem__(self, key)
-   1130     return self._values[key]
-   1132 elif key_is_scalar:
--> 1133     return self._get_value(key)
-   1135 # Convert generator to list before going through hashable part
-   1136 # (We will iterate through the generator there to check for slices)
-   1137 if is_iterator(key):
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexing.py:1184, in _LocationIndexer.__getitem__(self, key)
+   1182     key = tuple(com.apply_if_callable(x, self.obj) for x in key)
+   1183     if self._is_scalar_access(key):
+-> 1184         return self.obj._get_value(*key, takeable=self._takeable)
+   1185     return self._getitem_tuple(key)
+   1186 else:
+   1187     # we by definition only have the 0th axis
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\series.py:1249, in Series._get_value(self, label, takeable)
-   1246     return self._values[label]
-   1248 # Similar to Index.get_value, but we do not fall back to positional
--> 1249 loc = self.index.get_loc(label)
-   1251 if is_integer(loc):
-   1252     return self._values[loc]
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\frame.py:4232, in DataFrame._get_value(self, index, col, takeable)
+   4226 engine = self.index._engine
+   4228 if not isinstance(self.index, MultiIndex):
+   4229     # CategoricalIndex: Trying to use the engine fastpath may give incorrect
+   4230     #  results if our categories are integers that dont match our codes
+   4231     # IntervalIndex: IntervalTree has no get_loc
+-> 4232     row = self.index.get_loc(index)
+   4233     return series._values[row]
+   4235 # For MultiIndex going through engine effectively restricts us to
+   4236 #  same-length tuples; see test_get_set_value_no_partial_indexing
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\range.py:415, in RangeIndex.get_loc(self, key)
-    413         return self._range.index(new_key)
-    414     except ValueError as err:
---> 415         raise KeyError(key) from err
-    416 if isinstance(key, Hashable):
-    417     raise KeyError(key)
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
+   3814     if isinstance(casted_key, slice) or (
+   3815         isinstance(casted_key, abc.Iterable)
+   3816         and any(isinstance(x, slice) for x in casted_key)
+   3817     ):
+   3818         raise InvalidIndexError(key)
+-> 3819     raise KeyError(key) from err
+   3820 except TypeError:
+   3821     # If we have a listlike key, _check_indexing_error will raise
+   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
+   3823     #  the TypeError.
+   3824     self._check_indexing_error(key)
 
-KeyError: -1"
+KeyError: 0"
 }
