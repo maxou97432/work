@@ -1,14 +1,46 @@
 {
-	"name": "TypeError",
-	"message": "Prophet.__init__() got an unexpected keyword argument 'change_prior_scale'",
+	"name": "KeyError",
+	"message": "-1",
 	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-Cell In[139], line 29
-     26 if df_col.empty:
-     27     continue
----> 29 model = Prophet(change_prior_scale = 0.5)
-     30 model.fit(df_col)
-     32 future = model.make_future_dataframe(periods=12, freq=\"MS\")
+ValueError                                Traceback (most recent call last)
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\range.py:413, in RangeIndex.get_loc(self, key)
+    412 try:
+--> 413     return self._range.index(new_key)
+    414 except ValueError as err:
 
-TypeError: Prophet.__init__() got an unexpected keyword argument 'change_prior_scale'"
+ValueError: -1 is not in range
+
+The above exception was the direct cause of the following exception:
+
+KeyError                                  Traceback (most recent call last)
+Cell In[142], line 38
+     36 last_date = df_col[\"ds\"].max()
+     37 forecast_future = forecast[forecast[\"ds\"] > last_date]
+---> 38 forecast_future.loc[forecast_future[\"ds\"] == forecast_future[\"ds\"].min(), \"yhat\"] = df_col[\"y\"][-1]
+     39 # --- Couleur unique par méthode ---
+     40 color = colors[i % len(colors)]
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\series.py:1133, in Series.__getitem__(self, key)
+   1130     return self._values[key]
+   1132 elif key_is_scalar:
+-> 1133     return self._get_value(key)
+   1135 # Convert generator to list before going through hashable part
+   1136 # (We will iterate through the generator there to check for slices)
+   1137 if is_iterator(key):
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\series.py:1249, in Series._get_value(self, label, takeable)
+   1246     return self._values[label]
+   1248 # Similar to Index.get_value, but we do not fall back to positional
+-> 1249 loc = self.index.get_loc(label)
+   1251 if is_integer(loc):
+   1252     return self._values[loc]
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\range.py:415, in RangeIndex.get_loc(self, key)
+    413         return self._range.index(new_key)
+    414     except ValueError as err:
+--> 415         raise KeyError(key) from err
+    416 if isinstance(key, Hashable):
+    417     raise KeyError(key)
+
+KeyError: -1"
 }
