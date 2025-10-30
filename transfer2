@@ -1,79 +1,14 @@
+{
+	"name": "TypeError",
+	"message": "Prophet.__init__() got an unexpected keyword argument 'change_prior_scale'",
+	"stack": "---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+Cell In[139], line 29
+     26 if df_col.empty:
+     27     continue
+---> 29 model = Prophet(change_prior_scale = 0.5)
+     30 model.fit(df_col)
+     32 future = model.make_future_dataframe(periods=12, freq=\"MS\")
 
-from prophet import Prophet
-import plotly.graph_objects as go
-import plotly.io as pio
-pio.renderers.default = "notebook"
-
-cols = [
-    "Prix moyen glissant 12 mois - Univ Elem",
-    "Prix moyen glissant 12 mois - LPI/IAD",
-    "Prix moyen glissant 12 mois - CL",
-    "Prix moyen glissant 3 mois - Univ Elem"
-]
-
-# Palette de couleurs (autant que de colonnes)
-colors = ["#4C72B0", "#DD8452", "#55A868", "#C44E52"]
-
-for ville in fusion["Ville"].unique():
-    df_ville = fusion[fusion["Ville"] == ville].copy()
-    fig = go.Figure()
-
-    for i, col in enumerate(cols):
-        if col not in df_ville.columns:
-            continue
-
-        # Données pour Prophet
-        df_col = df_ville[["DATE", col]].set_index("DATE").resample("MS").interpolate(method="linear").reset_index().rename(columns={"DATE": "ds", col: "y"})
-        if df_col.empty:
-            continue
-
-        model = Prophet()
-        model.fit(df_col)
-
-        future = model.make_future_dataframe(periods=12, freq="MS")
-        forecast = model.predict(future)
-
-        # Séparation passé / futur
-        last_date = df_col["ds"].max()
-        forecast_future = forecast[forecast["ds"] > last_date]
-
-        # --- Couleur unique par méthode ---
-        color = colors[i % len(colors)]
-
-        # Données réelles (pleines)
-        fig.add_trace(go.Scatter(
-            x=df_col["ds"],
-            y=df_col["y"],
-            mode="lines+markers",
-            name=f"{col}",
-            line=dict(color=color, width=2)
-        ))
-
-        # Prévision (pointillée, même couleur)
-        fig.add_trace(go.Scatter(
-            x=forecast_future["ds"],
-            y=forecast_future["yhat"],
-            mode="lines",
-            name=f"Prévision Prophet - {col}",
-            line=dict(color=color, dash="dot", width=2)
-        ))
-
-    # Mise en forme
-    fig.update_layout(
-        title=f"Historique & Prévision Prophet – {ville}",
-        xaxis_title="Date",
-        yaxis_title="Prix au m²",
-        template="plotly_white",
-        
-    legend=dict(
-        orientation="v",  # "h" pour horizontal si tu veux la mettre en haut
-        x=1.05,  # Positionne la légende à droite du graphique
-        y=1,
-        font=dict(size=10),
-        bgcolor="rgba(255,255,255,0.6)"
-
-        ),
-        height=550
-    )
-
-    fig.show()
+TypeError: Prophet.__init__() got an unexpected keyword argument 'change_prior_scale'"
+}
