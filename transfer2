@@ -1,68 +1,185 @@
-{
-	"name": "KeyError",
-	"message": "0",
-	"stack": "---------------------------------------------------------------------------
-KeyError                                  Traceback (most recent call last)
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
-   3811 try:
--> 3812     return self._engine.get_loc(casted_key)
-   3813 except KeyError as err:
 
-File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
+dims = ["ville_", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
 
-File pandas/_libs/index.pyx:196, in pandas._libs.index.IndexEngine.get_loc()
 
-File pandas/_libs/hashtable_class_helper.pxi:2606, in pandas._libs.hashtable.Int64HashTable.get_item()
+univers = (
+    base_ml.groupby(dims, dropna=False)
+      .agg(
+          nb_transac = ("ID", "size"),
+          prix_median = ("Prix_m2", "median"),
+          prix_moyen = ("Prix_m2", "mean"),
+          surface_moyenne = ("NB_SURF_HAB", "mean")
 
-File pandas/_libs/hashtable_class_helper.pxi:2630, in pandas._libs.hashtable.Int64HashTable.get_item()
+      )
+      .reset_index()
+)
 
-KeyError: 0
+grille = (
+    pd.MultiIndex.from_product(
+        [base_ml["ville_"].unique(),
+         base_ml["BIEN_NEUF"].unique(),
+         base_ml["TYPE_BIEN"].unique(),
+         base_ml["NB_PIECES_RANGE"].unique()],
+        names=dims
+    ).to_frame(index=False)
+)
 
-The above exception was the direct cause of the following exception:
 
-KeyError                                  Traceback (most recent call last)
-Cell In[18], line 45
-     43 #Raccordement
-     44 first_idx = forecast[\"ds\"].idxmin()
----> 45 forecast_future.loc[first_idx,\"yhat\"] = (df_col[\"y\"].iloc[-1] + forecast_future.loc[first_idx, 'yhat']) / 2
-     46 # Données réelles (pleines)
-     47 fig.add_trace(go.Scatter(
-     48     x=df_col[\"ds\"],
-     49     y=df_col[\"y\"],
-   (...)     52     line=dict(color=color, width=2)
-     53 ))
+univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexing.py:1184, in _LocationIndexer.__getitem__(self, key)
-   1182     key = tuple(com.apply_if_callable(x, self.obj) for x in key)
-   1183     if self._is_scalar_access(key):
--> 1184         return self.obj._get_value(*key, takeable=self._takeable)
-   1185     return self._getitem_tuple(key)
-   1186 else:
-   1187     # we by definition only have the 0th axis
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\frame.py:4232, in DataFrame._get_value(self, index, col, takeable)
-   4226 engine = self.index._engine
-   4228 if not isinstance(self.index, MultiIndex):
-   4229     # CategoricalIndex: Trying to use the engine fastpath may give incorrect
-   4230     #  results if our categories are integers that dont match our codes
-   4231     # IntervalIndex: IntervalTree has no get_loc
--> 4232     row = self.index.get_loc(index)
-   4233     return series._values[row]
-   4235 # For MultiIndex going through engine effectively restricts us to
-   4236 #  same-length tuples; see test_get_set_value_no_partial_indexing
+univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
-   3814     if isinstance(casted_key, slice) or (
-   3815         isinstance(casted_key, abc.Iterable)
-   3816         and any(isinstance(x, slice) for x in casted_key)
-   3817     ):
-   3818         raise InvalidIndexError(key)
--> 3819     raise KeyError(key) from err
-   3820 except TypeError:
-   3821     # If we have a listlike key, _check_indexing_error will raise
-   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
-   3823     #  the TypeError.
-   3824     self._check_indexing_error(key)
+univers_complet_ville["PB"] = (
+    univers_complet_ville["NB_PIECES_RANGE"]
+    .astype(str)
+    .str.strip()
+    .str[:3]
+    .str.upper()
+)
+univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
 
-KeyError: 0"
-}
+
+mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
+
+univers_complet_ville = univers_complet_ville.loc[~mask].copy()
+univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
+univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("ville_")["nb_transac"].transform(sum)) * 100
+
+univers_complet_ville
+
+
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+
+base_ml2 = base_ml2.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+
+
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+#base_ml2 = base_ml2[base_ml2["DATE"] < "2025-08-01"]
+base_ml2["Periode"] = base_ml2["DATE"]
+
+
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
+
+
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
+)
+
+
+
+def rolling_weighted_mean(g):
+    g = g.sort_values("Periode")
+
+    g["poids_x_prix"] = g["prix_moyen"] * g["nb_transac"]
+    
+
+    somme_poids_12m = g["nb_transac"].rolling(window=12, min_periods=12).sum()
+    somme_ponderee_12m = g["poids_x_prix"].rolling(window=12, min_periods=12).sum()
+    
+    g["prix_moyen_glissant_pondere_12m"] = somme_ponderee_12m / somme_poids_12m
+
+    somme_poids_3m = g["nb_transac"].rolling(window=3, min_periods=3).sum()
+    somme_ponderee_3m = g["poids_x_prix"].rolling(window=3, min_periods=3).sum()
+    
+    g["prix_moyen_glissant_pondere_3m"] = somme_ponderee_3m / somme_poids_3m
+    
+    return g
+
+univers_glissant = (
+    univers_complet
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(rolling_weighted_mean)
+)
+
+
+resultat = univers_glissant[
+    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m","prix_moyen_glissant_pondere_3m"]
+].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
+
+resultat
+
+
+
+df = resultat.copy()
+df["Periode"] = pd.to_datetime(df["Periode"])
+df["Ville"]   = df["Ville"].str.strip().str.upper()
+
+city_month = (
+    df.assign(prod=lambda x: x["prix_moyen"] * x["nb_transac"])
+      .groupby(["Ville","Periode"], as_index=False)
+      .agg(nb_transac_total=("nb_transac","sum"),
+           sum_prod=("prod","sum"))
+)
+city_month["prix_moyen_pondere_ville"] = (
+    city_month["sum_prod"] / city_month["nb_transac_total"].where(city_month["nb_transac_total"]>0)
+)
+
+def complete_city(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    g["Ville"] = g["Ville"].ffill().bfill()
+    g["nb_transac_total"] = g["nb_transac_total"].fillna(0)
+    g["sum_prod"] = g["sum_prod"].fillna(0)
+
+    g["prix_moyen_pondere_ville"] = g["sum_prod"] / g["nb_transac_total"].where(g["nb_transac_total"]>0)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+city_month = (
+    city_month.groupby("Ville", group_keys=False).apply(complete_city)
+)
+
+def rolling_city(g):
+    g = g.sort_values("Periode")
+    num_12m = g["sum_prod"].rolling(12, min_periods=12).sum()
+    den_12m = g["nb_transac_total"].rolling(12, min_periods=12).sum()
+    g["prix_glissant_pondere_12m_ville"] = num_12m / den_12m.where(den_12m>0)
+
+    num_3m = g["sum_prod"].rolling(3, min_periods=3).sum()
+    den_3m = g["nb_transac_total"].rolling(3, min_periods=3).sum()
+    g["prix_glissant_pondere_3m_ville"] = num_3m / den_3m.where(den_3m>0)
+    return g
+
+city_month = city_month.groupby("Ville", group_keys=False).apply(rolling_city)
+
+
+model_agg = city_month.rename(columns={
+    "Periode":"DATE",
+    "prix_moyen_pondere_ville":"Prix_m2_moyen_pondere",
+    "prix_glissant_pondere_12m_ville":"Glissant_pondere_12m",
+    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
+})
