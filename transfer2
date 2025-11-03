@@ -1,60 +1,8 @@
-top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", " TOULOUSE", "BORDEAUX", "NICE", "STRASBOURG", "NANTES", "MONTPELLIER",
-         "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
-
-dims = ["Ville", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
-
-
-univers = (
-    base_ml2.groupby(dims, dropna=False)
-      .agg(
-          nb_transac = ("ID", "size"),
-          prix_median = ("Prix_m2", "median"),
-          prix_moyen = ("Prix_m2", "mean"),
-          surface_moyenne = ("NB_SURF_HAB", "mean")
-
-      )
-      .reset_index()
-)
-
-grille = (
-    pd.MultiIndex.from_product(
-        [base_ml2["Ville"].unique(),
-         base_ml2["BIEN_NEUF"].unique(),
-         base_ml2["TYPE_BIEN"].unique(),
-         base_ml2["NB_PIECES_RANGE"].unique()],
-        names=dims
-    ).to_frame(index=False)
-)
-
-
-univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
-
-
-univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
-
-univers_complet_ville["PB"] = (
-    univers_complet_ville["NB_PIECES_RANGE"]
-    .astype(str)
-    .str.strip()
-    .str[:3]
-    .str.upper()
-)
-univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
-
-
-mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
-
-univers_complet_ville = univers_complet_ville.loc[~mask].copy()
-univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
-univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("Ville")["nb_transac"].transform(sum)) * 100
-
-univers_complet_ville
 
 top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
          "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
-base_ml2 = base_ml2.rename(columns={"ville_":"Ville"})
-base_ml2 = base_ml2.copy()
+base_ml = base_ml.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml.copy()
 base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
 base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
@@ -122,7 +70,7 @@ def rolling_weighted_global(g):
     
     
     g["prix_moyen_glissant_pondere_12m"] = (
-        g["prix_moyen"].rolling(window = 12, min_periods = 12).apply(wavg, raw = False)
+        g["prix_moyen"].rolling(window = 12, min_periods = 3).apply(wavg, raw = False)
     )
     g["prix_moyen_glissant_pondere_3m"] = (
         g["prix_moyen"].rolling(window = 3, min_periods = 1).apply(wavg, raw = False)
@@ -177,8 +125,8 @@ city_month = (
 
 def rolling_city(g):
     g = g.sort_values("Periode")
-    num_12m = g["sum_prod"].rolling(12, min_periods=12).sum()
-    den_12m = g["nb_transac_total"].rolling(12, min_periods=12).sum()
+    num_12m = g["sum_prod"].rolling(12, min_periods=3).sum()
+    den_12m = g["nb_transac_total"].rolling(12, min_periods=3).sum()
     g["prix_glissant_pondere_12m_ville"] = num_12m / den_12m.where(den_12m>0)
     num_3m = g["sum_prod"].rolling(3, min_periods=1).sum()
     den_3m = g["nb_transac_total"].rolling(3, min_periods=1).sum()
@@ -195,58 +143,21 @@ model_agg = city_month.rename(columns={
     "prix_glissant_pondere_3m_ville":"Glissant_pondere_3m"
 
 })
-
-import plotly.express as px
-import pandas as pd
-
-# Harmonisation des noms de colonnes
-model_agg = city_month.rename(columns={
-    "Periode": "DATE",
-    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
-    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m",
-    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
-})
-
-model_agg2 = model_agg.drop(columns=["Prix_m2_moyen_ponderere","nb_transac_total","sum_prod"], errors="ignore")
-
-
-model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
-merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
-
-# Fusion des deux tables sur Ville + DATE
-fusion = pd.merge(
-    model_agg2,
-    merge,
-    on=["Ville", "DATE"],
-    how="outer",
-    suffixes = ("_univ","_ext")
-)
-fusion = fusion.rename(columns={"Glissant_pondere_12m":"Prix moyen glissant 12 mois - Univ Elem", 
-                                "Glissant_pondere_3m":"Prix moyen glissant 3 mois - Univ Elem"})
-# Boucle pour tracer un graphique par ville
-for ville in fusion["Ville"].dropna().unique():
-    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
-
-    # Liste des colonnes numériques à tracer
-    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
-                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
-
+model_agg = model_agg[model_agg["DATE"] < "2025-10-01"]
+for ville in model_agg["Ville"].unique():
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
     fig = px.line(
-        df_ville,
-        x="DATE",
-        y=colonnes_a_tracer,
+        df_ville, x="DATE",
+        y=["Prix_m2_moyen_pondere","Glissant_pondere_12m","Glissant_pondere_3m"],
         title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        labels={"value":"Prix du m² (€)","variable":"Indicateur","DATE":"Date"},
         markers=True
     )
-
     fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
+        title_x=0.5, plot_bgcolor="white",
         xaxis=dict(showgrid=True, gridcolor="#eee"),
         yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=600
+        legend_title="Type de prix", height=500
     )
-    fig.update_traces(opacity=0.7)
     fig.show()
+
