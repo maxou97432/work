@@ -1,39 +1,69 @@
+import numpy as np
 
-top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
-         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
-base_ml = base_ml.rename(columns={"ville_":"Ville"})
-base_ml2 = base_ml.copy()
-base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+df = univers_glissant.copy()
+df["Periode"] = pd.to_datetime(df["Periode"])
+df["Ville"]   = df["Ville"].str.strip().str.upper()
 
+# ✅ pondération structurelle déjà calculée : 'poids_relatif'
 
-base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
-base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
+def agg_weighted_monthly(g):
+    """Calcule le prix moyen pondéré structurellement pour chaque ville et mois"""
+    prix = g["prix_moyen"]
+    poids = g["poids_relatif"]
+    valid = poids > 0
+    if valid.sum() == 0:
+        return pd.Series({"prix_pondere_mensuel": np.nan})
+    return pd.Series({"prix_pondere_mensuel": np.average(prix[valid], weights=poids[valid])})
 
-
-keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
-
-univers_mensuel = (
-    base_ml2
-      .groupby(keys, dropna=False)
-      .agg(
-          nb_transac     = ("ID", "size"),
-          prix_moyen     = ("Prix_m2", "mean"),
-          prix_median    = ("Prix_m2", "median"),
-          surface_moyenne= ("NB_SURF_HAB", "mean")
-      )
-      .reset_index()
+# 🧮 prix moyen pondéré mensuel de la ville (structure constante)
+city_month = (
+    df.groupby(["Ville", "Periode"], as_index=False)
+      .apply(agg_weighted_monthly)
+      .dropna(subset=["prix_pondere_mensuel"])
 )
 
+# 🧊 Lissage 3 mois et 12 mois
+city_month = city_month.sort_values(["Ville", "Periode"])
+city_month["glissant_3m"] = (
+    city_month.groupby("Ville")["prix_pondere_mensuel"]
+    .transform(lambda s: s.rolling(3, min_periods=1).mean())
+)
+city_month["glissant_12m"] = (
+    city_month.groupby("Ville")["prix_pondere_mensuel"]
+    .transform(lambda s: s.rolling(12, min_periods=3).mean())
+)
 
-univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
-univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
-mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+# 🏷️ Mise en forme finale
+model_agg = city_month.rename(columns={
+    "Periode": "DATE",
+    "prix_pondere_mensuel": "Prix_m2_moyen_pondere",
+    "glissant_12m": "Glissant_pondere_12m",
+    "glissant_3m": "Glissant_pondere_3m"
+})
 
+model_agg = model_agg[model_agg["DATE"] < "2025-10-01"]
 
-def complete_months(g):
-    g = g.sort_values("Periode").set_index("Periode")
+# 📊 Visualisation par ville
+import plotly.express as px
+
+for ville in model_agg["Ville"].unique():
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
+    fig = px.line(
+        df_ville, x="DATE",
+        y=["Prix_m2_moyen_pondere", "Glissant_pondere_12m", "Glissant_pondere_3m"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        markers=True
+    )
+    fig.update_layout(
+        title_x=0.5,
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix",
+        height=500
+    )
+    fig.show()
     idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
     g = g.reindex(idx)
     for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
