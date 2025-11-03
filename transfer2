@@ -1,10 +1,104 @@
-import numpy as np
 
-df = univers_glissant.copy()
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+base_ml = base_ml.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+
+
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
+
+
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
+
+
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
+)
+poids_global = (
+    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
+
+univers_complet = univers_complet.merge(
+    poids_global,
+    on = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
+    how = "left"
+)
+
+def rolling_weighted_global(g):
+    g = g.sort_values("Periode").copy()
+
+    g["poids_fix"] = g["poids_relatif"].fillna(0)
+
+    def wavg(series):
+        poids_loc = g.loc[series.index, "poids_fix"]
+        valid = poids_loc > 0
+        if valid.sum() == 0:
+            return np.nan
+        return np.average(series[valid],weights = poids_loc[valid])
+    
+    
+    g["prix_moyen_glissant_pondere_12m"] = (
+        g["prix_moyen"].rolling(window = 12, min_periods = 3).apply(wavg, raw = False)
+    )
+    g["prix_moyen_glissant_pondere_3m"] = (
+        g["prix_moyen"].rolling(window = 3, min_periods = 1).apply(wavg, raw = False)
+    )
+    
+    return g
+
+univers_glissant = (
+    univers_complet
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(rolling_weighted_global)
+)
+
+
+resultat = univers_glissant[
+    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
+].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
+
+resultat
+
+
+
+
+df = resultat.copy()
 df["Periode"] = pd.to_datetime(df["Periode"])
 df["Ville"]   = df["Ville"].str.strip().str.upper()
 
-# ✅ pondération structurelle déjà calculée : 'poids_relatif'
 
 def agg_weighted_monthly(g):
     """Calcule le prix moyen pondéré structurellement pour chaque ville et mois"""
@@ -15,14 +109,14 @@ def agg_weighted_monthly(g):
         return pd.Series({"prix_pondere_mensuel": np.nan})
     return pd.Series({"prix_pondere_mensuel": np.average(prix[valid], weights=poids[valid])})
 
-# 🧮 prix moyen pondéré mensuel de la ville (structure constante)
+
 city_month = (
     df.groupby(["Ville", "Periode"], as_index=False)
       .apply(agg_weighted_monthly)
       .dropna(subset=["prix_pondere_mensuel"])
 )
 
-# 🧊 Lissage 3 mois et 12 mois
+
 city_month = city_month.sort_values(["Ville", "Periode"])
 city_month["glissant_3m"] = (
     city_month.groupby("Ville")["prix_pondere_mensuel"]
@@ -33,7 +127,7 @@ city_month["glissant_12m"] = (
     .transform(lambda s: s.rolling(12, min_periods=3).mean())
 )
 
-# 🏷️ Mise en forme finale
+
 model_agg = city_month.rename(columns={
     "Periode": "DATE",
     "prix_pondere_mensuel": "Prix_m2_moyen_pondere",
@@ -43,7 +137,7 @@ model_agg = city_month.rename(columns={
 
 model_agg = model_agg[model_agg["DATE"] < "2025-10-01"]
 
-# 📊 Visualisation par ville
+
 import plotly.express as px
 
 for ville in model_agg["Ville"].unique():
@@ -64,3 +158,5 @@ for ville in model_agg["Ville"].unique():
         height=500
     )
     fig.show()
+
+
