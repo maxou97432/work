@@ -1,70 +1,54 @@
-df = univers_glissant.copy()
+import plotly.express as px
+import pandas as pd
 
-# Vérification et nettoyage
-df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
-df = df.dropna(subset=["Periode", "prix_moyen", "poids_relatif"])
-df["Ville"] = df["Ville"].astype(str).str.strip().str.upper()
-
-def agg_weighted_monthly(g):
-    """Calcule le prix moyen pondéré structurellement pour chaque ville et mois"""
-    if g["poids_relatif"].sum() == 0:
-        return pd.Series({"prix_pondere_mensuel": np.nan})
-    return pd.Series({
-        "prix_pondere_mensuel": np.average(g["prix_moyen"], weights=g["poids_relatif"])
-    })
-
-# Groupement propre
-city_month = (
-    df.groupby(["Ville", "Periode"], as_index=False)
-      .apply(agg_weighted_monthly)
-      .reset_index(drop=True)
-)
-
-# Si tout va bien, on doit avoir plusieurs points :
-print(city_month.groupby("Ville").size().sort_values())
-
-# Ajout des glissants
-city_month = city_month.sort_values(["Ville", "Periode"])
-city_month["glissant_3m"] = (
-    city_month.groupby("Ville")["prix_pondere_mensuel"]
-    .transform(lambda s: s.rolling(3, min_periods=1).mean())
-)
-city_month["glissant_12m"] = (
-    city_month.groupby("Ville")["prix_pondere_mensuel"]
-    .transform(lambda s: s.rolling(12, min_periods=3).mean())
-)
-
+# Harmonisation des noms de colonnes
 model_agg = city_month.rename(columns={
     "Periode": "DATE",
-    "prix_pondere_mensuel": "Prix_m2_moyen_pondere",
-    "glissant_12m": "Glissant_pondere_12m",
-    "glissant_3m": "Glissant_pondere_3m"
+    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
+    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m",
+    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
 })
 
-# Vérification : combien de villes ?
-print("Nombre de villes:", model_agg["Ville"].nunique())
-print(model_agg["Ville"].value_counts().head())
+model_agg2 = model_agg.drop(columns=["Prix_m2_moyen_ponderere"], errors="ignore")
 
-# Graphiques
-for ville in sorted(model_agg["Ville"].unique()):
-    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
-    if len(df_ville) < 3:
-        print(f"⚠️ {ville} ignorée (trop peu de points)")
-        continue
+
+model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
+merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+
+# Fusion des deux tables sur Ville + DATE
+fusion = pd.merge(
+    model_agg2,
+    merge,
+    on=["Ville", "DATE"],
+    how="outer",
+    suffixes = ("_univ","_ext")
+)
+fusion = fusion.rename(columns={"Glissant_pondere_12m":"Prix moyen glissant 12 mois - Univ Elem", 
+                                "Glissant_pondere_3m":"Prix moyen glissant 3 mois - Univ Elem"})
+# Boucle pour tracer un graphique par ville
+for ville in fusion["Ville"].dropna().unique():
+    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
+
+    # Liste des colonnes numériques à tracer
+    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
+                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
 
     fig = px.line(
-        df_ville, x="DATE",
-        y=["Prix_m2_moyen_pondere", "Glissant_pondere_12m", "Glissant_pondere_3m"],
+        df_ville,
+        x="DATE",
+        y=colonnes_a_tracer,
         title=f"Évolution du prix au m² — {ville}",
         labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
         markers=True
     )
+
     fig.update_layout(
         title_x=0.5,
         plot_bgcolor="white",
         xaxis=dict(showgrid=True, gridcolor="#eee"),
         yaxis=dict(showgrid=True, gridcolor="#eee"),
         legend_title="Type de prix",
-        height=500
+        height=600
     )
+    fig.update_traces(opacity=0.7)
     fig.show()
