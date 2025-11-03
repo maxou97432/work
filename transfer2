@@ -1,52 +1,136 @@
 
-univers_complet_ville = univers_complet_ville[univers_complet_ville["Ville"].isin(top15)]
+import pandas as pd
+import plotly.express as px
 
-univers_complet_ville = univers_complet_ville.rename(columns={"ville_":"Ville"})
-univers_complet_ville["Ville"] = univers_complet_ville["Ville"].astype(str).str.strip().str.upper()
-univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
-univers_complet_ville["NB_PIECES_RANGE"] = univers_complet_ville["NB_PIECES_RANGE"].astype(str).str.strip().str.upper()
+to_keep = ["PARIS","BORDEAUX","MARSEILLE","RENNES"]
 
 
-mask_valid = (univers_complet_ville["nb_transac"] > 0) & (
-    univers_complet_ville["prix_median"].notna() | univers_complet_ville["prix_moyen"].notna()
+def resume_ville(g):
+    g = g.dropna(subset=["prix_moyen"]).sort_values("nb_transac", ascending=True)
+    
+    if len(g) == 0:
+        return pd.DataFrame()
+    
+    idx_min = g.index[0]
+    idx_max = g.index[-1]
+    idx_med = g.index[len(g)//2]
+    idx_q1 = g.index[int(len(g) * 0.25)]
+    idx_q3 = g.index[int(len(g) * 0.75)]
+
+    return pd.DataFrame([
+        {
+            "Ville": g.loc[idx_min, "Ville"],
+            "Univers": "Moins de transactions",
+            "BIEN_NEUF": g.loc[idx_min, "BIEN_NEUF"],
+            "TYPE_BIEN": g.loc[idx_min, "TYPE_BIEN"],
+            "NB_PIECES_RANGE": g.loc[idx_min, "NB_PIECES_RANGE"],
+            "nb_transac": g.loc[idx_min, "nb_transac"],
+            "prix_median": g.loc[idx_min, "prix_median"],
+            "prix_moyen": g.loc[idx_min, "prix_moyen"]
+        },
+        {
+            "Ville": g.loc[idx_q1, "Ville"],
+            "Univers": "Premier quartile",
+            "BIEN_NEUF": g.loc[idx_q1, "BIEN_NEUF"],
+            "TYPE_BIEN": g.loc[idx_q1, "TYPE_BIEN"],
+            "NB_PIECES_RANGE": g.loc[idx_q1, "NB_PIECES_RANGE"],
+            "nb_transac": g.loc[idx_q1, "nb_transac"],
+            "prix_median": g.loc[idx_q1, "prix_median"],
+            "prix_moyen": g.loc[idx_q1, "prix_moyen"]
+        },
+        {
+            "Ville": g.loc[idx_med, "Ville"],
+            "Univers": "Médian (transactions)",
+            "BIEN_NEUF": g.loc[idx_med, "BIEN_NEUF"],
+            "TYPE_BIEN": g.loc[idx_med, "TYPE_BIEN"],
+            "NB_PIECES_RANGE": g.loc[idx_med, "NB_PIECES_RANGE"],
+            "nb_transac": g.loc[idx_med, "nb_transac"],
+            "prix_median": g.loc[idx_med, "prix_median"],
+            "prix_moyen": g.loc[idx_med, "prix_moyen"]
+        },
+        {
+            "Ville": g.loc[idx_q3, "Ville"],
+            "Univers": "Premier quartile",
+            "BIEN_NEUF": g.loc[idx_q3, "BIEN_NEUF"],
+            "TYPE_BIEN": g.loc[idx_q3, "TYPE_BIEN"],
+            "NB_PIECES_RANGE": g.loc[idx_q3, "NB_PIECES_RANGE"],
+            "nb_transac": g.loc[idx_q3, "nb_transac"],
+            "prix_median": g.loc[idx_q3, "prix_median"],
+            "prix_moyen": g.loc[idx_q3, "prix_moyen"]
+        },
+        {
+            "Ville": g.loc[idx_max, "Ville"],
+            "Univers": "Plus de transactions",
+            "BIEN_NEUF": g.loc[idx_max, "BIEN_NEUF"],
+            "TYPE_BIEN": g.loc[idx_max, "TYPE_BIEN"],
+            "NB_PIECES_RANGE": g.loc[idx_max, "NB_PIECES_RANGE"],
+            "nb_transac": g.loc[idx_max, "nb_transac"],
+            "prix_median": g.loc[idx_max, "prix_median"],
+            "prix_moyen": g.loc[idx_max, "prix_moyen"]
+        }
+        
+    ])
+
+resume_global = (
+    univers_complet_ville
+      .groupby("Ville", group_keys=False)
+      .apply(resume_ville)
+      .reset_index(drop=True)
 )
-u = univers_complet_ville.loc[mask_valid].copy()
+resume_global = resume_global[resume_global["Ville"].isin(to_keep)]
 
-u["poids"] = u["nb_transac"] / u.groupby("Ville")["nb_transac"].transform("sum")
-
-def _wsum(series, weights):
-    return (series.fillna(0) * weights).sum()
-
-agg = (
-    u.groupby("Ville", as_index=False)
-     .apply(lambda g: pd.Series({
-         "Prix pondéré médian": _wsum(g["prix_median"], g["poids"]),
-         "Prix pondéré moyen": _wsum(g["prix_moyen"], g["poids"]),
-         "Nombre transactions totales": g["nb_transac"].sum()
-     }))
-)
-
-df_plot = agg.sort_values("Prix pondéré moyen", ascending=False)
 
 fig = px.bar(
-    df_plot,
+    resume_global,
     x="Ville",
-    y="Prix pondéré moyen",
-    hover_data={"Nombre transactions totales": True, "Prix pondéré médian": ":.0f"},
-    text="Prix pondéré moyen"
+    y="nb_transac",
+    color="Univers",
+    text=resume_global["prix_moyen"].round(0).astype(str) + " €",
+    barmode="group",
+    title="Univers les plus petits, médians et plus grands (en %)",
+    hover_data={
+        "prix_median": True,
+        "prix_moyen": True,
+        "BIEN_NEUF": True,
+        "TYPE_BIEN": True,
+        "NB_PIECES_RANGE": True,
+        "nb_transac": True
+    },
+    color_discrete_map={
+        "Moins de transactions": "#2ca02c",
+        "Premier quartile" : "#9467bd",
+        "Médian (transactions)": "#1f77b4",
+        "Troisième quartile": "#8c564b",
+        "Plus de transactions": "#d62728"
+    }
 )
 
-fig.update_traces(texttemplate="%{text:.0f}", textposition="outside", cliponaxis=False)
-fig.update_layout(
-    title="Prix pondéré par ville (€ / m²) – pondération par répartition des transactions",
-    yaxis_title="€ / m²",
-    xaxis_title="Ville",
-    uniformtext_minsize=8,
-    uniformtext_mode="hide",
-    bargap=0.25,
-    height=520
+
+fig.update_traces(
+    texttemplate="%{text}",
+    textposition="outside"
 )
-fig.update_yaxes(tickformat=",") 
+
+fig.update_layout(
+    title_x=0.5,
+    yaxis_title="Nombre de transactions (log)",
+    yaxis_type = "log",
+    xaxis_title="Ville",
+    plot_bgcolor="white",
+    xaxis_tickangle=45,
+    legend_title="Type d'univers",
+    uniformtext_minsize=8,
+    uniformtext_mode='hide',
+    height=650
+)
 
 fig.show()
-fig.write_html(r"N:\uflumth\indicateur_marche\prix_m2\my_cl_estim\resultats\prix_pondere_par_ville.html")
+
+
+df_sorted = resume_global.sort_values(["Ville", "Univers"])
+
+html_table = df_sorted.to_html(index=False, classes="table table-striped", border=0)
+
+with open("univers_repartition_par_ville.html", "w", encoding="utf-8") as f:
+    f.write(html_table)
+df_sorted
