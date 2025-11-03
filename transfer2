@@ -1,4 +1,70 @@
-print(df[["Ville","Periode","poids_relatif","prix_moyen"]].info())
-print(df["Ville"].unique())
-print(df["Periode"].min(), df["Periode"].max())
-print(df["poids_relatif"].isna().mean())
+df = univers_glissant.copy()
+
+# Vérification et nettoyage
+df["Periode"] = pd.to_datetime(df["Periode"], errors="coerce")
+df = df.dropna(subset=["Periode", "prix_moyen", "poids_relatif"])
+df["Ville"] = df["Ville"].astype(str).str.strip().str.upper()
+
+def agg_weighted_monthly(g):
+    """Calcule le prix moyen pondéré structurellement pour chaque ville et mois"""
+    if g["poids_relatif"].sum() == 0:
+        return pd.Series({"prix_pondere_mensuel": np.nan})
+    return pd.Series({
+        "prix_pondere_mensuel": np.average(g["prix_moyen"], weights=g["poids_relatif"])
+    })
+
+# Groupement propre
+city_month = (
+    df.groupby(["Ville", "Periode"], as_index=False)
+      .apply(agg_weighted_monthly)
+      .reset_index(drop=True)
+)
+
+# Si tout va bien, on doit avoir plusieurs points :
+print(city_month.groupby("Ville").size().sort_values())
+
+# Ajout des glissants
+city_month = city_month.sort_values(["Ville", "Periode"])
+city_month["glissant_3m"] = (
+    city_month.groupby("Ville")["prix_pondere_mensuel"]
+    .transform(lambda s: s.rolling(3, min_periods=1).mean())
+)
+city_month["glissant_12m"] = (
+    city_month.groupby("Ville")["prix_pondere_mensuel"]
+    .transform(lambda s: s.rolling(12, min_periods=3).mean())
+)
+
+model_agg = city_month.rename(columns={
+    "Periode": "DATE",
+    "prix_pondere_mensuel": "Prix_m2_moyen_pondere",
+    "glissant_12m": "Glissant_pondere_12m",
+    "glissant_3m": "Glissant_pondere_3m"
+})
+
+# Vérification : combien de villes ?
+print("Nombre de villes:", model_agg["Ville"].nunique())
+print(model_agg["Ville"].value_counts().head())
+
+# Graphiques
+for ville in sorted(model_agg["Ville"].unique()):
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
+    if len(df_ville) < 3:
+        print(f"⚠️ {ville} ignorée (trop peu de points)")
+        continue
+
+    fig = px.line(
+        df_ville, x="DATE",
+        y=["Prix_m2_moyen_pondere", "Glissant_pondere_12m", "Glissant_pondere_3m"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        markers=True
+    )
+    fig.update_layout(
+        title_x=0.5,
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix",
+        height=500
+    )
+    fig.show()
