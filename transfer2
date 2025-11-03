@@ -26,13 +26,13 @@ File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-pack
 --> 928 res = f(group)
     929 if not mutated and not _is_indexed_like(res, group_axes, axis):
 
-Cell In[37], line 72, in rolling_weighted_global(g)
+Cell In[38], line 72, in rolling_weighted_global(g)
      68     return np.average(window[valid],weights = poids_loc[valid])
      71 g[\"prix_moyen_glissant_pondere_12m\"] = (
----> 72     g[\"prix_moyen\"].rolling(window = 12, min_periods = 12).apply(wavg)
+---> 72     g[\"prix_moyen\"].rolling(window = 12, min_periods = 12).apply(wavg, raw = False)
      73 )
      74 g[\"prix_moyen_glissant_pondere_3m\"] = (
-     75     g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg)
+     75     g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
      76 )
 
 File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:2049, in Rolling.apply(self, func, raw, engine, engine_kwargs, args, kwargs)
@@ -93,9 +93,9 @@ TypeError: rolling_weighted_global.<locals>.wavg() missing 1 required positional
 During handling of the above exception, another exception occurred:
 
 TypeError                                 Traceback (most recent call last)
-Cell In[37], line 83
+Cell In[38], line 83
      74     g[\"prix_moyen_glissant_pondere_3m\"] = (
-     75         g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg)
+     75         g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
      76     )
      78     return g
      80 univers_glissant = (
@@ -145,14 +145,14 @@ File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-pack
     929 if not mutated and not _is_indexed_like(res, group_axes, axis):
     930     mutated = True
 
-Cell In[37], line 72, in rolling_weighted_global(g)
+Cell In[38], line 72, in rolling_weighted_global(g)
      67         return np.nan
      68     return np.average(window[valid],weights = poids_loc[valid])
      71 g[\"prix_moyen_glissant_pondere_12m\"] = (
----> 72     g[\"prix_moyen\"].rolling(window = 12, min_periods = 12).apply(wavg)
+---> 72     g[\"prix_moyen\"].rolling(window = 12, min_periods = 12).apply(wavg, raw = False)
      73 )
      74 g[\"prix_moyen_glissant_pondere_3m\"] = (
-     75     g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg)
+     75     g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
      76 )
      78 return g
 
