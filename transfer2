@@ -1,229 +1,163 @@
-{
-	"name": "TypeError",
-	"message": "rolling_weighted_global.<locals>.wavg() missing 1 required positional argument: 'poids'",
-	"stack": "---------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\groupby.py:1826, in GroupBy.apply(self, func, include_groups, *args, **kwargs)
-   1825 try:
--> 1826     result = self._python_apply_general(f, self._selected_obj)
-   1827     if (
-   1828         not isinstance(self.obj, Series)
-   1829         and self._selection is None
-   1830         and self._selected_obj.shape != self._obj_with_exclusions.shape
-   1831     ):
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\groupby.py:1887, in GroupBy._python_apply_general(self, f, data, not_indexed_same, is_transform, is_agg)
-   1861 \"\"\"
-   1862 Apply function f in python space
-   1863 
-   (...)   1885     data after applying f
-   1886 \"\"\"
--> 1887 values, mutated = self._grouper.apply_groupwise(f, data, self.axis)
-   1888 if not_indexed_same is None:
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+base_ml = base_ml.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\ops.py:928, in BaseGrouper.apply_groupwise(self, f, data, axis)
-    927 group_axes = group.axes
---> 928 res = f(group)
-    929 if not mutated and not _is_indexed_like(res, group_axes, axis):
 
-Cell In[38], line 72, in rolling_weighted_global(g)
-     68     return np.average(window[valid],weights = poids_loc[valid])
-     71 g[\"prix_moyen_glissant_pondere_12m\"] = (
----> 72     g[\"prix_moyen\"].rolling(window = 12, min_periods = 12).apply(wavg, raw = False)
-     73 )
-     74 g[\"prix_moyen_glissant_pondere_3m\"] = (
-     75     g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
-     76 )
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:2049, in Rolling.apply(self, func, raw, engine, engine_kwargs, args, kwargs)
-   2016 @doc(
-   2017     template_header,
-   2018     create_section_header(\"Parameters\"),
-   (...)   2047     kwargs: dict[str, Any] | None = None,
-   2048 ):
--> 2049     return super().apply(
-   2050         func,
-   2051         raw=raw,
-   2052         engine=engine,
-   2053         engine_kwargs=engine_kwargs,
-   2054         args=args,
-   2055         kwargs=kwargs,
-   2056     )
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:1508, in RollingAndExpandingMixin.apply(self, func, raw, engine, engine_kwargs, args, kwargs)
-   1506     raise ValueError(\"engine must be either 'numba' or 'cython'\")
--> 1508 return self._apply(
-   1509     apply_func,
-   1510     name=\"apply\",
-   1511     numba_args=numba_args,
-   1512 )
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:619, in BaseWindow._apply(self, func, name, numeric_only, numba_args, **kwargs)
-    618 if self.method == \"single\":
---> 619     return self._apply_columnwise(homogeneous_func, name, numeric_only)
-    620 else:
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:472, in BaseWindow._apply_columnwise(self, homogeneous_func, name, numeric_only)
-    471 if self._selected_obj.ndim == 1:
---> 472     return self._apply_series(homogeneous_func, name)
-    474 obj = self._create_data(self._selected_obj, numeric_only)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:456, in BaseWindow._apply_series(self, homogeneous_func, name)
-    454     raise DataError(\"No numeric types to aggregate\") from err
---> 456 result = homogeneous_func(values)
-    457 index = self._slice_axis_for_step(obj.index, result)
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:614, in BaseWindow._apply.<locals>.homogeneous_func(values)
-    613 with np.errstate(all=\"ignore\"):
---> 614     result = calc(values)
-    616 return result
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:611, in BaseWindow._apply.<locals>.homogeneous_func.<locals>.calc(x)
-    609 self._check_window_bounds(start, end, len(x))
---> 611 return func(x, start, end, min_periods, *numba_args)
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    return g.reset_index().rename(columns={"index":"Periode"})
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:1535, in RollingAndExpandingMixin._generate_cython_apply_func.<locals>.apply_func(values, begin, end, min_periods, raw)
-   1534     values = Series(values, index=self._on, copy=False)
--> 1535 return window_func(values, begin, end, min_periods)
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
+)
+poids_global = (
+    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
 
-File pandas/_libs/window/aggregations.pyx:1422, in pandas._libs.window.aggregations.roll_apply()
+univers_complet = univers_complet.merge(
+    poids_global,
+    on = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
+    how = "left"
+)
 
-TypeError: rolling_weighted_global.<locals>.wavg() missing 1 required positional argument: 'poids'
+def rolling_weighted_global(g):
+    g = g.sort_values("Periode").copy()
 
-During handling of the above exception, another exception occurred:
+    g["poids_fix"] = g["poids_relatif"].fillna(0)
 
-TypeError                                 Traceback (most recent call last)
-Cell In[38], line 83
-     74     g[\"prix_moyen_glissant_pondere_3m\"] = (
-     75         g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
-     76     )
-     78     return g
-     80 univers_glissant = (
-     81     univers_complet
-     82       .groupby([\"Ville\",\"BIEN_NEUF\",\"TYPE_BIEN\",\"NB_PIECES_RANGE\"], group_keys=False)
----> 83       .apply(rolling_weighted_global)
-     84 )
-     87 resultat = univers_glissant[
-     88     [\"Periode\",\"Ville\",\"BIEN_NEUF\",\"TYPE_BIEN\",\"NB_PIECES_RANGE\",
-     89      \"prix_moyen\",\"nb_transac\",\"prix_moyen_glissant_pondere_12m\"]
-     90 ].sort_values([\"Ville\",\"BIEN_NEUF\",\"TYPE_BIEN\",\"NB_PIECES_RANGE\",\"Periode\"])
-     92 resultat
+    def wavg(series):
+        poids_loc = g.loc[series.index, "poids_fix"]
+        valid = poids_loc > 0
+        if valid.sum() == 0:
+            return np.nan
+        return np.average(series[valid],weights = poids_loc[valid])
+    
+    
+    g["prix_moyen_glissant_pondere_12m"] = (
+        g["prix_moyen"].rolling(window = 12, min_periods = 12).apply(wavg, raw = False)
+    )
+    g["prix_moyen_glissant_pondere_3m"] = (
+        g["prix_moyen"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
+    )
+    
+    return g
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\groupby.py:1848, in GroupBy.apply(self, func, include_groups, *args, **kwargs)
-   1832             warnings.warn(
-   1833                 message=_apply_groupings_depr.format(
-   1834                     type(self).__name__, \"apply\"
-   (...)   1837                 stacklevel=find_stack_level(),
-   1838             )
-   1839     except TypeError:
-   1840         # gh-20949
-   1841         # try again, with .apply acting as a filtering
-   (...)   1845         # fails on *some* columns, e.g. a numeric operation
-   1846         # on a string grouper column
--> 1848         return self._python_apply_general(f, self._obj_with_exclusions)
-   1850 return result
+univers_glissant = (
+    univers_complet
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(rolling_weighted_global)
+)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\groupby.py:1887, in GroupBy._python_apply_general(self, f, data, not_indexed_same, is_transform, is_agg)
-   1852 @final
-   1853 def _python_apply_general(
-   1854     self,
-   (...)   1859     is_agg: bool = False,
-   1860 ) -> NDFrameT:
-   1861     \"\"\"
-   1862     Apply function f in python space
-   1863 
-   (...)   1885         data after applying f
-   1886     \"\"\"
--> 1887     values, mutated = self._grouper.apply_groupwise(f, data, self.axis)
-   1888     if not_indexed_same is None:
-   1889         not_indexed_same = mutated
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\groupby\\ops.py:928, in BaseGrouper.apply_groupwise(self, f, data, axis)
-    926 # group might be modified
-    927 group_axes = group.axes
---> 928 res = f(group)
-    929 if not mutated and not _is_indexed_like(res, group_axes, axis):
-    930     mutated = True
+resultat = univers_glissant[
+    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
+].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
 
-Cell In[38], line 72, in rolling_weighted_global(g)
-     67         return np.nan
-     68     return np.average(window[valid],weights = poids_loc[valid])
-     71 g[\"prix_moyen_glissant_pondere_12m\"] = (
----> 72     g[\"prix_moyen\"].rolling(window = 12, min_periods = 12).apply(wavg, raw = False)
-     73 )
-     74 g[\"prix_moyen_glissant_pondere_3m\"] = (
-     75     g[\"prix_moyen\"].rolling(window = 3, min_periods = 3).apply(wavg, raw = False)
-     76 )
-     78 return g
+resultat
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:2049, in Rolling.apply(self, func, raw, engine, engine_kwargs, args, kwargs)
-   2016 @doc(
-   2017     template_header,
-   2018     create_section_header(\"Parameters\"),
-   (...)   2047     kwargs: dict[str, Any] | None = None,
-   2048 ):
--> 2049     return super().apply(
-   2050         func,
-   2051         raw=raw,
-   2052         engine=engine,
-   2053         engine_kwargs=engine_kwargs,
-   2054         args=args,
-   2055         kwargs=kwargs,
-   2056     )
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:1508, in RollingAndExpandingMixin.apply(self, func, raw, engine, engine_kwargs, args, kwargs)
-   1505 else:
-   1506     raise ValueError(\"engine must be either 'numba' or 'cython'\")
--> 1508 return self._apply(
-   1509     apply_func,
-   1510     name=\"apply\",
-   1511     numba_args=numba_args,
-   1512 )
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:619, in BaseWindow._apply(self, func, name, numeric_only, numba_args, **kwargs)
-    616     return result
-    618 if self.method == \"single\":
---> 619     return self._apply_columnwise(homogeneous_func, name, numeric_only)
-    620 else:
-    621     return self._apply_tablewise(homogeneous_func, name, numeric_only)
+df = resultat.copy()
+df["Periode"] = pd.to_datetime(df["Periode"])
+df["Ville"]   = df["Ville"].str.strip().str.upper()
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:472, in BaseWindow._apply_columnwise(self, homogeneous_func, name, numeric_only)
-    470 self._validate_numeric_only(name, numeric_only)
-    471 if self._selected_obj.ndim == 1:
---> 472     return self._apply_series(homogeneous_func, name)
-    474 obj = self._create_data(self._selected_obj, numeric_only)
-    475 if name == \"count\":
-    476     # GH 12541: Special case for count where we support date-like types
+city_month = (
+    df.assign(prod=lambda x: x["prix_moyen"] * x["nb_transac"])
+      .groupby(["Ville","Periode"], as_index=False)
+      .agg(nb_transac_total=("nb_transac","sum"),
+           sum_prod=("prod","sum"))
+)
+city_month["prix_moyen_pondere_ville"] = (
+    city_month["sum_prod"] / city_month["nb_transac_total"].where(city_month["nb_transac_total"]>0)
+)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:456, in BaseWindow._apply_series(self, homogeneous_func, name)
-    453 except (TypeError, NotImplementedError) as err:
-    454     raise DataError(\"No numeric types to aggregate\") from err
---> 456 result = homogeneous_func(values)
-    457 index = self._slice_axis_for_step(obj.index, result)
-    458 return obj._constructor(result, index=index, name=obj.name)
+def complete_city(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    g["Ville"] = g["Ville"].ffill().bfill()
+    g["nb_transac_total"] = g["nb_transac_total"].fillna(0)
+    g["sum_prod"] = g["sum_prod"].fillna(0)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:614, in BaseWindow._apply.<locals>.homogeneous_func(values)
-    611     return func(x, start, end, min_periods, *numba_args)
-    613 with np.errstate(all=\"ignore\"):
---> 614     result = calc(values)
-    616 return result
+    g["prix_moyen_pondere_ville"] = g["sum_prod"] / g["nb_transac_total"].where(g["nb_transac_total"]>0)
+    return g.reset_index().rename(columns={"index":"Periode"})
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:611, in BaseWindow._apply.<locals>.homogeneous_func.<locals>.calc(x)
-    602 start, end = window_indexer.get_window_bounds(
-    603     num_values=len(x),
-    604     min_periods=min_periods,
-   (...)    607     step=self.step,
-    608 )
-    609 self._check_window_bounds(start, end, len(x))
---> 611 return func(x, start, end, min_periods, *numba_args)
+city_month = (
+    city_month.groupby("Ville", group_keys=False).apply(complete_city)
+)
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\pandas\\core\\window\\rolling.py:1535, in RollingAndExpandingMixin._generate_cython_apply_func.<locals>.apply_func(values, begin, end, min_periods, raw)
-   1532 if not raw:
-   1533     # GH 45912
-   1534     values = Series(values, index=self._on, copy=False)
--> 1535 return window_func(values, begin, end, min_periods)
+def rolling_city(g):
+    g = g.sort_values("Periode")
+    num_12m = g["sum_prod"].rolling(12, min_periods=12).sum()
+    den_12m = g["nb_transac_total"].rolling(12, min_periods=12).sum()
+    g["prix_glissant_pondere_12m_ville"] = num_12m / den_12m.where(den_12m>0)
+    num_3m = g["sum_prod"].rolling(3, min_periods=1).sum()
+    den_3m = g["nb_transac_total"].rolling(3, min_periods=1).sum()
+    g["prix_glissant_pondere_3m_ville"] = num_3m / den_3m.where(den_3m>0)
+    return g
 
-File pandas/_libs/window/aggregations.pyx:1422, in pandas._libs.window.aggregations.roll_apply()
+city_month = city_month.groupby("Ville", group_keys=False).apply(rolling_city)
 
-TypeError: rolling_weighted_global.<locals>.wavg() missing 1 required positional argument: 'poids'"
-}
+
+model_agg = city_month.rename(columns={
+    "Periode":"DATE",
+    "prix_moyen_pondere_ville":"Prix_m2_moyen_pondere",
+    "prix_glissant_pondere_12m_ville":"Glissant_pondere_12m",
+    "prix_glissant_pondere_3m_ville":"Glissant_pondere_3m"
+
+})
+model_agg = model_agg[model_agg["DATE"] < "2025-10-01"]
+for ville in model_agg["Ville"].unique():
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
+    fig = px.line(
+        df_ville, x="DATE",
+        y=["Prix_m2_moyen_pondere","Glissant_pondere_12m","Glissant_pondere_3m"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value":"Prix du m² (€)","variable":"Indicateur","DATE":"Date"},
+        markers=True
+    )
+    fig.update_layout(
+        title_x=0.5, plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix", height=500
+    )
+    fig.show()
+
