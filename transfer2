@@ -52,3 +52,81 @@ for ville in fusion["Ville"].dropna().unique():
     )
     fig.update_traces(opacity=0.7)
     fig.show()
+
+{
+	"name": "ValueError",
+	"message": "All arguments should have the same length. The length of argument `y` is 4, whereas the length of previously-processed arguments ['DATE'] is 121",
+	"stack": "---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[36], line 36
+     32 # Liste des colonnes numériques à tracer
+     33 colonnes_a_tracer = [\"Prix moyen glissant 12 mois - Univ Elem\", \"Prix moyen glissant 3 mois - Univ Elem\",
+     34                      \"Prix moyen glissant 12 mois - LPI/IAD\",\"Prix moyen glissant 12 mois - CL\"]
+---> 36 fig = px.line(
+     37     df_ville,
+     38     x=\"DATE\",
+     39     y=colonnes_a_tracer,
+     40     title=f\"Évolution du prix au m² — {ville}\",
+     41     labels={\"value\": \"Prix du m² (€)\", \"variable\": \"Indicateur\", \"DATE\": \"Date\"},
+     42     markers=True
+     43 )
+     45 fig.update_layout(
+     46     title_x=0.5,
+     47     plot_bgcolor=\"white\",
+   (...)     51     height=600
+     52 )
+     53 fig.update_traces(opacity=0.7)
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_chart_types.py:270, in line(data_frame, x, y, line_group, color, line_dash, symbol, hover_name, hover_data, custom_data, text, facet_row, facet_col, facet_col_wrap, facet_row_spacing, facet_col_spacing, error_x, error_x_minus, error_y, error_y_minus, animation_frame, animation_group, category_orders, labels, orientation, color_discrete_sequence, color_discrete_map, line_dash_sequence, line_dash_map, symbol_sequence, symbol_map, markers, log_x, log_y, range_x, range_y, line_shape, render_mode, title, subtitle, template, width, height)
+    221 def line(
+    222     data_frame=None,
+    223     x=None,
+   (...)    264     height=None,
+    265 ) -> go.Figure:
+    266     \"\"\"
+    267     In a 2D line plot, each row of `data_frame` is represented as a vertex of
+    268     a polyline mark in 2D space.
+    269     \"\"\"
+--> 270     return make_figure(args=locals(), constructor=go.Scatter)
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:2491, in make_figure(args, constructor, trace_patch, layout_patch)
+   2488 layout_patch = layout_patch or {}
+   2489 apply_default_cascade(args)
+-> 2491 args = build_dataframe(args, constructor)
+   2492 if constructor in [go.Treemap, go.Sunburst, go.Icicle] and args[\"path\"] is not None:
+   2493     args = process_dataframe_hierarchy(args)
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:1737, in build_dataframe(args, constructor)
+   1734     args[\"color\"] = None
+   1735 # now that things have been prepped, we do the systematic rewriting of `args`
+-> 1737 df_output, wide_id_vars = process_args_into_dataframe(
+   1738     args,
+   1739     wide_mode,
+   1740     var_name,
+   1741     value_name,
+   1742     is_pd_like,
+   1743     native_namespace,
+   1744 )
+   1745 df_output: nw.DataFrame
+   1746 # now that `df_output` exists and `args` contains only references, we complete
+   1747 # the special-case and wide-mode handling by further rewriting args and/or mutating
+   1748 # df_output
+
+File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:1383, in process_args_into_dataframe(args, wide_mode, var_name, value_name, is_pd_like, native_namespace)
+   1380         col_name = _check_name_not_reserved(field, reserved_names)
+   1382     if length and (len_arg := len(argument)) != length:
+-> 1383         raise ValueError(
+   1384             \"All arguments should have the same length. \"
+   1385             \"The length of argument `%s` is %d, whereas the \"
+   1386             \"length of previously-processed arguments %s is %d\"
+   1387             % (field, len_arg, str(list(df_output.keys())), length)
+   1388         )
+   1390     df_output[str(col_name)] = to_named_series(
+   1391         x=argument,
+   1392         name=str(col_name),
+   1393         native_namespace=native_namespace,
+   1394     )
+   1396 # Finally, update argument with column name now that column exists
+
+ValueError: All arguments should have the same length. The length of argument `y` is 4, whereas the length of previously-processed arguments ['DATE'] is 121"
+}
