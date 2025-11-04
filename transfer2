@@ -52,7 +52,7 @@ poids_global = (
     univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
 poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
 
-univers_complet = univers_mensuel.merge(
+univers_complet = univers_complet.merge(
     poids_global,
     on = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
     how = "left"
