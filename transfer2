@@ -1,3 +1,37 @@
+
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+base_ml = base_ml.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+
+
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
+
+
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
+
+
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
 def complete_months(g):
     g = g.sort_values("Periode").set_index("Periode")
     idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
@@ -13,3 +47,55 @@ univers_complet = (
       .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
       .apply(complete_months)
 )
+
+poids_global = (
+    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
+
+univers_complet = univers_mensuel.merge(
+    poids_global,
+    on = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
+    how = "left"
+)
+def calcule_prix_pondere(g):
+    g = g.sort_values("Periode").copy()
+    resultats = []
+
+    for periode, subset in g.groupby("Periode"):
+        subset =subset.copy()
+        subset["I"] = (subset["nb_transac"] > 0).astype(int)
+        subset["poids_actif"] = subset["poids_relatif"] * subset["I"]
+        total_poids = subset["poids_actif"].sum()
+        if total_poids > 0:
+            subset["poids_dyn"] = subset["poids_actif"] / total_poids
+            prix_pondere = np.average(subset["prix_moyen"], weights = subset["poids_dyn"])
+        else:
+            prix_pondere = np.nan
+        resultats.append({"Ville" : subset["Ville"].iloc[0],
+                          "Periode" : periode,
+                          "prix_moyen_pondere_dyn" : prix_pondere})
+    return pd.DataFrame(resultats)
+
+model_agg = univers_complet.groupby("Ville", group_keys = False).apply(calcule_prix_pondere)
+
+model_agg = model_agg.sort_values(["Ville","Periode"])
+model_agg["glissant_3m"] = model_agg.groupby("Ville")["prix_moyen_pondere_dyn"].transform(lambda s: s.rolling(3, min_periods = 1).mean())
+model_agg["glissant_12m"] = model_agg.groupby("Ville")["prix_moyen_pondere_dyn"].transform(lambda s: s.rolling(12, min_periods = 12).mean())
+model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
+for ville in model_agg["Ville"].unique():
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("Periode")
+    fig = px.line(
+        df_ville, x="Periode",
+        y=["prix_moyen_pondere_dyn","glissant_3m","glissant_12m"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value":"Prix du m² (€)","variable":"Indicateur","Periode":"Date"},
+        markers=True
+    )
+    fig.update_layout(
+        title_x=0.5, plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix", height=500
+    )
+    fig.show()
+
