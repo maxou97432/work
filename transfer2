@@ -1,39 +1,38 @@
+def calcule_prix_pondere_ville_periode(g):
+    subset = g.copy()
+    subset["I"] = (subset["nb_transac"] > 0).astype(int)
+    subset["poids_actif"] = subset["poids_relatif"] * subset["I"]
+    total_poids = subset["poids_actif"].sum()
 
-top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
-         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
-base_ml = base_ml.rename(columns={"ville_":"Ville"})
-base_ml2 = base_ml.copy()
-base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+    if total_poids > 0:
+        subset["poids_dyn"] = subset["poids_actif"] / total_poids
+        prix_pondere = np.average(subset["prix_moyen"], weights=subset["poids_dyn"])
+    else:
+        prix_pondere = np.nan
 
+    return pd.Series({
+        "prix_moyen_pondere_dyn": prix_pondere
+    })
 
-base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
-base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
-
-
-keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
-
-univers_mensuel = (
-    base_ml2
-      .groupby(keys, dropna=False)
-      .agg(
-          nb_transac     = ("ID", "size"),
-          prix_moyen     = ("Prix_m2", "mean"),
-          prix_median    = ("Prix_m2", "median"),
-          surface_moyenne= ("NB_SURF_HAB", "mean")
-      )
-      .reset_index()
+# --- Calcul pondéré global (Ville + Periode)
+model_agg = (
+    univers_complet
+    .groupby(["Ville", "Periode"], as_index=False)
+    .apply(calcule_prix_pondere_ville_periode)
 )
 
+# --- Calcul des glissants
+model_agg = model_agg.sort_values(["Ville", "Periode"])
+model_agg["glissant_3m"] = (
+    model_agg.groupby("Ville")["prix_moyen_pondere_dyn"]
+    .transform(lambda s: s.rolling(3, min_periods=1).mean())
+)
+model_agg["glissant_12m"] = (
+    model_agg.groupby("Ville")["prix_moyen_pondere_dyn"]
+    .transform(lambda s: s.rolling(12, min_periods=3).mean())
+)
 
-univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
-univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
-mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
-
-
-def complete_months(g):
-    g = g.sort_values("Periode").set_index("Periode")
+model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
     idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
     g = g.reindex(idx)
     for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
