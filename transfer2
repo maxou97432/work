@@ -1,132 +1,169 @@
-import plotly.express as px
-import pandas as pd
 
-# Harmonisation des noms de colonnes
-model_agg = city_month.rename(columns={
-    "Periode": "DATE",
-    "prix_moyen_pondere_ville": "Prix_m2_moyen_pondere",
-    "prix_glissant_pondere_12m_ville": "Glissant_pondere_12m",
-    "prix_glissant_pondere_3m_ville" : "Glissant_pondere_3m"
-})
-
-model_agg2 = model_agg.drop(columns=["Prix_m2_moyen_ponderere"], errors="ignore")
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+base_ml = base_ml.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
 
-model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
-merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
 
-# Fusion des deux tables sur Ville + DATE
-fusion = pd.merge(
-    model_agg2,
-    merge,
-    on=["Ville", "DATE"],
-    how="outer",
-    suffixes = ("_univ","_ext")
+
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
 )
-fusion = fusion.rename(columns={"Glissant_pondere_12m":"Prix moyen glissant 12 mois - Univ Elem", 
-                                "Glissant_pondere_3m":"Prix moyen glissant 3 mois - Univ Elem"})
-# Boucle pour tracer un graphique par ville
-for ville in fusion["Ville"].dropna().unique():
-    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
 
-    # Liste des colonnes numériques à tracer
-    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
-                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
 
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
+
+
+poids_global = (
+    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
+
+univers_complet = univers_complet.merge(
+    poids_global,
+    on = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
+    how = "left"
+)
+def calcule_prix_pondere(g):
+    g = g.sort_values("Periode").copy()
+    resultats = []
+
+    for periode, subset in g.groupby("Periode"):
+        subset =subset.copy()
+        subset["I"] = (subset["nb_transac"] > 0).astype(int)
+        subset["poids_actif"] = subset["poids_relatif"] * subset["I"]
+        total_poids = subset["poids_actif"].sum()
+        if total_poids > 0:
+            subset["poids_dyn"] = subset["poids_actif"] / total_poids
+            prix_pondere = np.average(subset["prix_moyen"], weights = subset["poids_dyn"])
+        else:
+            prix_pondere = np.nan
+        resultats.append({"Ville" : subset["Ville"].iloc[0],
+                          "Periode" : periode,
+                          "prix_moyen_pondere_dyn" : prix_pondere})
+
+
+def rolling_weighted_global(g):
+    g = g.sort_values("Periode").copy()
+
+    g["poids_fix"] = g["poids_relatif"].fillna(0)
+
+    def wavg(series):
+        poids_loc = g.loc[series.index, "poids_fix"]
+        valid = poids_loc > 0
+        if valid.sum() == 0:
+            return np.nan
+        return np.average(series[valid],weights = poids_loc[valid])
+    
+    
+    g["prix_moyen_glissant_pondere_12m"] = (
+        g["prix_moyen"].rolling(window = 12, min_periods = 3).apply(wavg, raw = False)
+    )
+    g["prix_moyen_glissant_pondere_3m"] = (
+        g["prix_moyen"].rolling(window = 3, min_periods = 1).apply(wavg, raw = False)
+    )
+    
+    return g
+
+univers_glissant = (
+    univers_complet
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(rolling_weighted_global)
+)
+
+
+resultat = univers_glissant[
+    ["Periode","Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE",
+     "prix_moyen","nb_transac","prix_moyen_glissant_pondere_12m"]
+].sort_values(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"])
+
+resultat
+
+
+
+df = resultat.copy()
+df["Periode"] = pd.to_datetime(df["Periode"])
+df["Ville"]   = df["Ville"].str.strip().str.upper()
+
+city_month = (
+    df.assign(prod=lambda x: x["prix_moyen"] * x["nb_transac"])
+      .groupby(["Ville","Periode"], as_index=False)
+      .agg(nb_transac_total=("nb_transac","sum"),
+           sum_prod=("prod","sum"))
+)
+city_month["prix_moyen_pondere_ville"] = (
+    city_month["sum_prod"] / city_month["nb_transac_total"].where(city_month["nb_transac_total"]>0)
+)
+
+def complete_city(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    g["Ville"] = g["Ville"].ffill().bfill()
+    g["nb_transac_total"] = g["nb_transac_total"].fillna(0)
+    g["sum_prod"] = g["sum_prod"].fillna(0)
+
+    g["prix_moyen_pondere_ville"] = g["sum_prod"] / g["nb_transac_total"].where(g["nb_transac_total"]>0)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+city_month = (
+    city_month.groupby("Ville", group_keys=False).apply(complete_city)
+)
+
+def rolling_city(g):
+    g = g.sort_values("Periode")
+    num_12m = g["sum_prod"].rolling(12, min_periods=3).sum()
+    den_12m = g["nb_transac_total"].rolling(12, min_periods=3).sum()
+    g["prix_glissant_pondere_12m_ville"] = num_12m / den_12m.where(den_12m>0)
+    num_3m = g["sum_prod"].rolling(3, min_periods=1).sum()
+    den_3m = g["nb_transac_total"].rolling(3, min_periods=1).sum()
+    g["prix_glissant_pondere_3m_ville"] = num_3m / den_3m.where(den_3m>0)
+    return g
+
+city_month = city_month.groupby("Ville", group_keys=False).apply(rolling_city)
+
+
+model_agg = city_month.rename(columns={
+    "Periode":"DATE",
+    "prix_moyen_pondere_ville":"Prix_m2_moyen_pondere",
+    "prix_glissant_pondere_12m_ville":"Glissant_pondere_12m",
+    "prix_glissant_pondere_3m_ville":"Glissant_pondere_3m"
+
+})
+model_agg = model_agg[model_agg["DATE"] < "2025-10-01"]
+for ville in model_agg["Ville"].unique():
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("DATE")
     fig = px.line(
-        df_ville,
-        x="DATE",
-        y=colonnes_a_tracer,
+        df_ville, x="DATE",
+        y=["Prix_m2_moyen_pondere","Glissant_pondere_12m","Glissant_pondere_3m"],
         title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        labels={"value":"Prix du m² (€)","variable":"Indicateur","DATE":"Date"},
         markers=True
     )
-
     fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
+        title_x=0.5, plot_bgcolor="white",
         xaxis=dict(showgrid=True, gridcolor="#eee"),
         yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=600
+        legend_title="Type de prix", height=500
     )
-    fig.update_traces(opacity=0.7)
     fig.show()
 
-{
-	"name": "ValueError",
-	"message": "All arguments should have the same length. The length of argument `y` is 4, whereas the length of previously-processed arguments ['DATE'] is 121",
-	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-Cell In[36], line 36
-     32 # Liste des colonnes numériques à tracer
-     33 colonnes_a_tracer = [\"Prix moyen glissant 12 mois - Univ Elem\", \"Prix moyen glissant 3 mois - Univ Elem\",
-     34                      \"Prix moyen glissant 12 mois - LPI/IAD\",\"Prix moyen glissant 12 mois - CL\"]
----> 36 fig = px.line(
-     37     df_ville,
-     38     x=\"DATE\",
-     39     y=colonnes_a_tracer,
-     40     title=f\"Évolution du prix au m² — {ville}\",
-     41     labels={\"value\": \"Prix du m² (€)\", \"variable\": \"Indicateur\", \"DATE\": \"Date\"},
-     42     markers=True
-     43 )
-     45 fig.update_layout(
-     46     title_x=0.5,
-     47     plot_bgcolor=\"white\",
-   (...)     51     height=600
-     52 )
-     53 fig.update_traces(opacity=0.7)
-
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_chart_types.py:270, in line(data_frame, x, y, line_group, color, line_dash, symbol, hover_name, hover_data, custom_data, text, facet_row, facet_col, facet_col_wrap, facet_row_spacing, facet_col_spacing, error_x, error_x_minus, error_y, error_y_minus, animation_frame, animation_group, category_orders, labels, orientation, color_discrete_sequence, color_discrete_map, line_dash_sequence, line_dash_map, symbol_sequence, symbol_map, markers, log_x, log_y, range_x, range_y, line_shape, render_mode, title, subtitle, template, width, height)
-    221 def line(
-    222     data_frame=None,
-    223     x=None,
-   (...)    264     height=None,
-    265 ) -> go.Figure:
-    266     \"\"\"
-    267     In a 2D line plot, each row of `data_frame` is represented as a vertex of
-    268     a polyline mark in 2D space.
-    269     \"\"\"
---> 270     return make_figure(args=locals(), constructor=go.Scatter)
-
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:2491, in make_figure(args, constructor, trace_patch, layout_patch)
-   2488 layout_patch = layout_patch or {}
-   2489 apply_default_cascade(args)
--> 2491 args = build_dataframe(args, constructor)
-   2492 if constructor in [go.Treemap, go.Sunburst, go.Icicle] and args[\"path\"] is not None:
-   2493     args = process_dataframe_hierarchy(args)
-
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:1737, in build_dataframe(args, constructor)
-   1734     args[\"color\"] = None
-   1735 # now that things have been prepped, we do the systematic rewriting of `args`
--> 1737 df_output, wide_id_vars = process_args_into_dataframe(
-   1738     args,
-   1739     wide_mode,
-   1740     var_name,
-   1741     value_name,
-   1742     is_pd_like,
-   1743     native_namespace,
-   1744 )
-   1745 df_output: nw.DataFrame
-   1746 # now that `df_output` exists and `args` contains only references, we complete
-   1747 # the special-case and wide-mode handling by further rewriting args and/or mutating
-   1748 # df_output
-
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:1383, in process_args_into_dataframe(args, wide_mode, var_name, value_name, is_pd_like, native_namespace)
-   1380         col_name = _check_name_not_reserved(field, reserved_names)
-   1382     if length and (len_arg := len(argument)) != length:
--> 1383         raise ValueError(
-   1384             \"All arguments should have the same length. \"
-   1385             \"The length of argument `%s` is %d, whereas the \"
-   1386             \"length of previously-processed arguments %s is %d\"
-   1387             % (field, len_arg, str(list(df_output.keys())), length)
-   1388         )
-   1390     df_output[str(col_name)] = to_named_series(
-   1391         x=argument,
-   1392         name=str(col_name),
-   1393         native_namespace=native_namespace,
-   1394     )
-   1396 # Finally, update argument with column name now that column exists
-
-ValueError: All arguments should have the same length. The length of argument `y` is 4, whereas the length of previously-processed arguments ['DATE'] is 121"
-}
