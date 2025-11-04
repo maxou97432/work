@@ -1,39 +1,18 @@
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    g["prix_moyen"] = g["prix_moyen"].fillna(np.nan)
+    return g.reset_index().rename(columns={"index":"Periode"})
 
-top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
-         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
-base_ml = base_ml.rename(columns={"ville_":"Ville"})
-base_ml2 = base_ml.copy()
-base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
-
-
-base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
-base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
-
-
-keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
-
-univers_mensuel = (
-    base_ml2
-      .groupby(keys, dropna=False)
-      .agg(
-          nb_transac     = ("ID", "size"),
-          prix_moyen     = ("Prix_m2", "mean"),
-          prix_median    = ("Prix_m2", "median"),
-          surface_moyenne= ("NB_SURF_HAB", "mean")
-      )
-      .reset_index()
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
 )
-
-
-univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
-univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
-mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
-
-
-
-
 poids_global = (
     univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
 poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
