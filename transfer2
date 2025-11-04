@@ -65,8 +65,8 @@ def calcule_prix_pondere(g):
 model_agg = univers_complet.groupby("Ville", group_keys = False).apply(calcule_prix_pondere)
 
 model_agg = model_agg.sort_values(["Ville","Periode"])
-model_agg["glissant_3m"] = model_agg["prix_moyen_pondere_dyn"].transform(lambda s: s.rolling(3, min_periods = 1).mean())
-model_agg["glissant_12m"] = model_agg["prix_moyen_pondere_dyn"].transform(lambda s: s.rolling(12, min_periods = 12).mean())
+model_agg["glissant_3m"] = model_agg.groupby("Ville")["prix_moyen_pondere_dyn"].transform(lambda s: s.rolling(3, min_periods = 1).mean())
+model_agg["glissant_12m"] = model_agg.groupby("Ville")["prix_moyen_pondere_dyn"].transform(lambda s: s.rolling(12, min_periods = 12).mean())
 model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
 for ville in model_agg["Ville"].unique():
     df_ville = model_agg[model_agg["Ville"] == ville].sort_values("Periode")
