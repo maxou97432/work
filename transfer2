@@ -34,3 +34,30 @@ Evolution du prix au m²
 
 
 La dernière étape (à venir) consiste à modéliser l’un de ces indicateurs par ML afin d’estimer sa valeur future.
+
+1.1 Description des missions du service
+La Direction du Risque et des Modèles de garantie a pour mission d’assurer une surveillance du
+risque et des modèles de garantie et de proposer une politique de gestion des risques, visant à mettre
+en oeuvre la stratégie définie par la Direction Générale.
+Elle a pour mission de proposer la définition et l’adaptation des règles d’analyse du risque et de
+recouvrement du portefeuille de garanties au Comité de la Politique des Risques de Crédit (CPR),
+de mettre en oeuvre et de formaliser la politique de gestion du risque de crédit de l’activité de banque
+de détail (i.e garanties délivrées sur les prêts immobiliers) conformément aux orientations définies
+par le CPR. À ces titres, elle est plus particulièrement en charge :
+• du système de notation interne et du calcul de l’exigence de fonds propres réglementaires
+du risque de crédit de l’activité de banque de détail
+• de la doctrine de sélection des risques de l’activité de banque de détail
+Par ailleurs, la Direction du Risque et des Modèles de garantie intervient en appui à d’autres
+entités pour :
+• les études de modélisation des grands équilibres financiers de l’établissement :
+• mesure des impacts d’une refonte de la tarification des opérations
+• mesure des impacts d’opérations de gestion de bilan telles qu’une cession de créances
+• modélisation des remboursements anticipés
+• modélisation des entrées contentieuses
+• la fourniture, à des fins de communication externe, de statistiques sur le risque de
+crédit de l’activité de banque de détail (agences de notation, observatoires, partenaires),
+• la veille relative aux évolutions de la réglementation prudentielle.
+Les travaux sur lesquels le sujet du stage aura une influence ont été marqués en gras. En effet,
+l’automatisation et l’exploitation des nouvelles données risques permettra dans le futur d’affiner le
+système de notation interne en prenant en compte les premiers éléments de risque sur un dossier
+dont Crédit Logement n’a pas connaissance jusqu’à présent.
