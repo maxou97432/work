@@ -1,215 +1,36 @@
-================================================================================
-Comparaison : Prix moyen glissant 12 mois - Univ Elem  vs  Prix moyen glissant 12 mois - LPI/IAD
-       Prix moyen glissant 12 mois - Univ Elem  \
-count                              1427.000000   
-mean                               4137.010603   
-std                                1980.229140   
-min                                2183.757446   
-25%                                2995.937173   
-50%                                3645.043408   
-75%                                4239.391918   
-max                               11232.224960   
 
-       Prix moyen glissant 12 mois - LPI/IAD  
-count                            1200.000000  
-mean                             4160.914167  
-std                              1995.266909  
-min                              2263.000000  
-25%                              2982.750000  
-50%                              3611.500000  
-75%                              4311.250000  
-max                             11625.000000  
-Corrélation prix du m² : 0.995
+Votre prochaine échéance : la note d’étape un mois après le début du stage
+Il vous est demandé de rédiger une note libre de 2 à 3 pages qui s’attache à décrire votre mission (environnement, objectifs, résultats attendus...), le timing prévisionnel des différentes étapes, les méthodologies utilisées (ou qui seront mobilisées) ainsi que l’état actuel de vos travaux. La note d’étape a pour objectif de vérifier le bon déroulement de votre stage.
 
-Résumé des différences :
-count    1176.000000
-mean      -99.422867
-std       208.096738
-min      -736.343139
-25%      -221.433156
-50%      -107.801690
-75%        30.658167
-max       646.805154
-dtype: float64
+Crédit Logement est une société de financement garantissant les prêts immobiliers. Elle est partenaire de toutes les banques et garantit un prêt immobilier sur trois en France. Crédit Logement représente une alternative à la prise d'hypothèque lors de l'octroi d'un prêt immobilier par une banque. 
+En parallèle de son activité, Crédit Logement a mis en place un modèle d’estimation des biens (CL Estim). Ce modèle représente une solution à l’estimation des portefeuilles de biens résidentiels, mais également des biens unitaires. Pour chaque estimation Crédit Logement fournit : la valeur immobilière estimée, des indicateurs de qualité et de fiabilité de prédiction, l’adresse certifiée ainsi que les coordonnées GPS.
 
-Pente = 1.011, Intercept = 53.85, R² = 0.989, p = 0.0000
+Les données d’entraînement de CL Estim sont les suivantes : 
+Données propres à Crédit Logement : toutes les transactions garanties par Crédit Logement
+Données Open Source : DVF (ensemble des transactions en France), ADEME (données diagnostic de performance énergétique), INSEE (distance école, mer, nombre de commerce…)
 
-Test t apparié : p-value = 1.7012e-54
-→ Différence significative entre les deux séries (p < 0.05)
-================================================================================
-Comparaison : Prix moyen glissant 12 mois - Univ Elem  vs  Prix moyen glissant 12 mois - CL
-       Prix moyen glissant 12 mois - Univ Elem  \
-count                              1427.000000   
-mean                               4137.010603   
-std                                1980.229140   
-min                                2183.757446   
-25%                                2995.937173   
-50%                                3645.043408   
-75%                                4239.391918   
-max                               11232.224960   
+Ma mission consiste à mettre en place des contrôles pour mieux appréhender les données d’entraînement du modèle CL Estim et le marché immobilier. Puis En fonction des résultats des contrôles, nous choisirons un indicateur marché à estimer par ML. Ma mission consistera alors à modéliser cet indicateur pour améliorer la performance de CL Estim.
 
-       Prix moyen glissant 12 mois - CL  
-count                       1092.000000  
-mean                        4069.485431  
-std                         1995.445442  
-min                         2147.998465  
-25%                         2960.824901  
-50%                         3558.778881  
-75%                         4194.540218  
-max                        11211.409482  
-Corrélation prix du m² : 0.998
+La première étape (terminée) consiste à produire des premières statistiques descriptives et graphiques.
 
-Résumé des différences :
-count    1092.000000
-mean       63.884893
-std       135.051875
-min      -289.175932
-25%         1.988791
-50%        58.427912
-75%       160.493589
-max       343.946828
-dtype: float64
+Actuellement, Crédit Logement enrichie leurs données personnelles à l’aide de données open source. Ces données enrichies servent de données d’entrainement au modèle ML actuel. Cependant, ces données n’étant pas toutes directement produites par Crédit Logement, il serait intéressant de vérifier la validité de ces données et analyser leur statistique descriptive. Il faut donc mettre en place un reporting automatisé qui permettra d’afficher les premières statistiques descriptives et quelques graphiques (box plot, densité, histogramme…) pour pouvoir comprendre ces données et éventuellement détecter certains problèmes. Cette automatisation est faite avec le langage de programmation Python. Le programme ne prend rien en entrée et produit un fichier Excel contenant les statistiques descriptives des variables quantitatives, qualitatives et dates de toutes les tables constituant la base d’entraînement.
 
-Pente = 1.002, Intercept = -70.79, R² = 0.995, p = 0.0000
+Résultat : Cette automatisation nous a permis de mieux comprendre les données et se familiariser avec celle-ci. Nous avons pu remarquer que les variables qualitatives sont très sujettes aux données manquantes et que d’autres n’étaient pas indispensables au modèle puisque pas assez discriminantes. Les données quantitatives, quant à elle, présente de nombreuses données extrêmes. La régression étant assez sensibles aux valeurs extrêmes, ces variables peuvent engendrer une réduction de la performance prédictive.  Néanmoins, si ce type de biens atypiques est retiré de la base d’entrainement, le modèle risque de mal prédire leurs prix. Le choix a été de conserver l’intégralité des données afin d’obtenir un spectre de bien assez élevé.  L’écart gagné sur la performance des biens généraux aurait été trop faible comparé à la perte de performance sur les biens atypiques. 
 
-Test t apparié : p-value = 7.4249e-50
-→ Différence significative entre les deux séries (p < 0.05)
-================================================================================
-Comparaison : Prix moyen glissant 12 mois - Univ Elem  vs  Prix moyen glissant 3 mois - Univ Elem
-       Prix moyen glissant 12 mois - Univ Elem  \
-count                              1427.000000   
-mean                               4137.010603   
-std                                1980.229140   
-min                                2183.757446   
-25%                                2995.937173   
-50%                                3645.043408   
-75%                                4239.391918   
-max                               11232.224960   
+La seconde étape (en cours) consiste à mettre en place des contrôles des données.
 
-       Prix moyen glissant 3 mois - Univ Elem  
-count                             1451.000000  
-mean                              4168.104818  
-std                               1983.355975  
-min                               2147.025666  
-25%                               3022.604965  
-50%                               3665.485327  
-75%                               4332.521441  
-max                              11316.298669  
-Corrélation prix du m² : 0.999
+Nous allons donc mettre en place un contrôle automatisé des données. Ces contrôles sont des indicateurs clés du marché immobilier et de l’évolution de l’activité de Crédit Logement. 
+Les indicateurs calculés sont les suivant :
+Volume de transaction par année (DVF), part du marché des transactions de Crédit Logement 
+Résultat : Crédit Logement garantit en moyenne 25% des crédits immobiliers et représente 32% des montants garantit en France.
 
-Résumé des différences :
-count    1427.000000
-mean      -44.401798
-std        98.738076
-min      -707.600628
-25%       -95.464389
-50%       -44.542139
-75%         5.193357
-max       487.708603
-dtype: float64
+Taux de rapprochement entre données Open Source(DVF) et données de Crédit Logement. 
+Explication : DVF répertorie les données de l’ensemble des transactions en France y compris celle réalisé par Crédit Logement. Cet indicateur permet de savoir à quel point les données de DVF sont proches de celle de Crédit Logement sur les opérations réalisées par Crédit Logement.
+Résultat : 
 
-Pente = 1.002, Intercept = 34.37, R² = 0.998, p = 0.0000
+Evolution du taux d’inflation par année 
+Evolution du prix au m² 
 
-Test t apparié : p-value = 4.4082e-59
-→ Différence significative entre les deux séries (p < 0.05)
-================================================================================
-Comparaison : Prix moyen glissant 12 mois - LPI/IAD  vs  Prix moyen glissant 12 mois - CL
-       Prix moyen glissant 12 mois - LPI/IAD  Prix moyen glissant 12 mois - CL
-count                            1200.000000                       1092.000000
-mean                             4160.914167                       4069.485431
-std                              1995.266909                       1995.445442
-min                              2263.000000                       2147.998465
-25%                              2982.750000                       2960.824901
-50%                              3611.500000                       3558.778881
-75%                              4311.250000                       4194.540218
-max                             11625.000000                      11211.409482
-Corrélation prix du m² : 0.995
 
-Résumé des différences :
-count    1068.000000
-mean      163.120916
-std       210.366044
-min      -629.798987
-25%         1.577522
-50%       155.007507
-75%       302.813469
-max       805.211506
-dtype: float64
 
-Pente = 0.982, Intercept = -84.89, R² = 0.989, p = 0.0000
-
-Test t apparié : p-value = 2.7327e-111
-→ Différence significative entre les deux séries (p < 0.05)
-================================================================================
-Comparaison : Prix moyen glissant 12 mois - LPI/IAD  vs  Prix moyen glissant 3 mois - Univ Elem
-       Prix moyen glissant 12 mois - LPI/IAD  \
-count                            1200.000000   
-mean                             4160.914167   
-std                              1995.266909   
-min                              2263.000000   
-25%                              2982.750000   
-50%                              3611.500000   
-75%                              4311.250000   
-max                             11625.000000   
-
-       Prix moyen glissant 3 mois - Univ Elem  
-count                             1451.000000  
-mean                              4168.104818  
-std                               1983.355975  
-min                               2147.025666  
-25%                               3022.604965  
-50%                               3665.485327  
-75%                               4332.521441  
-max                              11316.298669  
-Corrélation prix du m² : 0.995
-
-Résumé des différences :
-count    1200.000000
-mean       46.589178
-std       200.416523
-min      -745.903991
-25%       -71.094817
-50%        59.237350
-75%       174.731103
-max       624.202374
-dtype: float64
-
-Pente = 0.987, Intercept = 7.65, R² = 0.990, p = 0.0000
-
-Test t apparié : p-value = 1.9378e-15
-→ Différence significative entre les deux séries (p < 0.05)
-================================================================================
-Comparaison : Prix moyen glissant 12 mois - CL  vs  Prix moyen glissant 3 mois - Univ Elem
-       Prix moyen glissant 12 mois - CL  \
-count                       1092.000000   
-mean                        4069.485431   
-std                         1995.445442   
-min                         2147.998465   
-25%                         2960.824901   
-50%                         3558.778881   
-75%                         4194.540218   
-max                        11211.409482   
-
-       Prix moyen glissant 3 mois - Univ Elem  
-count                             1451.000000  
-mean                              4168.104818  
-std                               1983.355975  
-min                               2147.025666  
-25%                               3022.604965  
-50%                               3665.485327  
-75%                               4332.521441  
-max                              11316.298669  
-Corrélation prix du m² : 0.997
-
-Résumé des différences :
-count    1092.000000
-mean     -122.097599
-std       155.522803
-min      -537.225803
-25%      -238.132171
-50%      -126.632181
-75%       -38.398474
-max       354.734843
-dtype: float64
-
-Pente = 1.001, Intercept = 119.72, R² = 0.994, p = 0.0000
+La dernière étape (à venir) consiste à modéliser l’un de ces indicateurs par ML afin d’estimer sa valeur future.
