@@ -1,132 +1,215 @@
-import plotly.express as px
-import pandas as pd
+================================================================================
+Comparaison : Prix moyen glissant 12 mois - Univ Elem  vs  Prix moyen glissant 12 mois - LPI/IAD
+       Prix moyen glissant 12 mois - Univ Elem  \
+count                              1427.000000   
+mean                               4137.010603   
+std                                1980.229140   
+min                                2183.757446   
+25%                                2995.937173   
+50%                                3645.043408   
+75%                                4239.391918   
+max                               11232.224960   
 
+       Prix moyen glissant 12 mois - LPI/IAD  
+count                            1200.000000  
+mean                             4160.914167  
+std                              1995.266909  
+min                              2263.000000  
+25%                              2982.750000  
+50%                              3611.500000  
+75%                              4311.250000  
+max                             11625.000000  
+Corrélation prix du m² : 0.995
 
-model_agg = model_agg.rename(columns={
-    "Periode": "DATE",
-    "glissant_12m": "Glissant_pondere_12m",
-    "glissant_3m" : "Glissant_pondere_3m"
-})
+Résumé des différences :
+count    1176.000000
+mean      -99.422867
+std       208.096738
+min      -736.343139
+25%      -221.433156
+50%      -107.801690
+75%        30.658167
+max       646.805154
+dtype: float64
 
-model_agg2 = model_agg.drop(columns=["prix_moyen_pondere_dyn"], errors="ignore")
+Pente = 1.011, Intercept = 53.85, R² = 0.989, p = 0.0000
 
+Test t apparié : p-value = 1.7012e-54
+→ Différence significative entre les deux séries (p < 0.05)
+================================================================================
+Comparaison : Prix moyen glissant 12 mois - Univ Elem  vs  Prix moyen glissant 12 mois - CL
+       Prix moyen glissant 12 mois - Univ Elem  \
+count                              1427.000000   
+mean                               4137.010603   
+std                                1980.229140   
+min                                2183.757446   
+25%                                2995.937173   
+50%                                3645.043408   
+75%                                4239.391918   
+max                               11232.224960   
 
-model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
-merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+       Prix moyen glissant 12 mois - CL  
+count                       1092.000000  
+mean                        4069.485431  
+std                         1995.445442  
+min                         2147.998465  
+25%                         2960.824901  
+50%                         3558.778881  
+75%                         4194.540218  
+max                        11211.409482  
+Corrélation prix du m² : 0.998
 
+Résumé des différences :
+count    1092.000000
+mean       63.884893
+std       135.051875
+min      -289.175932
+25%         1.988791
+50%        58.427912
+75%       160.493589
+max       343.946828
+dtype: float64
 
-fusion = pd.merge(
-    model_agg2,
-    merge,
-    on=["Ville", "DATE"],
-    how="outer",
-    suffixes = ("_univ","_ext")
-)
+Pente = 1.002, Intercept = -70.79, R² = 0.995, p = 0.0000
 
-fusion = fusion.rename(columns={"glissant_12m":"Prix moyen glissant 12 mois - Univ Elem", 
-                                "glissant_3m":"Prix moyen glissant 3 mois - Univ Elem"})
-# Boucle pour tracer un graphique par ville
-for ville in fusion["Ville"].dropna().unique():
-    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
+Test t apparié : p-value = 7.4249e-50
+→ Différence significative entre les deux séries (p < 0.05)
+================================================================================
+Comparaison : Prix moyen glissant 12 mois - Univ Elem  vs  Prix moyen glissant 3 mois - Univ Elem
+       Prix moyen glissant 12 mois - Univ Elem  \
+count                              1427.000000   
+mean                               4137.010603   
+std                                1980.229140   
+min                                2183.757446   
+25%                                2995.937173   
+50%                                3645.043408   
+75%                                4239.391918   
+max                               11232.224960   
 
-    # Liste des colonnes numériques à tracer
-    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
-                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
+       Prix moyen glissant 3 mois - Univ Elem  
+count                             1451.000000  
+mean                              4168.104818  
+std                               1983.355975  
+min                               2147.025666  
+25%                               3022.604965  
+50%                               3665.485327  
+75%                               4332.521441  
+max                              11316.298669  
+Corrélation prix du m² : 0.999
 
-    fig = px.line(
-        df_ville,
-        x="DATE",
-        y=colonnes_a_tracer,
-        title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
-        markers=True
-    )
+Résumé des différences :
+count    1427.000000
+mean      -44.401798
+std        98.738076
+min      -707.600628
+25%       -95.464389
+50%       -44.542139
+75%         5.193357
+max       487.708603
+dtype: float64
 
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=600
-    )
-    fig.update_traces(opacity=0.7)
-    fig.show()
+Pente = 1.002, Intercept = 34.37, R² = 0.998, p = 0.0000
 
-{
-	"name": "ValueError",
-	"message": "All arguments should have the same length. The length of argument `y` is 4, whereas the length of previously-processed arguments ['DATE'] is 121",
-	"stack": "---------------------------------------------------------------------------
-ValueError                                Traceback (most recent call last)
-Cell In[27], line 36
-     32 # Liste des colonnes numériques à tracer
-     33 colonnes_a_tracer = [\"Prix moyen glissant 12 mois - Univ Elem\", \"Prix moyen glissant 3 mois - Univ Elem\",
-     34                      \"Prix moyen glissant 12 mois - LPI/IAD\",\"Prix moyen glissant 12 mois - CL\"]
----> 36 fig = px.line(
-     37     df_ville,
-     38     x=\"DATE\",
-     39     y=colonnes_a_tracer,
-     40     title=f\"Évolution du prix au m² — {ville}\",
-     41     labels={\"value\": \"Prix du m² (€)\", \"variable\": \"Indicateur\", \"DATE\": \"Date\"},
-     42     markers=True
-     43 )
-     45 fig.update_layout(
-     46     title_x=0.5,
-     47     plot_bgcolor=\"white\",
-   (...)     51     height=600
-     52 )
-     53 fig.update_traces(opacity=0.7)
+Test t apparié : p-value = 4.4082e-59
+→ Différence significative entre les deux séries (p < 0.05)
+================================================================================
+Comparaison : Prix moyen glissant 12 mois - LPI/IAD  vs  Prix moyen glissant 12 mois - CL
+       Prix moyen glissant 12 mois - LPI/IAD  Prix moyen glissant 12 mois - CL
+count                            1200.000000                       1092.000000
+mean                             4160.914167                       4069.485431
+std                              1995.266909                       1995.445442
+min                              2263.000000                       2147.998465
+25%                              2982.750000                       2960.824901
+50%                              3611.500000                       3558.778881
+75%                              4311.250000                       4194.540218
+max                             11625.000000                      11211.409482
+Corrélation prix du m² : 0.995
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_chart_types.py:270, in line(data_frame, x, y, line_group, color, line_dash, symbol, hover_name, hover_data, custom_data, text, facet_row, facet_col, facet_col_wrap, facet_row_spacing, facet_col_spacing, error_x, error_x_minus, error_y, error_y_minus, animation_frame, animation_group, category_orders, labels, orientation, color_discrete_sequence, color_discrete_map, line_dash_sequence, line_dash_map, symbol_sequence, symbol_map, markers, log_x, log_y, range_x, range_y, line_shape, render_mode, title, subtitle, template, width, height)
-    221 def line(
-    222     data_frame=None,
-    223     x=None,
-   (...)    264     height=None,
-    265 ) -> go.Figure:
-    266     \"\"\"
-    267     In a 2D line plot, each row of `data_frame` is represented as a vertex of
-    268     a polyline mark in 2D space.
-    269     \"\"\"
---> 270     return make_figure(args=locals(), constructor=go.Scatter)
+Résumé des différences :
+count    1068.000000
+mean      163.120916
+std       210.366044
+min      -629.798987
+25%         1.577522
+50%       155.007507
+75%       302.813469
+max       805.211506
+dtype: float64
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:2491, in make_figure(args, constructor, trace_patch, layout_patch)
-   2488 layout_patch = layout_patch or {}
-   2489 apply_default_cascade(args)
--> 2491 args = build_dataframe(args, constructor)
-   2492 if constructor in [go.Treemap, go.Sunburst, go.Icicle] and args[\"path\"] is not None:
-   2493     args = process_dataframe_hierarchy(args)
+Pente = 0.982, Intercept = -84.89, R² = 0.989, p = 0.0000
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:1737, in build_dataframe(args, constructor)
-   1734     args[\"color\"] = None
-   1735 # now that things have been prepped, we do the systematic rewriting of `args`
--> 1737 df_output, wide_id_vars = process_args_into_dataframe(
-   1738     args,
-   1739     wide_mode,
-   1740     var_name,
-   1741     value_name,
-   1742     is_pd_like,
-   1743     native_namespace,
-   1744 )
-   1745 df_output: nw.DataFrame
-   1746 # now that `df_output` exists and `args` contains only references, we complete
-   1747 # the special-case and wide-mode handling by further rewriting args and/or mutating
-   1748 # df_output
+Test t apparié : p-value = 2.7327e-111
+→ Différence significative entre les deux séries (p < 0.05)
+================================================================================
+Comparaison : Prix moyen glissant 12 mois - LPI/IAD  vs  Prix moyen glissant 3 mois - Univ Elem
+       Prix moyen glissant 12 mois - LPI/IAD  \
+count                            1200.000000   
+mean                             4160.914167   
+std                              1995.266909   
+min                              2263.000000   
+25%                              2982.750000   
+50%                              3611.500000   
+75%                              4311.250000   
+max                             11625.000000   
 
-File n:\\uflumth\\indicateur_marche\\prix_m2\\my_cl_estim\\.venv\\Lib\\site-packages\\plotly\\express\\_core.py:1383, in process_args_into_dataframe(args, wide_mode, var_name, value_name, is_pd_like, native_namespace)
-   1380         col_name = _check_name_not_reserved(field, reserved_names)
-   1382     if length and (len_arg := len(argument)) != length:
--> 1383         raise ValueError(
-   1384             \"All arguments should have the same length. \"
-   1385             \"The length of argument `%s` is %d, whereas the \"
-   1386             \"length of previously-processed arguments %s is %d\"
-   1387             % (field, len_arg, str(list(df_output.keys())), length)
-   1388         )
-   1390     df_output[str(col_name)] = to_named_series(
-   1391         x=argument,
-   1392         name=str(col_name),
-   1393         native_namespace=native_namespace,
-   1394     )
-   1396 # Finally, update argument with column name now that column exists
+       Prix moyen glissant 3 mois - Univ Elem  
+count                             1451.000000  
+mean                              4168.104818  
+std                               1983.355975  
+min                               2147.025666  
+25%                               3022.604965  
+50%                               3665.485327  
+75%                               4332.521441  
+max                              11316.298669  
+Corrélation prix du m² : 0.995
 
-ValueError: All arguments should have the same length. The length of argument `y` is 4, whereas the length of previously-processed arguments ['DATE'] is 121"
-}
+Résumé des différences :
+count    1200.000000
+mean       46.589178
+std       200.416523
+min      -745.903991
+25%       -71.094817
+50%        59.237350
+75%       174.731103
+max       624.202374
+dtype: float64
+
+Pente = 0.987, Intercept = 7.65, R² = 0.990, p = 0.0000
+
+Test t apparié : p-value = 1.9378e-15
+→ Différence significative entre les deux séries (p < 0.05)
+================================================================================
+Comparaison : Prix moyen glissant 12 mois - CL  vs  Prix moyen glissant 3 mois - Univ Elem
+       Prix moyen glissant 12 mois - CL  \
+count                       1092.000000   
+mean                        4069.485431   
+std                         1995.445442   
+min                         2147.998465   
+25%                         2960.824901   
+50%                         3558.778881   
+75%                         4194.540218   
+max                        11211.409482   
+
+       Prix moyen glissant 3 mois - Univ Elem  
+count                             1451.000000  
+mean                              4168.104818  
+std                               1983.355975  
+min                               2147.025666  
+25%                               3022.604965  
+50%                               3665.485327  
+75%                               4332.521441  
+max                              11316.298669  
+Corrélation prix du m² : 0.997
+
+Résumé des différences :
+count    1092.000000
+mean     -122.097599
+std       155.522803
+min      -537.225803
+25%      -238.132171
+50%      -126.632181
+75%       -38.398474
+max       354.734843
+dtype: float64
+
+Pente = 1.001, Intercept = 119.72, R² = 0.994, p = 0.0000
