@@ -1,5 +1,5 @@
 PS N:\uflumth\indicateur_marche\univers_elementaire> & "C:/Program Files/Python311/python.exe" n:/uflumth/indicateur_marche/univers_elementaire/stat_df_cleaned_data/stat_df_cleaned_data.py
 Traceback (most recent call last):
   File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 9, in <module>
-    from classe import (DateOffset,
-ModuleNotFoundError: No module named 'classe'
+    from ..classe import (DateOffset,
+ImportError: attempted relative import with no known parent package
