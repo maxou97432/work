@@ -1,13 +1,8 @@
-j'ai un dataframe avec une colonne "DATE": 2022-07-05 00:00:00, j'aimerais avoir un paramètre qui décide ce à partir de quel mois on applique: 
-#param => pour choisir le mois auquel on fait les stats 
-nb_mois = 2
-today = datetime.today()
-if today.month == 2:
-    date_max = datetime(today.year - 1, 12, 1)
-elif today.month == 1:
-    date_max = datetime(today.year - 1, 11, 1)
-else: date_max = datetime(today.year, today.month - nb_mois, 1)
-date_min = datetime(today.year - 10, today.month - nb_mois, 1)
+periode_reference = None
+ref_date = periode_reference or df["DATE"].max()
+
+date_max = (ref_date.replace(day = 1))
+date_min = (date_max - relativedelta(years= 10))
 
 start_time = time.time()
 base_ml = detect_ano_ml(input_df=df, date_min = date_min, date_max = date_max, type_bien = None)
