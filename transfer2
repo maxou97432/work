@@ -1,45 +1,43 @@
 PS N:\uflumth\indicateur_marche\univers_elementaire> & "C:/Program Files/Python311/python.exe" n:/uflumth/indicateur_marche/univers_elementaire/univ_elem/univers_elementaire.py
-Temps d'importation : 6.79 secondes
-Traceback (most recent call last):
-  File "n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py", line 289, in <module>
-    df_bat = co.read_sql(f"SELECT * FROM {params.BAT_ENRICHIE}")
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "n:\uflumth\indicateur_marche\univers_elementaire\classe.py", line 609, in read_sql
-    data = pd.read_sql_query(query, self.engine_read)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\io\sql.py", line 528, in read_sql_query
-    return pandas_sql.read_query(
-           ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\io\sql.py", line 1866, in read_query
-    frame = _wrap_result(
-            ^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\io\sql.py", line 206, in _wrap_result
-    frame = _convert_arrays_to_dataframe(data, columns, coerce_float, dtype_backend)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\io\sql.py", line 189, in _convert_arrays_to_dataframe
-    df = DataFrame(dict(zip(list(range(len(columns))), arrays)))
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\frame.py", line 778, in __init__
-    mgr = dict_to_mgr(data, index, columns, dtype=dtype, copy=copy, typ=manager)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\internals\construction.py", line 503, in dict_to_mgr
-    return arrays_to_mgr(arrays, columns, index, dtype=dtype, typ=typ, consolidate=copy)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\internals\construction.py", line 152, in arrays_to_mgr
-    return create_block_manager_from_column_arrays(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\internals\managers.py", line 2144, in create_block_manager_from_column_arrays 
-    mgr._consolidate_inplace()
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\internals\managers.py", line 1788, in _consolidate_inplace
-    self.blocks = _consolidate(self.blocks)
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\internals\managers.py", line 2269, in _consolidate
-    merged_blocks, _ = _merge_blocks(
-                       ^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\internals\managers.py", line 2294, in _merge_blocks
-    new_values = np.vstack([b.values for b in blocks])  # type: ignore[misc]
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\numpy\_core\shape_base.py", line 292, in vstack
-    return _nx.concatenate(arrs, 0, dtype=dtype, casting=casting)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-numpy._core._exceptions._ArrayMemoryError: Unable to allocate 1.86 GiB for an array with shape (10, 24959183) and data type float64
+Temps d'importation : 7.17 secondes
+Temps de fusion avec BAT_ENRICHIE : 29.76 secondes
+Temps de traitement variable BIEN_NEUF : 1.61 secondes
+Répartition de l'ancienneté des biens sur l'ensemble de la base
+--------------------------------------------
+          Type de bien   Nombre  Pourcentage (%)
+BIEN_NEUF
+ANCIEN          ANCIEN  8832170            91.79
+NEUF              NEUF   789907             8.21
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:448: FutureWarning:
+
+Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '['APT: 1-2 pièces', 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT: 5 pièces et plus', 'APT: 1-2 pièces', ..., 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT: 5 pièces et plus', 'APT : 3-4 pièces']
+Length: 4406790
+Categories (3, object): ['APT: 1-2 pièces' < 'APT : 3-4 pièces' < 'APT: 5 pièces et plus']' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:582: FutureWarning:
+
+The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:631: FutureWarning:
+
+The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:684: FutureWarning:
+
+The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:735: FutureWarning:
+
+The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:788: FutureWarning:
+
+DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.      
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:827: FutureWarning:
+
+DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.      
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:939: FutureWarning:
+
+DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.  
