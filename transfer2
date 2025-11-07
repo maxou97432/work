@@ -1,43 +1,14 @@
-PS N:\uflumth\indicateur_marche\univers_elementaire> & "C:/Program Files/Python311/python.exe" n:/uflumth/indicateur_marche/univers_elementaire/univ_elem/univers_elementaire.py
-Temps d'importation : 7.17 secondes
-Temps de fusion avec BAT_ENRICHIE : 29.76 secondes
-Temps de traitement variable BIEN_NEUF : 1.61 secondes
-Répartition de l'ancienneté des biens sur l'ensemble de la base
---------------------------------------------
-          Type de bien   Nombre  Pourcentage (%)
-BIEN_NEUF
-ANCIEN          ANCIEN  8832170            91.79
-NEUF              NEUF   789907             8.21
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:448: FutureWarning:
+j'ai un dataframe avec une colonne "DATE": 2022-07-05 00:00:00, j'aimerais avoir un paramètre qui décide ce à partir de quel mois on applique: 
+#param => pour choisir le mois auquel on fait les stats 
+nb_mois = 2
+today = datetime.today()
+if today.month == 2:
+    date_max = datetime(today.year - 1, 12, 1)
+elif today.month == 1:
+    date_max = datetime(today.year - 1, 11, 1)
+else: date_max = datetime(today.year, today.month - nb_mois, 1)
+date_min = datetime(today.year - 10, today.month - nb_mois, 1)
 
-Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '['APT: 1-2 pièces', 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT: 5 pièces et plus', 'APT: 1-2 pièces', ..., 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT: 5 pièces et plus', 'APT : 3-4 pièces']
-Length: 4406790
-Categories (3, object): ['APT: 1-2 pièces' < 'APT : 3-4 pièces' < 'APT: 5 pièces et plus']' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:582: FutureWarning:
-
-The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:631: FutureWarning:
-
-The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:684: FutureWarning:
-
-The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:735: FutureWarning:
-
-The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:788: FutureWarning:
-
-DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.      
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:827: FutureWarning:
-
-DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.      
-
-n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:939: FutureWarning:
-
-DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.  
+start_time = time.time()
+base_ml = detect_ano_ml(input_df=df, date_min = date_min, date_max = date_max, type_bien = None)
+end_time = time.time()
