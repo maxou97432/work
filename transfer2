@@ -1,2 +1,63 @@
-fillcolor="rgba(76,114,176,0.2)",
-        line=dict(color="rgba(255,255,255,0)")
+cols = [
+    "Prix moyen glissant 12 mois - Univ Elem",
+    "Prix moyen glissant 12 mois - LPI/IAD",
+    "Prix moyen glissant 3 mois - Univ Elem"
+]
+
+
+for ville in fusion["Ville"].dropna().unique():
+    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE").copy()
+    df_ville = df_ville[["DATE", col]].set_index("DATE").resample("MS").interpolate(method="linear").reset_index()
+    
+    df_ville = df_ville[["DATE", col]]
+
+    # calcul de l'écart-type
+    df_ville["std_12m"] = df_ville["Prix moyen glissant 12 mois - Univ Elem"].rolling(window = 12, min_periods = 3).std()
+
+    # intervalle de confiance à 95%
+    df_ville["IC_inf"] = df_ville["Prix moyen glissant 12 mois - Univ Elem"] - 0.95 * df_ville["std_12m"]
+    df_ville["IC_sup"] = df_ville["Prix moyen glissant 12 mois - Univ Elem"] + 0.95 * df_ville["std_12m"]
+
+    fig = go.Figure()
+
+    #Bande d'incertitude
+    fig.add_trace(go.Scatter(
+        x = pd.concat([df_ville["DATE"], df_ville["DATE"][::-1]]),
+        y = pd.concat([df_ville["IC_sup"], df_ville["IC_inf"][::-1]]),
+        fill = "toself",
+        fillcolor="rgba(76,114,176,0.2)",
+        line=dict(color="rgba(255,255,255,0)"),
+        hoverinfo = "skip",
+        name = "Intervalle de confiance"
+
+    ))
+
+
+    fig.add_trace(go.Scatter(
+        x = df_ville["DATE"],
+        y = df_ville["Prix moyen glissant 12 mois - Univ Elem"],
+        mode = "lines+markers",
+        name = "Univ Elem - 12 mois",
+        line = dict(color = "#4C72B0", width = 2)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x = df_ville["DATE"],
+        y = df_ville["Prix moyen glissant 12 mois - LPI/IAD"],
+        mode = "lines+markers",
+        name = "LPI/IAD - 12 mois",
+        line = dict(color="#DD8452", width = 2, dash = "dot")
+    ))
+
+    fig.update_layout(
+        title = f"Comparaison Univ Elem VS LPI/IAD - {ville}",
+        xaxis_title = "Date",
+        yaxis_title = "Prix",
+        plot_bgcolor = "white",
+        title_x = 0.5,
+        legend_title = "Séries",
+        height = 500
+
+    )
+
+    fig.show()
