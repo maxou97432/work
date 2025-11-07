@@ -1,2 +1,36 @@
-cd N:\uflumth\indicateur_marche
-python -m univers_elementaire.stat_df_cleaned_data.stat_df_cleaned_data
+PS N:\uflumth\indicateur_marche> & "C:/Program Files/Python311/python.exe" n:/uflumth/indicateur_marche/univers_elementaire/univ_elem/univers_elementaire.py
+Temps d'importation : 7.05 secondes
+Temps de fusion avec BAT_ENRICHIE : 41.82 secondes
+Temps de traitement variable BIEN_NEUF : 1.63 secondes
+Répartition de l'ancienneté des biens sur l'ensemble de la base
+--------------------------------------------
+          Type de bien   Nombre  Pourcentage (%)
+BIEN_NEUF
+ANCIEN          ANCIEN  8832170            91.79
+NEUF              NEUF   789907             8.21
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:448: FutureWarning:
+
+Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '['APT: 1-2 pièces', 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT: 5 pièces et plus', 'APT: 1-2 pièces', ..., 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT : 3-4 pièces', 'APT: 5 pièces et plus', 'APT : 3-4 pièces']
+Length: 4406790
+Categories (3, object): ['APT: 1-2 pièces' < 'APT : 3-4 pièces' < 'APT: 5 pièces et plus']' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:582: FutureWarning:
+
+The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
+
+n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py:631: FutureWarning:
+
+The provided callable <built-in function sum> is currently using SeriesGroupBy.sum. In a future version of pandas, the provided callable will be used directly. To keep current behavior pass the string "sum" instead.
+
+Traceback (most recent call last):
+  File "n:\uflumth\indicateur_marche\univers_elementaire\univ_elem\univers_elementaire.py", line 643, in <module>
+    base_ml.groupby(dims, dropna=False)
+  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\frame.py", line 9190, in groupby
+    return DataFrameGroupBy(
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\groupby\groupby.py", line 1330, in __init__
+    grouper, exclusions, obj = get_grouper(
+                               ^^^^^^^^^^^^
+  File "C:\Users\dmbmtl1\AppData\Roaming\Python\Python311\site-packages\pandas\core\groupby\grouper.py", line 1043, in get_grouper
+    raise KeyError(gpr)
+KeyError: 'Ville
