@@ -1,9 +1,297 @@
-periode_reference = None
-ref_date = periode_reference or df["DATE"].max()
 
-date_max = (ref_date.replace(day = 1))
-date_min = (date_max - relativedelta(years= 10))
+lpiiad = pd.read_excel(rf"N:\uflumth\indicateur_marche\prix_m2\LPI-IAD donnees.xlsx")
+lpiiad2 = pd.read_excel(rf"N:\uflumth\indicateur_marche\LPI-IAD donnees (v2).xlsx", sheet_name = "V2")
+lpiiad2 = lpiiad2.drop(lpiiad2.index[0:2])
+lpiiad.reset_index(drop = True, inplace = True)
+lpiiad2 = lpiiad2.rename(columns={"Tableau 1" : "DATE", "Unnamed: 1" : "Ville", "Unnamed: 2" : "Prix m2 en euros"})
+lpiiad2["Ville"] = lpiiad2["Ville"].str.strip().str.upper()
+top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", " TOULOUSE", "BORDEAUX", "NICE", "STRASBOURG", "NANTES", "MONTPELLIER",
+         "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
 
-start_time = time.time()
-base_ml = detect_ano_ml(input_df=df, date_min = date_min, date_max = date_max, type_bien = None)
-end_time = time.time()
+df_top15_lpi = lpiiad2[lpiiad2["Ville"].isin(top15)]
+df_top15_lpi= df_top15_lpi.rename(columns = {"Prix m2 en euros" : "Prix moyen glissant 12 mois - LPI/IAD"})
+df_top15_lpi["DATE"] = pd.to_datetime(df_top15_lpi["DATE"], format="%d/%m/%Y", errors="coerce")
+
+df_top15_lpi["DATE"] = pd.to_datetime(df_top15_lpi["DATE"], errors="coerce")
+df_top15_cl["DATE"] = pd.to_datetime(df_top15_cl["DATE"], errors="coerce")
+merge = pd.merge(left = df_top15_lpi, right = df_top15_cl, on = ['Ville',"DATE"])
+merge["Prix moyen glissant 12 mois - LPI/IAD"] = pd.to_numeric(merge["Prix moyen glissant 12 mois - LPI/IAD"])
+top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", " TOULOUSE", "BORDEAUX", "NICE", "STRASBOURG", "NANTES", "MONTPELLIER",
+         "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+
+dims = ["Ville", "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
+
+
+univers = (
+    base_ml2.groupby(dims, dropna=False)
+      .agg(
+          nb_transac = ("ID", "size"),
+          prix_median = ("Prix_m2", "median"),
+          prix_moyen = ("Prix_m2", "mean"),
+          surface_moyenne = ("NB_SURF_HAB", "mean")
+
+      )
+      .reset_index()
+)
+
+grille = (
+    pd.MultiIndex.from_product(
+        [base_ml2["Ville"].unique(),
+         base_ml2["BIEN_NEUF"].unique(),
+         base_ml2["TYPE_BIEN"].unique(),
+         base_ml2["NB_PIECES_RANGE"].unique()],
+        names=dims
+    ).to_frame(index=False)
+)
+
+
+univers_complet_ville = grille.merge(univers, on=dims, how="left").sort_values(dims)
+
+
+univers_complet_ville["nb_transac"] = univers_complet_ville["nb_transac"].fillna(0).astype(int)
+
+univers_complet_ville["PB"] = (
+    univers_complet_ville["NB_PIECES_RANGE"]
+    .astype(str)
+    .str.strip()
+    .str[:3]
+    .str.upper()
+)
+univers_complet_ville["TYPE_BIEN"] = univers_complet_ville["TYPE_BIEN"].astype(str).str.strip().str.upper()
+
+
+mask = univers_complet_ville["TYPE_BIEN"] != univers_complet_ville["PB"]
+
+univers_complet_ville = univers_complet_ville.loc[~mask].copy()
+univers_complet_ville = univers_complet_ville.drop(columns=["PB"])
+univers_complet_ville["Repartition (%)"] = (univers_complet_ville["nb_transac"] / univers_complet_ville.groupby("Ville")["nb_transac"].transform(sum)) * 100
+
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+base_ml = base_ml2.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml2.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+
+
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
+
+
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
+
+
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    g["prix_moyen"] = g["prix_moyen"].fillna(np.nan)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
+)
+
+poids_global = (
+    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
+
+
+# pondération globale
+poids_global = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index=False)["nb_transac"]
+      .sum()
+      .rename(columns={"nb_transac":"poids_total"})
+)
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x: x/x.sum())
+
+univers_complet = univers_complet.merge(
+    poids_global,
+    on=["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
+    how="left"
+)
+
+#fonction de calcul pondéré par ville et mois
+def calcule_prix_pondere_ville_periode(g):
+    g = g.copy()
+    g = g[g["prix_moyen"].notna()]  
+    g["I"] = (g["nb_transac"] > 0).astype(int)
+    g["poids_actif"] = g["poids_relatif"] * g["I"]
+    total_poids = g["poids_actif"].sum()
+
+    if total_poids > 0:
+        g["poids_dyn"] = g["poids_actif"] / total_poids
+        prix_pondere = np.average(g["prix_moyen"], weights=g["poids_dyn"])
+    else:
+        prix_pondere = np.nan
+
+    return pd.Series({"prix_moyen_pondere_dyn": prix_pondere})
+
+#agrégation principale
+model_agg = (
+    univers_complet
+    .groupby(["Ville", "Periode"], as_index=False)
+    .apply(calcule_prix_pondere_ville_periode)
+    .reset_index(drop=True) 
+)
+
+# calculs glissants
+model_agg = model_agg.sort_values(["Ville","Periode"])
+model_agg["glissant_3m"] = (
+    model_agg.groupby("Ville")["prix_moyen_pondere_dyn"]
+    .transform(lambda s: s.rolling(3, min_periods=1).mean())
+)
+model_agg["glissant_12m"] = (
+    model_agg.groupby("Ville")["prix_moyen_pondere_dyn"]
+    .transform(lambda s: s.rolling(12, min_periods=3).mean())
+)
+
+
+model_agg = model_agg.rename(columns={
+    "Periode": "DATE"
+})
+
+model_agg2 = model_agg.drop(columns=["prix_moyen_pondere_dyn"], errors="ignore")
+
+
+model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
+merge["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+
+
+fusion = pd.merge(
+    model_agg2,
+    merge,
+    on=["Ville", "DATE"],
+    how="outer",
+    suffixes = ("_univ","_ext")
+)
+
+fusion = fusion.rename(columns={"glissant_12m":"Prix moyen glissant 12 mois - Univ Elem", 
+                                "glissant_3m":"Prix moyen glissant 3 mois - Univ Elem"})
+
+
+for ville in fusion["Ville"].dropna().unique():
+    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE")
+
+    colonnes_a_tracer = ["Prix moyen glissant 12 mois - Univ Elem", "Prix moyen glissant 3 mois - Univ Elem",
+                         "Prix moyen glissant 12 mois - LPI/IAD","Prix moyen glissant 12 mois - CL"]
+
+    fig = px.line(
+        df_ville,
+        x="DATE",
+        y=colonnes_a_tracer,
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "DATE": "Date"},
+        markers=True
+    )
+
+    fig.update_layout(
+        title_x=0.5,
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix",
+        height=600
+    )
+    fig.update_traces(opacity=0.7)
+    fig.write_html(os.path.join(output_dir, f"comparaison_prix_m2_{ville}.html"))
+cols = [
+    "Prix moyen glissant 12 mois - Univ Elem",
+    "Prix moyen glissant 12 mois - LPI/IAD",
+    "Prix moyen glissant 12 mois - CL",
+    "Prix moyen glissant 3 mois - Univ Elem"
+]
+
+colors = ["#4C72B0", "#DD8452", "#55A868", "#C44E52"]
+fusion = fusion[fusion["DATE"] < "2025-09-01"]
+for ville in fusion["Ville"].unique():
+    df_ville = fusion[fusion["Ville"] == ville].copy()
+    fig = go.Figure()
+
+    for i, col in enumerate(cols):
+        if col not in df_ville.columns:
+            continue
+
+        # Données pour Prophet
+        
+        df_col = df_ville[["DATE", col]].set_index("DATE").resample("MS").interpolate(method="linear").reset_index().rename(columns={"DATE": "ds", col: "y"})
+        if df_col.empty:
+            continue
+
+        model = Prophet(changepoint_prior_scale = 0.5)
+        model.fit(df_col)
+
+        future = model.make_future_dataframe(periods=12, freq="MS")
+        forecast = model.predict(future)
+
+        # Séparation passé / futur
+        last_date = df_col["ds"].max()
+        forecast_future = forecast[forecast["ds"] > last_date]
+        forecast_future.loc[forecast_future["ds"] == forecast_future["ds"].min(), "yhat"] = df_col["y"].iloc[-1]
+        color = colors[i % len(colors)]
+
+
+        first_idx = forecast_future["ds"].idxmin()
+        forecast_future.loc[first_idx,"yhat"] = (df_col["y"].iloc[-1] + forecast_future.loc[first_idx, 'yhat']) / 2
+        # Données réelles (pleines)
+        fig.add_trace(go.Scatter(
+            x=df_col["ds"],
+            y=df_col["y"],
+            mode="lines+markers",
+            name=f"{col}",
+            line=dict(color=color, width=2)
+        ))
+
+        # Prévision (pointillée, même couleur)
+        fig.add_trace(go.Scatter(
+            x=forecast_future["ds"],
+            y=forecast_future["yhat"],
+            mode="lines",
+            name=f"Prévision Prophet - {col}",
+            line=dict(color=color, dash="dot", width=2),
+            showlegend = False
+        ))
+
+
+    fig.update_layout(
+        title=f"Historique & Prévision Prophet – {ville}",
+        xaxis_title="Date",
+        yaxis_title="Prix au m²",
+        template="plotly_white",
+        
+    legend=dict(
+        orientation="v",  
+        x=1.05,  
+        y=1,
+        font=dict(size=10),
+        bgcolor="rgba(255,255,255,0.6)"
+
+        ),
+        height=550
+    )
+    fig.write_html(os.path.join(output_dir, f"comparaison_prix_m2+prediction_prophet_{ville}.html"))
