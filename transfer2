@@ -1,75 +1,28 @@
-cols = [
-    "Prix moyen glissant 12 mois - Univ Elem",
-    "Prix moyen glissant 12 mois - LPI/IAD",
-    "Prix moyen glissant 3 mois - Univ Elem"
-]
+pk je n'ai aucune données dans data_mauvais quand j'éxécute : def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, n_years = 10):
+........
+    # =============================================================================
+    # Détection et suppression des anomalies
+    # =============================================================================
+    data_before = data_recent.copy()             #on cree une copie pour étudier les outliers
+    logging.info("Detection and elimination of anomalies")
+    detectano = DetectAno(meta_num_all=meta_num_all_city, var_num= VAR_NUM)
+    _, data_recent = detectano.transform(data_recent)
 
-for ville in fusion["Ville"].dropna().unique():
-    df_ville = fusion[fusion["Ville"] == ville].sort_values("DATE").copy()
+    data_recent.drop(columns=["year_geo_bien"], inplace=True)
+    logging.info("Detection and elimination of anomalies OK")
 
-    # interpolation temporelle mensuelle pour lisser
-    df_ville = df_ville[["DATE"] + cols].set_index("DATE").resample("MS").interpolate(method="linear").reset_index()
+    logging.info(f"ML detection of anomalies completed: {datetime.now()-start_time}.\n")
+    
+    data_recent = data_recent[["ID","ville_",
+"LIBELLE_DEPT","DEPT_Corse_2A_2B","TYPE_BIEN","DATE","YEAR","Prix_m2","SOURCE", "CD_NATUR_OP","NB_SURF_HAB", "NB_PIECES","CODE_POSTAL","NATURE_MUTATION","CLE_INTEROP_ADR"]]
+    
+    # Identifier les anomalies par différence
+    ids_valides = set(data_recent["ID"])
+    data_mauvais = data_before[~data_before["ID"].isin(ids_valides)]
+    data_mauvais = data_mauvais[["ID","ville_",
+"LIBELLE_DEPT","DEPT_Corse_2A_2B","TYPE_BIEN","DATE","YEAR","Prix_m2","SOURCE", "CD_NATUR_OP","NB_SURF_HAB", "NB_PIECES","CODE_POSTAL","NATURE_MUTATION","CLE_INTEROP_ADR"]]
 
-    # calcul de l’écart-type glissant sur 12 mois pour Univ Élem 12 mois
-    df_ville["std_12m"] = (
-        df_ville["Prix moyen glissant 12 mois - Univ Elem"]
-        .rolling(window=12, min_periods=3)
-        .std()
-    )
-
-    # Intervalle de confiance 95 % (≈ ±1.96 σ)
-    k = 1.96
-    df_ville["IC_inf"] = df_ville["Prix moyen glissant 12 mois - Univ Elem"] - k * df_ville["std_12m"]
-    df_ville["IC_sup"] = df_ville["Prix moyen glissant 12 mois - Univ Elem"] + k * df_ville["std_12m"]
-
-    # --- Tracé ---
-    fig = go.Figure()
-
-    # Bande d’incertitude
-    fig.add_trace(go.Scatter(
-        x=pd.concat([df_ville["DATE"], df_ville["DATE"][::-1]]),
-        y=pd.concat([df_ville["IC_sup"], df_ville["IC_inf"][::-1]]),
-        fill="toself",
-        fillcolor="rgba(76,114,176,0.2)",
-        line=dict(color="rgba(255,255,255,0)"),
-        hoverinfo="skip",
-        name="Intervalle de confiance (95 %)"
-    ))
-
-    # Série Univ Élem 12 mois
-    fig.add_trace(go.Scatter(
-        x=df_ville["DATE"],
-        y=df_ville["Prix moyen glissant 12 mois - Univ Elem"],
-        mode="lines+markers",
-        name="Univ Élem – 12 mois",
-        line=dict(color="#4C72B0", width=2)
-    ))
-
-    # Série LPI/IAD 12 mois
-    fig.add_trace(go.Scatter(
-        x=df_ville["DATE"],
-        y=df_ville["Prix moyen glissant 12 mois - LPI/IAD"],
-        mode="lines+markers",
-        name="LPI/IAD – 12 mois",
-        line=dict(color="#DD8452", width=2, dash="dot")
-    ))
-
-    fig.update_layout(
-        title=f"Comparaison Univ Élem VS LPI/IAD – {ville}",
-        xaxis_title="Date",
-        yaxis_title="Prix au m² (€)",
-        plot_bgcolor="white",
-        title_x=0.5,
-        legend_title="Séries",
-        height=500
-    )
-
-    fig.show()
-
-    # --- Calcul du % de points LPI/IAD dans l’IC ---
-    in_IC = (
-        (df_ville["Prix moyen glissant 12 mois - LPI/IAD"] >= df_ville["IC_inf"]) &
-        (df_ville["Prix moyen glissant 12 mois - LPI/IAD"] <= df_ville["IC_sup"])
-    )
-    pct_in_IC = in_IC.mean() * 100
-    print(f"{ville:15s} → {pct_in_IC:.1f}% des points LPI/IAD dans l’IC ± 1.96σ")
+    
+    
+    return data_recent, data_mauvais
+   
