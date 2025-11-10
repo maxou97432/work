@@ -1,2 +1,2 @@
-print(f"Avant: {len(data_before)} / Après: {len(data_recent)}")
-print("IDs supprimés :", len(set(data_before['ID']) - set(data_recent['ID'])))
+Avant: 9557711 / Après: 9557711
+IDs supprimés : 0
