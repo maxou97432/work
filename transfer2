@@ -1,2 +1,125 @@
-11462787 rows × 67 columns
-9557711 rows × 15 columns
+ef detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, n_years = 10):
+    DATE_MIN = pd.to_datetime(date_min)
+    DATE_MAX = pd.to_datetime(date_max)
+    TYPE_BIEN = type_bien
+    logging.info("ML detection of anomalies starting")
+    
+    # =============================================================================
+    # Pré-filtrage des données
+    # =============================================================================
+
+    df = input_df.copy()
+    
+
+
+
+
+    df["DATE"] = pd.to_datetime(df["DATE"])
+    df = df.sort_values("DATE", ascending=False)
+    df["DATE"] = df["DATE"].apply(lambda x: x.replace(day=1))
+
+
+    conditions = pd.Series(True, index=df.index)
+
+    if date_min is not None:
+        conditions &= df["DATE"] >= pd.to_datetime(date_min)
+
+    if date_max is not None:
+        conditions &= df["DATE"] < pd.to_datetime(date_max)
+
+    if type_bien is not None:
+        conditions &= df["TYPE_BIEN"] == type_bien
+
+    df = df[conditions]
+
+    # =============================================================================
+    # Import des données sur les N_YEARS dernières années
+    # =============================================================================
+
+    start_time = datetime.now()
+
+    importrecentdata = ImportRecentData(n_years=n_years, input_= df)
+    data_recent = importrecentdata.import_data_recent()
+    logging.info(
+        f"Base d'analyse filtrée sur les {n_years} dernières années : {datetime.now()-start_time}\n"
+    )
+
+    # =============================================================================
+    # Calculs des effectifs par ville et par Iris
+    # =============================================================================
+    step_time = datetime.now()
+    logging.info("workforce calculation")
+
+    step_time = datetime.now()
+    effectifsparVille = EffectifsParMailleGeo(maille_geo="ville_")
+    logging.info(
+        f"\t Calcul et enregistrement dans le dictionnaire dict_geo_ville_ des effectifs par ville_ : {datetime.now()-step_time}\n"
+    )
+
+    dict_geo_city = effectifsparVille.transform(data_recent)
+
+    # =============================================================================
+    # Définition des mailles géographiques pour chaque bien en fonction d'un seuil fixé d'effectif minimum (N_MIN)
+    # *version 1 (maille_geo_loc): maille la plus fine à l'iris
+    # ET
+    # *version 2 (maille_geo_loc_city): maille la plus fine à la ville
+    # =============================================================================
+    # Création de 4 champs :
+    # Version 1 :
+    # maille_geo_loc : définition de la maille géographique ('IRIS', 'ARR', 'CITY', 'DEPT')
+    # geo_bien_iris : valeur associée de la maille géographique (code iris, numéro d'arrondissement, nom de la ville, ou numéro du déârtement)
+    # Version 2 :
+    # maille_geo_loc_city : définition de la maille géographique ('ARR', 'CITY', 'DEPT')
+    # geo_bien_city : valeur associée de la maille géographique (numéro d'arrondissement, nom de la ville, ou numéro du déârtement)
+
+
+
+    defmaillegeocity = DefMailleGeoCITY(
+        n_min=N_MIN,
+        dict_geo_city=dict_geo_city,
+        geo_bien="geo_bien_city",
+        by_year=0,
+    )
+    data_recent = defmaillegeocity.transform(data_recent)
+
+    logging.info("workforce calculation OK")
+    # =============================================================================
+    # Calculs des statistiques descriptives par typologie de bien
+    # =============================================================================
+
+    logging.info("statistics calculation")
+    step_time = datetime.now()
+    calcmetanumCity = CalcMetaNum(
+        n_years=1, geo_bien="geo_bien_city", var_num= VAR_NUM
+    )
+    meta_num_all_city, data_recent = calcmetanumCity.transform(data_recent)
+    logging.info(
+        f"\t Calcul des statistiques descriptives par geo_bien_city et typologie de bien : {datetime.now()-step_time}\n"
+    )
+
+    # =============================================================================
+    # Détection et suppression des anomalies
+    # =============================================================================
+    data_before = data_recent.copy()             #on cree une copie pour étudier les outliers
+    logging.info("Detection and elimination of anomalies")
+    detectano = DetectAno(meta_num_all=meta_num_all_city, var_num= VAR_NUM)
+    _, data_recent = detectano.transform(data_recent)
+
+    data_recent.drop(columns=["year_geo_bien"], inplace=True)
+    logging.info("Detection and elimination of anomalies OK")
+
+    logging.info(f"ML detection of anomalies completed: {datetime.now()-start_time}.\n")
+    
+    data_recent = data_recent[["ID","ville_",
+"LIBELLE_DEPT","DEPT_Corse_2A_2B","TYPE_BIEN","DATE","YEAR","Prix_m2","SOURCE", "CD_NATUR_OP","NB_SURF_HAB", "NB_PIECES","CODE_POSTAL","NATURE_MUTATION","CLE_INTEROP_ADR"]]
+    
+    # Identifier les anomalies par différence
+    ids_valides = set(data_recent["ID"])
+    data_mauvais = data_before[~data_before["ID"].isin(ids_valides)]
+    data_mauvais = data_mauvais[["ID","ville_",
+"LIBELLE_DEPT","DEPT_Corse_2A_2B","TYPE_BIEN","DATE","YEAR","Prix_m2","SOURCE", "CD_NATUR_OP","NB_SURF_HAB", "NB_PIECES","CODE_POSTAL","NATURE_MUTATION","CLE_INTEROP_ADR"]]
+
+    
+    print(f"Avant: {len(data_before)} / Après: {len(data_recent)}")
+    print("IDs supprimés :", len(set(data_before['ID']) - set(data_recent['ID'])))
+    return data_recent, data_mauvais
