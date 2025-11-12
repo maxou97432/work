@@ -143,11 +143,109 @@ Pour un comportement correct, vous devriez observer :
 
 Le fait qu'elles restent confondues pendant **9 ans** indique clairement que `I_3m` et `I_12m` produisent les mêmes filtres [1].
 
-Lancez ces diagnostics et partagez-moi les résultats pour qu'on identifie précisément le bug [5][3] !
+           I_3m  I_12m
+Periode                
+2015-10-01     0      0
+2015-11-01     0      0
+2015-12-01   162      0
+2016-01-01   163      0
+2016-02-01   170      0
+...          ...    ...
+2025-06-01   130    136
+2025-07-01   130    135
+2025-08-01   126    129
+2025-09-01   120    120
+2025-10-01    35     35
 
-Sources
-[1] IMG_4943.JPG https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/26426814/099ec98a-e79a-44d5-b6d3-a679b84cf404/IMG_4943.JPG?AWSAccessKeyId=ASIA2F3EMEYEVFZ74G66&Signature=syoCQYNnH9CHOeD6%2FXnEtsiY7%2BM%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEHEaCXVzLWVhc3QtMSJHMEUCIQCnv6MblvSVXxAdskYVYF3bEO209WnGPbKFuDWig50yrwIgfpiCCg4hx8yLcKAa48BPQbmWaJYDg%2FaIB8lxaS2obP4q8wQIORABGgw2OTk3NTMzMDk3MDUiDEOGBg7YPI2ebuimmyrQBA57U8rS6x7A0N0ehhAGCf5ny5lVGgqDHFgHlqGuNN13w20QaH8XA35SYHRBCAg1IXTLZYIkbPlcV4mQawAxfct0GAJSacgjnlIC3liGbdzSm%2FyBaMB0oAvJnP%2BZGpboiDRQHvSgxgM036GlFPmmcnctwdK6IKfE19eNmlEUSbCdLumBHrIX0eO%2BCQx7FQh7quMStGN6dqH472i1WmQ2mWw5qiRL89CqxFaMqrOCdO6BacEGMWnw4Zu1Uty6CVbvFKSHAJuwY%2BFQm20qkXPxpgjemR%2BtgajtFkGwKVDvmUgvx9qZUCgem8VzIgz3zdv3%2BRaJlkGPEd5JRjmB0xhY6XUmQOaklc2dIlsDEslXf4NR9eEDKQTD9r52uB0VpVbiqpoJ0znGauepgFYuoo%2BkLQJQiHZSuxrDW00mL%2Bk7%2BkHpC%2BhDwhV1Nl7ldzdl%2BmFU5K46Uy79zHJMfkuP66h6b%2B1h30KH%2FdRoBVdsFOn8uWBi7JXfjbQDchhjC2WEmiIshMbkhQHSXhnNymEe2vwHcijpW4O4f%2BdAWabE2v2dn9Ys5IuQCXyD28Zq0cHojv5I9Jf0sy0LR1xvbK8ZMvuVFWGuD4hRBffD5A6AKSnypU%2B3G8XUmaRcWoQagyqH9Itj3zfKnU8SRaSM88gbHxRPkvfXDbPcFyWWv6eZ%2BNMJ0KGIzKmJnJV86uDZWRCaYqpoz6NiLlqxbBMu%2BTtddoWSxOSY5%2BXZj%2BXbdCg%2BjGNx8ceZaxz8JBH4FN0BPLQ1lXsQnNhnCExpqHZkCjXmfWI37dEwzePSyAY6mAHvPz5hVQPby2kSpmLEslIqUgjudD9KisTADOgvcDMfqoWKxnBkLlFNlcwWeMORc9lq1sN28Nn%2Fqevg4lJMFxBzCQalkSqImwQ5u6iM8AgCx8YWZiSjvxiG2lBMDb2%2BqIYjLhaAIjmKDt3OxShGf3T89bp1oonHL7UGktiNYpj45N6IN0wWwoxr1h94xsDhVtiY6QqHKaH5VA%3D%3D&Expires=1762964777
-[2] Applications of Rolling Windows for Time Series, with Python https://towardsdatascience.com/applications-of-rolling-windows-for-time-series-with-python-1a4bbe44901d/
-[3] Windowing operations — pandas 2.3.3 documentation - PyData | https://pandas.pydata.org/docs/user_guide/window.html
-[4] Long-Term vs Short-Term Trading: A Detailed Professional ... https://trade-ys.com/long-term-vs-short-term-trading-a-detailed-professional-analysis/
-[5] Rolling-Window Analysis of Time-Series Models - MATLAB & Simulink https://www.mathworks.com/help/econ/rolling-window-estimation-of-state-space-models.html
+[121 rows x 2 columns]
+
+=== DIAGNOSTIC LILLE ===
+Périodes: 2015-10-01 00:00:00 à 2025-10-01 00:00:00
+
+Typologies uniques: 14
+
+Périodes avec I_3m ≠ I_12m: 63 / 121
+
+=== LILLE 2020 ===
+Typologies avec prix: 8
+I_3m actifs: 14
+I_12m actifs: 14
+Poids total 3m: 0.9496
+Poids total 12m: 0.9496
+
+=== LILLE 2020 ===
+Typologies avec prix: 9
+I_3m actifs: 14
+I_12m actifs: 14
+Poids total 3m: 0.9526
+Poids total 12m: 0.9526
+
+=== LILLE 2020 ===
+Typologies avec prix: 9
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9514
+Poids total 12m: 0.9514
+
+=== LILLE 2020 ===
+Typologies avec prix: 7
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9456
+Poids total 12m: 0.9456
+
+=== LILLE 2020 ===
+Typologies avec prix: 9
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9514
+Poids total 12m: 0.9514
+
+=== LILLE 2020 ===
+Typologies avec prix: 9
+I_3m actifs: 14
+I_12m actifs: 14
+Poids total 3m: 0.9526
+Poids total 12m: 0.9526
+
+=== LILLE 2020 ===
+Typologies avec prix: 10
+I_3m actifs: 14
+I_12m actifs: 14
+Poids total 3m: 0.9699
+Poids total 12m: 0.9699
+
+=== LILLE 2020 ===
+Typologies avec prix: 8
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9473
+Poids total 12m: 0.9473
+
+=== LILLE 2020 ===
+Typologies avec prix: 8
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9496
+Poids total 12m: 0.9496
+
+=== LILLE 2020 ===
+Typologies avec prix: 9
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9682
+Poids total 12m: 0.9682
+
+=== LILLE 2020 ===
+Typologies avec prix: 9
+I_3m actifs: 12
+I_12m actifs: 14
+Poids total 3m: 0.9526
+Poids total 12m: 0.9526
+
+=== LILLE 2020 ===
+Typologies avec prix: 8
+I_3m actifs: 13
+I_12m actifs: 14
+Poids total 3m: 0.9496
+Poids total 12m: 0.9496
