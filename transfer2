@@ -1,39 +1,120 @@
-Ok je travaille avec ce classe.py que j'utilisais pour des notebook
+def detect_ano_ml(input_df, date_min=None, date_max=None, type_bien=None, n_years=10):
+    """
+    Version robuste pour script .py :
+    - ID stabilisé via une clé interne `_rid` qui survit aux filtres/transforms
+    - Sélection de colonnes sans KeyError (intersection)
+    - Dates forcées en datetime avant replace(day=1)
+    """
+    logging.info("ML detection of anomalies starting")
 
-import pandas as pd
-import pickle
-import matplotlib.pyplot as plt
-from datetime import datetime
-import logging
-import math
-from datetime import timedelta, datetime
-from dateutil.relativedelta import relativedelta
-import numpy as np
+    # --- Copie propre + index stable + types de dates ---
+    df = input_df.copy(deep=True).reset_index(drop=True)
+    df["DATE"] = pd.to_datetime(df["DATE"], errors="raise")
 
-# coding: utf-8
-import pickle
-import os
-import pandas as pd
-import sys
-import prez.param_general as params
-from sqlalchemy import create_engine
-import urllib
+    # Clé interne stable pour recoller les ID après pipeline
+    df["_rid"] = np.arange(len(df), dtype=np.int64)
 
+    # Fenêtrage temporel/type
+    df = df.sort_values("DATE", ascending=False)
+    df["DATE"] = df["DATE"].apply(lambda x: x.replace(day=1))
 
+    conditions = pd.Series(True, index=df.index)
+    if date_min is not None:
+        conditions &= df["DATE"] >= pd.to_datetime(date_min)
+    if date_max is not None:
+        conditions &= df["DATE"] < pd.to_datetime(date_max)
+    if type_bien is not None:
+        conditions &= df["TYPE_BIEN"] == type_bien
 
-N_YEARS = 3  # pour le modele ML
-VAR_NUM = ["Prix_m2"]  # pour le modele TI
-# EFFECTIF MIMIMUM PAR VILLE SUR 2 DERNIERES ANNEES POUR FAIRE DES STATISTIQUES
-N_MIN = 30  # pour les deux modeles
+    df = df[conditions].copy()
+    # Sauvegarde pour reconstituer les outliers à la fin
+    data_before = df.copy()
 
-# Méthode de détection d'anomalies (la même pour les deux modèles)
-# - 'mult' : BORNE_MIN = MEDIAN/COEFF_ECART, BORNE_MAX = MEDIAN*COEFF_ECART
-# - 'iqr' : BORNE_MIN = MEDIAN - COEFF_ECART*IQR, BORNE_MAX = MEDIAN + COEFF_ECART*IQR
-# - 'std' : BORNE_MIN = MEAN - COEFF_ECART*STD, BORNE_MAX = MEAN + COEFF_ECART*STD
-OUTLIER_MODE = "mult"
-# Coefficient d'écart pour définir les bornes min et max selon la méthode choisie dans le paramètre OUTLIER_MODE
-COEFF_ECART = 4
-PRIX_M2_MIN = 200
+    # --- Carte (_rid -> ID) pour recoller l'identité après pipeline ---
+    # (on l'établit sur le df déjà filtré pour que le calcul d'outliers porte
+    # exactement sur le même univers que data_before)
+    id_map = df[["_rid", "ID"]].copy()
+
+    # --- Pipeline "données récentes" ---
+    start_time = datetime.now()
+    importrecentdata = ImportRecentData(n_years=n_years, input_=df)
+    data_recent = importrecentdata.import_data_recent()
+    logging.info(
+        f"Base d'analyse filtrée sur les {n_years} dernières années : {datetime.now()-start_time}\n"
+    )
+
+    # --- Effectifs par ville ---
+    step_time = datetime.now()
+    logging.info("workforce calculation")
+    effectifsparVille = EffectifsParMailleGeo(maille_geo="ville_")
+    dict_geo_city = effectifsparVille.transform(data_recent)
+    logging.info(
+        f"\t Calcul et enregistrement dans le dictionnaire dict_geo_ville_ des effectifs par ville_ : {datetime.now()-step_time}\n"
+    )
+
+    # --- Définition maille géo (ville/arr/dept) ---
+    defmaillegeocity = DefMailleGeoCITY(
+        n_min=N_MIN,
+        dict_geo_city=dict_geo_city,
+        geo_bien="geo_bien_city",
+        by_year=0,
+    )
+    data_recent = defmaillegeocity.transform(data_recent)
+
+    logging.info("workforce calculation OK")
+
+    # --- Statistiques descriptives ---
+    logging.info("statistics calculation")
+    step_time = datetime.now()
+    calcmetanumCity = CalcMetaNum(
+        n_years=1, geo_bien="geo_bien_city", var_num=VAR_NUM
+    )
+    meta_num_all_city, data_recent = calcmetanumCity.transform(data_recent)
+    logging.info(
+        f"\t Calcul des statistiques descriptives par geo_bien_city et typologie de bien : {datetime.now()-step_time}\n"
+    )
+
+    # --- Détection & suppression anomalies ---
+    logging.info("Detection and elimination of anomalies")
+    detectano = DetectAno(meta_num_all=meta_num_all_city, var_num=VAR_NUM)
+    result = detectano.transform(data_recent)
+    data_recent = result[1] if isinstance(result, tuple) else result
+
+    # --- Vérif clé stable & recollage ID ---
+    if "_rid" not in data_recent.columns:
+        raise RuntimeError(
+            "La clé interne _rid a été perdue pendant le pipeline. "
+            "Ne pas la dropper dans les transforms."
+        )
+    data_recent = data_recent.merge(id_map, on="_rid", how="left")
+    if data_recent["ID"].isna().any():
+        raise RuntimeError("Impossible de réconcilier les ID (merge _rid -> ID).")
+
+    # On peut nettoyer des colonnes techniques
+    data_recent.drop(columns=["year_geo_bien"], inplace=True, errors="ignore")
+
+    logging.info(f"ML detection of anomalies completed: {datetime.now()-start_time}.\n")
+
+    # --- Colonnes finales, en restant tolérant (intersection) ---
+    target_cols = [
+        "ID", "ville_", "LIBELLE_DEPT", "DEPT_Corse_2A_2B", "TYPE_BIEN", "DATE", "YEAR",
+        "Prix_m2", "SOURCE", "CD_NATUR_OP", "NB_SURF_HAB", "NB_PIECES",
+        "CODE_POSTAL", "NATURE_MUTATION", "CLE_INTEROP_ADR"
+    ]
+    final_cols = [c for c in target_cols if c in data_recent.columns]
+    data_recent = data_recent[final_cols].copy()
+
+    # --- Outliers = ce qui a disparu après nettoyage ---
+    ids_valides = set(data_recent["ID"])
+    data_mauvais = data_before[~data_before["ID"].isin(ids_valides)].copy()
+    # Harmoniser sans KeyError :
+    common_cols = [c for c in final_cols if c in data_mauvais.columns]
+    data_mauvais = data_mauvais[common_cols]
+
+    print(f"Avant: {len(data_before)} / Après: {len(data_recent)}")
+    print("IDs supprimés :", len(set(data_before['ID']) - set(data_recent['ID'])))
+
+    return data_recent, data_mauvais
 PRIX_M2_MAX = 20000
 
 
