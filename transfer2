@@ -1,227 +1,133 @@
-(.venv) PS N:\uflumth\indicateur_marche\univers_elementaire> & n:/uflumth/indicateur_marche/univers_elementaire/.venv/Scripts/python.exe n:/uflumth/indicateur_marche/univers_elementaire/stat_df_cleaned_data/stat_df_cleaned_data.py
-Temps d'importation : 20.17 secondes
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:267: FutureWarning:
+def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, n_years = 30):
+    DATE_MIN = pd.to_datetime(date_min)
+    DATE_MAX = pd.to_datetime(date_max)
+    TYPE_BIEN = type_bien
+    logging.info("ML detection of anomalies starting")
+    
+    # =============================================================================
+    # Pré-filtrage des données
+    # =============================================================================
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:269: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:270: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:273: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:277: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:279: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:280: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-Avant: 11462787 / Après: 11462784
-IDs supprimés : 3
-Temps de détections d'anomalies : 896.61 secondes
-STATISTIQUES GÉNÉRALES
---------------------------------------------------------------------------------
-Nombre total de biens sur 2015-2025 : 11,462,787
-Biens valides : 11,462,784 (100.00%)
-Outliers détectés : 3 (0.00%)
-
-Prix au m² - Outliers :
-  Min : nan €
-  Max : nan €
-N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\numpy\lib\_nanfunctions_impl.py:1214: RuntimeWarning:
-
-Mean of empty slice
-
-  Médiane : nan €
-  Moyenne : nan €
-
-CLASSIFICATION DES OUTLIERS
---------------------------------------------------------------------------------
-
-Répartition par type d'anomalie :
-  Groupe insuffisant   :     3 (100.00%)
-
-RÉPARTITION GÉOGRAPHIQUE
---------------------------------------------------------------------------------
-
-Top 10 départements avec le plus d'outliers :
-  Hérault                        :     1 (33.33%)
-  Vendée                         :     1 (33.33%)
-  Tarn                           :     1 (33.33%)
-
-Top 10 villes avec le plus d'outliers :
-  MONTPELLIER                    :     1 (33.33%)
-  BREM SUR MER                   :     1 (33.33%)
-  CASTRES                        :     1 (33.33%)
-
-RÉPARTITION PAR TYPE DE BIEN
---------------------------------------------------------------------------------
-
-Par type de bien :
-  APT                  :     2 (66.67%)
-  MAI                  :     1 (33.33%)
-
-Par année :
-  1994 :     1 (33.33%)
-  1995 :     2 (66.67%)
-
-ANALYSE PAR SOURCE DE DONNÉES
---------------------------------------------------------------------------------
-
-Par source :
-  CL                   :     3 (100.00%)
-
-================================================================================
-EXEMPLES D'OUTLIERS EXTRÊMES
-================================================================================
-
-5 prix au m² les plus bas :
-      ville_ TYPE_BIEN  Prix_m2  NB_SURF_HAB  NB_PIECES      type_anomalie
- MONTPELLIER       APT      NaN          NaN        NaN Groupe insuffisant
-BREM SUR MER       MAI      NaN          NaN        NaN Groupe insuffisant
-     CASTRES       APT      NaN          NaN        NaN Groupe insuffisant
-
-5 prix au m² les plus hauts :
-      ville_ TYPE_BIEN  Prix_m2  NB_SURF_HAB  NB_PIECES      type_anomalie
- MONTPELLIER       APT      NaN          NaN        NaN Groupe insuffisant
-BREM SUR MER       MAI      NaN          NaN        NaN Groupe insuffisant
-     CASTRES       APT      NaN          NaN        NaN Groupe insuffisant
-
-Traceback (most recent call last):
-  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 259, in <module>
-    fig1.show()
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\basedatatypes.py", line 3420, in show
-    return pio.show(self, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 407, in show
-    bundle = renderers._build_mime_bundle(fig_dict, renderers_string=renderer, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 304, in _build_mime_bundle
-    self._activate_pending_renderers(cls=MimetypeRenderer)
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 215, in _activate_pending_renderers
-    renderer.activate()
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_base_renderers.py", line 268, in activate
-    raise ValueError(
-ValueError: The NotebookRenderer class requires ipython but it is not installed
+    df = input_df.copy()
+    
 
 
-alors que les résultats attendus sont: STATISTIQUES GÉNÉRALES
---------------------------------------------------------------------------------
-Nombre total de biens sur 2015-2025 : 11,462,787
-Biens valides : 9,557,711 (83.38%)
-Outliers détectés : 1,905,076 (16.62%)
 
-Prix au m² - Outliers :
-  Min : 2 €
-  Max : 25,781,250 €
-  Médiane : 2,222 €
-  Moyenne : 2,807 €
 
-CLASSIFICATION DES OUTLIERS
---------------------------------------------------------------------------------
+    df["DATE"] = pd.to_datetime(df["DATE"])
+    df = df.sort_values("DATE", ascending=False)
+    df["DATE"] = df["DATE"].apply(lambda x: x.replace(day=1))
 
-Répartition par type d'anomalie :
-  Groupe insuffisant   : 1336638 (70.16%)
-  Autre                : 556032 (29.19%)
-  Prix < médiane/4     :  5498 ( 0.29%)
-  Prix < 200€          :  4914 ( 0.26%)
-  Prix > 20000€        :  1024 ( 0.05%)
-  Prix > 4×médiane     :   970 ( 0.05%)
 
-RÉPARTITION GÉOGRAPHIQUE
---------------------------------------------------------------------------------
+    conditions = pd.Series(True, index=df.index)
 
-Top 10 départements avec le plus d'outliers :
-  Paris                          : 48555 ( 2.55%)
-  Hauts-de-Seine                 : 41211 ( 2.16%)
-  Nord                           : 39162 ( 2.06%)
-  Yvelines                       : 32519 ( 1.71%)
-  Seine-Saint-Denis              : 28977 ( 1.52%)
-  Val-de-Marne                   : 28358 ( 1.49%)
-  Bouches-du-Rhône               : 27723 ( 1.46%)
-  Seine-et-Marne                 : 27310 ( 1.43%)
-  Essonne                        : 26387 ( 1.39%)
-  Val-d'Oise                     : 26316 ( 1.38%)
+    if date_min is not None:
+        conditions &= df["DATE"] >= pd.to_datetime(date_min)
 
-Top 10 villes avec le plus d'outliers :
-  PARIS                          : 85251 ( 4.47%)
-  MARSEILLE                      : 29104 ( 1.53%)
-  TOULOUSE                       : 23118 ( 1.21%)
-  LYON                           : 20496 ( 1.08%)
-  NICE                           : 15844 ( 0.83%)
-  NANTES                         : 14751 ( 0.77%)
-  BORDEAUX                       : 13720 ( 0.72%)
-  MONTPELLIER                    : 13211 ( 0.69%)
-  LILLE                          : 11236 ( 0.59%)
-  RENNES                         :  8306 ( 0.44%)
+    if date_max is not None:
+        conditions &= df["DATE"] < pd.to_datetime(date_max)
 
-RÉPARTITION PAR TYPE DE BIEN
---------------------------------------------------------------------------------
+    if type_bien is not None:
+        conditions &= df["TYPE_BIEN"] == type_bien
 
-Par type de bien :
-  MAI                  : 991842 (52.06%)
-  APT                  : 913234 (47.94%)
+    df = df[conditions]
+    
+    # =============================================================================
+    # Import des données sur les N_YEARS dernières années
+    # =============================================================================
 
-Par année :
-  1994 :     1 ( 0.00%)
-  1995 :     4 ( 0.00%)
-  1996 :     3 ( 0.00%)
-  1997 :     5 ( 0.00%)
-  1998 :    14 ( 0.00%)
-  1999 :   120 ( 0.01%)
-  2000 :   510 ( 0.03%)
-  2001 :  2523 ( 0.13%)
-  2002 :  5391 ( 0.28%)
-  2003 : 11064 ( 0.58%)
-  2004 : 18039 ( 0.95%)
-  2005 : 34320 ( 1.80%)
-  2006 : 50510 ( 2.65%)
-  2007 : 52170 ( 2.74%)
-  2008 : 45657 ( 2.40%)
-  2009 : 54124 ( 2.84%)
-  2010 : 96681 ( 5.07%)
-  2011 : 88544 ( 4.65%)
-  2012 : 70356 ( 3.69%)
-  2013 : 76827 ( 4.03%)
-  2014 : 708995 (37.22%)
-  2015 : 589218 (30.93%)
+    start_time = datetime.now()
 
-ANALYSE PAR SOURCE DE DONNÉES
---------------------------------------------------------------------------------
+    importrecentdata = ImportRecentData(n_years=n_years, input_= df)
+    data_recent = importrecentdata.import_data_recent()
+    data_before = df.copy()             #on cree une copie pour étudier les outliers
+    logging.info(
+        f"Base d'analyse filtrée sur les {n_years} dernières années : {datetime.now()-start_time}\n"
+    )
 
-Par source :
-  DVF                  : 1092348 (57.34%)
-  CL                   : 812728 (42.66%)
+    # =============================================================================
+    # Calculs des effectifs par ville et par Iris
+    # =============================================================================
+    step_time = datetime.now()
+    logging.info("workforce calculation")
 
-================================================================================
-EXEMPLES D'OUTLIERS EXTRÊMES
-================================================================================
+    step_time = datetime.now()
+    effectifsparVille = EffectifsParMailleGeo(maille_geo="ville_")
+    logging.info(
+        f"\t Calcul et enregistrement dans le dictionnaire dict_geo_ville_ des effectifs par ville_ : {datetime.now()-step_time}\n"
+    )
 
-5 prix au m² les plus bas :
-       ville_ TYPE_BIEN  Prix_m2  NB_SURF_HAB  NB_PIECES type_anomalie
-      MATOURY       MAI 2.234843      17285.0      868.0   Prix < 200€
-AUBERCHICOURT       MAI 3.732162       2733.0      133.0   Prix < 200€
-     LAMENTIN       MAI 5.364327       2237.0      110.0   Prix < 200€
-        REIMS       MAI 5.579399       2330.0      106.0   Prix < 200€
-        DIJON       APT 5.948840       1681.0       83.0   Prix < 200€
+    dict_geo_city = effectifsparVille.transform(data_recent)
 
-5 prix au m² les plus hauts :
-              ville_ TYPE_BIEN      Prix_m2  NB_SURF_HAB  NB_PIECES type_anomalie
-             CHAMBLY       MAI 2.578125e+07        128.0        5.0 Prix > 20000€
-             CHAMBLY       APT 1.954545e+07         88.0        2.0 Prix > 20000€
-SAINT PERE SUR LOIRE       APT 1.111111e+07         54.0        2.0 Prix > 20000€
-              CANNES       APT 8.914652e+06         72.0        2.0 Prix > 20000€
-              FREJUS       APT 4.100000e+06         22.0        1.0 Prix > 20000€
+    # =============================================================================
+    # Définition des mailles géographiques pour chaque bien en fonction d'un seuil fixé d'effectif minimum (N_MIN)
+    # *version 1 (maille_geo_loc): maille la plus fine à l'iris
+    # ET
+    # *version 2 (maille_geo_loc_city): maille la plus fine à la ville
+    # =============================================================================
+    # Création de 4 champs :
+    # Version 1 :
+    # maille_geo_loc : définition de la maille géographique ('IRIS', 'ARR', 'CITY', 'DEPT')
+    # geo_bien_iris : valeur associée de la maille géographique (code iris, numéro d'arrondissement, nom de la ville, ou numéro du déârtement)
+    # Version 2 :
+    # maille_geo_loc_city : définition de la maille géographique ('ARR', 'CITY', 'DEPT')
+    # geo_bien_city : valeur associée de la maille géographique (numéro d'arrondissement, nom de la ville, ou numéro du déârtement)
 
+
+
+    defmaillegeocity = DefMailleGeoCITY(
+        n_min=N_MIN,
+        dict_geo_city=dict_geo_city,
+        geo_bien="geo_bien_city",
+        by_year=0,
+    )
+    data_recent = defmaillegeocity.transform(data_recent)
+
+    logging.info("workforce calculation OK")
+    # =============================================================================
+    # Calculs des statistiques descriptives par typologie de bien
+    # =============================================================================
+
+    logging.info("statistics calculation")
+    step_time = datetime.now()
+    calcmetanumCity = CalcMetaNum(
+        n_years=1, geo_bien="geo_bien_city", var_num= VAR_NUM
+    )
+    meta_num_all_city, data_recent = calcmetanumCity.transform(data_recent)
+    logging.info(
+        f"\t Calcul des statistiques descriptives par geo_bien_city et typologie de bien : {datetime.now()-step_time}\n"
+    )
+
+    # =============================================================================
+    # Détection et suppression des anomalies
+    # =============================================================================
+    
+    logging.info("Detection and elimination of anomalies")
+
+    ids_avant = data_recent["ID"].copy()
+    detectano = DetectAno(meta_num_all=meta_num_all_city, var_num= VAR_NUM)
+    result = detectano.transform(data_recent)
+    if isinstance(result, tuple):
+        _, data_recent = result
+    else: 
+        data_recent = result
+    
+    if "ID" not in data_recent.columns:
+        data_recent["ID"] = ids_avant.loc[data_recent.index].values
+
+    data_recent.drop(columns=["year_geo_bien"], inplace=True, errors = "ignore")
+    logging.info("Detection and elimination of anomalies OK")
+
+    logging.info(f"ML detection of anomalies completed: {datetime.now()-start_time}.\n")
+    
+    data_recent = data_recent[["ID","ville_",
+"LIBELLE_DEPT","DEPT_Corse_2A_2B","TYPE_BIEN","DATE","YEAR","Prix_m2","SOURCE", "CD_NATUR_OP","NB_SURF_HAB", "NB_PIECES","CODE_POSTAL","NATURE_MUTATION","CLE_INTEROP_ADR"]]
+    
+    # Identifier les anomalies par différence
+    ids_valides = set(data_recent["ID"])
+    data_mauvais = data_before[~data_before["ID"].isin(ids_valides)]
+    data_mauvais = data_mauvais[data_recent.columns]
+    
+    print(f"Avant: {len(data_before)} / Après: {len(data_recent)}")
+    print("IDs supprimés :", len(set(data_before['ID']) - set(data_recent['ID'])))
+    return data_recent, data_mauvais
