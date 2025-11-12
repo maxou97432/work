@@ -1,251 +1,41 @@
-Oui, c'est effectivement **très bizarre** ! Je vois le problème sur votre graphique pour LILLE. Voici ce qui ne va pas :
-
-## Problème Identifié : Courbes Confondues Pendant 10 Ans
-
-Sur votre graphique, la courbe **rouge (12 mois) et bleue (3 mois) sont exactement superposées** de 2016 à mi-2025, puis soudainement la courbe bleue apparaît en bas [1].
-
-Ce comportement est **anormal** et indique un **bug dans votre code**. Voici les causes possibles :
-
-## Cause Probable 1 : Problème avec les Indicatrices
-
-```python
-univers_complet["I_3m"] = (
-    univers_complet
-      .groupby(typokeys, group_keys=False)["nb_transac"]
-      .transform(lambda s: (s.rolling(3, min_periods=1).sum() > 0).astype(int))
-)
-```
-
-**Vérifiez si `I_3m` et `I_12m` sont identiques** en ajoutant ce diagnostic :
-
-```python
-# Après le calcul des indicatrices
-diagnostic = univers_complet.groupby('Periode')[['I_3m', 'I_12m']].agg({
-    'I_3m': 'sum',
-    'I_12m': 'sum'
-})
-print(diagnostic)
-```
-
-Si `I_3m` et `I_12m` ont toujours les **mêmes valeurs**, c'est le problème [2][3].
-
-## Cause Probable 2 : Toutes les Typologies Actives en Permanence
-
-Si **toutes les typologies** ont des transactions chaque mois à Lille, alors :
-- `I_3m = 1` pour toutes les typologies
-- `I_12m = 1` pour toutes les typologies
-- Les deux pondérations deviennent identiques → courbes confondues
-
-**Test** :
-
-```python
-# Vérifiez la densité des transactions
-densite = (
-    base_ml2[base_ml2['Ville'] == 'LILLE']
-    .groupby(['Periode', 'BIEN_NEUF', 'TYPE_BIEN', 'NB_PIECES_RANGE'])
-    .size()
-    .reset_index(name='count')
-)
-print(f"Typologies avec transactions chaque mois: {densite.groupby('Periode').size().mean()}")
-```
-
-## Cause Probable 3 : Bug dans la Fonction d'Agrégation
-
-La fonction `calcule_prix_pondere_ville_periode` peut avoir un problème :
-
-```python
 def calcule_prix_pondere_ville_periode(g):
-    have_price = g["prix_moyen"].notna()
+    """
+    Calcule les prix moyens pondérés avec fenêtres dynamiques 3m et 12m.
+    Seules les typologies ayant à la fois un prix ET une activité récente sont incluses.
+    """
+    # Typologies avec prix ce mois-ci ET actives dans la fenêtre temporelle
+    valid_3m  = (g["prix_moyen"].notna()) & (g["I_3m"] == 1)
+    valid_12m = (g["prix_moyen"].notna()) & (g["I_12m"] == 1)
     
-    # BUG POTENTIEL : si have_price filtre les mêmes lignes pour les deux
-    w3  = (g["poids_relatif"] * g["I_3m"]).where(have_price, 0.0)
-    w12 = (g["poids_relatif"] * g["I_12m"]).where(have_price, 0.0)
-```
-
-**Ajoutez des prints pour déboguer** :
-
-```python
-def calcule_prix_pondere_ville_periode(g):
-    have_price = g["prix_moyen"].notna()
+    # --- Calcul pour fenêtre 3 mois ---
+    if valid_3m.sum() > 0:
+        # Extraire les poids des typologies valides
+        poids_3m = g.loc[valid_3m, "poids_relatif"]
+        prix_3m = g.loc[valid_3m, "prix_moyen"]
+        
+        # Renormaliser les poids pour qu'ils somment à 1
+        poids_3m_norm = poids_3m / poids_3m.sum()
+        
+        # Moyenne pondérée
+        prix_pondere_3m = np.average(prix_3m, weights=poids_3m_norm)
+    else:
+        prix_pondere_3m = np.nan
     
-    w3  = (g["poids_relatif"] * g["I_3m"]).where(have_price, 0.0)
-    w12 = (g["poids_relatif"] * g["I_12m"]).where(have_price, 0.0)
+    # --- Calcul pour fenêtre 12 mois ---
+    if valid_12m.sum() > 0:
+        # Extraire les poids des typologies valides
+        poids_12m = g.loc[valid_12m, "poids_relatif"]
+        prix_12m = g.loc[valid_12m, "prix_moyen"]
+        
+        # Renormaliser les poids pour qu'ils somment à 1
+        poids_12m_norm = poids_12m / poids_12m.sum()
+        
+        # Moyenne pondérée
+        prix_pondere_12m = np.average(prix_12m, weights=poids_12m_norm)
+    else:
+        prix_pondere_12m = np.nan
     
-    tot3  = w3.sum()
-    tot12 = w12.sum()
-    
-    # DIAGNOSTIC
-    if g['Ville'].iloc[0] == 'LILLE' and g['Periode'].iloc[0].year == 2020:
-        print(f"\n=== LILLE 2020 ===")
-        print(f"Typologies avec prix: {have_price.sum()}")
-        print(f"I_3m actifs: {g['I_3m'].sum()}")
-        print(f"I_12m actifs: {g['I_12m'].sum()}")
-        print(f"Poids total 3m: {tot3:.4f}")
-        print(f"Poids total 12m: {tot12:.4f}")
-    
-    # ... reste du code
-```
-
-## Cause Probable 4 : Ordre d'Exécution du Groupby
-
-Le `.groupby(...).apply()` peut avoir un problème de scope. Essayez cette version corrigée :
-
-```python
-# Au lieu de :
-model_agg = (
-    univers_complet
-      .groupby(["Ville", "Periode"], as_index=False)
-      .apply(calcule_prix_pondere_ville_periode)
-      .reset_index(drop=True)
-)
-
-# Utilisez :
-model_agg = (
-    univers_complet
-      .groupby(["Ville", "Periode"])
-      .apply(calcule_prix_pondere_ville_periode)
-)
-model_agg = model_agg.reset_index()
-```
-
-## Solution : Code de Vérification Complet
-
-Ajoutez ce bloc **juste avant le calcul de `model_agg`** :
-
-```python
-# DIAGNOSTIC COMPLET
-lille_data = univers_complet[univers_complet['Ville'] == 'LILLE'].copy()
-print("\n=== DIAGNOSTIC LILLE ===")
-print(f"Périodes: {lille_data['Periode'].min()} à {lille_data['Periode'].max()}")
-print(f"\nTypologies uniques: {len(lille_data.groupby(typokeys))}")
-
-# Vérifier si I_3m et I_12m sont différents
-diff_indicators = (
-    lille_data
-    .groupby('Periode')
-    .apply(lambda g: (g['I_3m'] != g['I_12m']).any())
-)
-print(f"\nPériodes avec I_3m ≠ I_12m: {diff_indicators.sum()} / {len(diff_indicators)}")
-
-if diff_indicators.sum() == 0:
-    print("⚠️ PROBLÈME: I_3m et I_12m sont TOUJOURS identiques!")
-    print("\nExemple pour janvier 2020:")
-    exemple = lille_data[lille_data['Periode'] == '2020-01-01'][['TYPE_BIEN', 'NB_PIECES_RANGE', 'I_3m', 'I_12m', 'nb_transac']]
-    print(exemple.head(10))
-```
-
-## Ce Que Vous Devriez Voir Normalement
-
-Pour un comportement correct, vous devriez observer :
-1. **2016-2017** : Convergence normale (phase d'amorçage)
-2. **2018-2025** : **Divergence croissante** entre les courbes
-3. La courbe 3m devrait être **plus volatile** que la 12m [2][4]
-
-Le fait qu'elles restent confondues pendant **9 ans** indique clairement que `I_3m` et `I_12m` produisent les mêmes filtres [1].
-
-           I_3m  I_12m
-Periode                
-2015-10-01     0      0
-2015-11-01     0      0
-2015-12-01   162      0
-2016-01-01   163      0
-2016-02-01   170      0
-...          ...    ...
-2025-06-01   130    136
-2025-07-01   130    135
-2025-08-01   126    129
-2025-09-01   120    120
-2025-10-01    35     35
-
-[121 rows x 2 columns]
-
-=== DIAGNOSTIC LILLE ===
-Périodes: 2015-10-01 00:00:00 à 2025-10-01 00:00:00
-
-Typologies uniques: 14
-
-Périodes avec I_3m ≠ I_12m: 63 / 121
-
-=== LILLE 2020 ===
-Typologies avec prix: 8
-I_3m actifs: 14
-I_12m actifs: 14
-Poids total 3m: 0.9496
-Poids total 12m: 0.9496
-
-=== LILLE 2020 ===
-Typologies avec prix: 9
-I_3m actifs: 14
-I_12m actifs: 14
-Poids total 3m: 0.9526
-Poids total 12m: 0.9526
-
-=== LILLE 2020 ===
-Typologies avec prix: 9
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9514
-Poids total 12m: 0.9514
-
-=== LILLE 2020 ===
-Typologies avec prix: 7
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9456
-Poids total 12m: 0.9456
-
-=== LILLE 2020 ===
-Typologies avec prix: 9
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9514
-Poids total 12m: 0.9514
-
-=== LILLE 2020 ===
-Typologies avec prix: 9
-I_3m actifs: 14
-I_12m actifs: 14
-Poids total 3m: 0.9526
-Poids total 12m: 0.9526
-
-=== LILLE 2020 ===
-Typologies avec prix: 10
-I_3m actifs: 14
-I_12m actifs: 14
-Poids total 3m: 0.9699
-Poids total 12m: 0.9699
-
-=== LILLE 2020 ===
-Typologies avec prix: 8
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9473
-Poids total 12m: 0.9473
-
-=== LILLE 2020 ===
-Typologies avec prix: 8
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9496
-Poids total 12m: 0.9496
-
-=== LILLE 2020 ===
-Typologies avec prix: 9
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9682
-Poids total 12m: 0.9682
-
-=== LILLE 2020 ===
-Typologies avec prix: 9
-I_3m actifs: 12
-I_12m actifs: 14
-Poids total 3m: 0.9526
-Poids total 12m: 0.9526
-
-=== LILLE 2020 ===
-Typologies avec prix: 8
-I_3m actifs: 13
-I_12m actifs: 14
-Poids total 3m: 0.9496
-Poids total 12m: 0.9496
+    return pd.Series({
+        "prix_moyen_pondere_dyn_3m":  prix_pondere_3m,
+        "prix_moyen_pondere_dyn_12m": prix_pondere_12m
+    })
