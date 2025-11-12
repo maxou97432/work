@@ -1,108 +1,331 @@
+(.venv) PS N:\uflumth\indicateur_marche\univers_elementaire> & n:/uflumth/indicateur_marche/univers_elementaire/.venv/Scripts/python.exe n:/uflumth/indicateur_marche/univers_elementaire/stat_df_cleaned_data/stat_df_cleaned_data.py
+Temps d'importation : 20.35 secondes
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:267: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:269: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:270: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:273: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:277: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:279: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:280: FutureWarning:
+
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+
+Avant: 11462787 / Après: 11462784
+IDs supprimés : 3
+Temps de détections d'anomalies : 891.88 secondes
 STATISTIQUES GÉNÉRALES
 --------------------------------------------------------------------------------
 Nombre total de biens sur 2015-2025 : 11,462,787
-Biens valides : 9,557,711 (83.38%)
-Outliers détectés : 1,905,076 (16.62%)
+Biens valides : 11,462,784 (100.00%)
+Outliers détectés : 3 (0.00%)
 
 Prix au m² - Outliers :
-  Min : 2 €
-  Max : 25,781,250 €
-  Médiane : 2,222 €
-  Moyenne : 2,807 €
+  Min : nan €
+  Max : nan €
+N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\numpy\lib\_nanfunctions_impl.py:1214: RuntimeWarning:
+
+Mean of empty slice
+
+  Médiane : nan €
+  Moyenne : nan €
 
 CLASSIFICATION DES OUTLIERS
 --------------------------------------------------------------------------------
 
 Répartition par type d'anomalie :
-  Groupe insuffisant   : 1336638 (70.16%)
-  Autre                : 556032 (29.19%)
-  Prix < médiane/4     :  5498 ( 0.29%)
-  Prix < 200€          :  4914 ( 0.26%)
-  Prix > 20000€        :  1024 ( 0.05%)
-  Prix > 4×médiane     :   970 ( 0.05%)
+  Groupe insuffisant   :     3 (100.00%)
 
 RÉPARTITION GÉOGRAPHIQUE
 --------------------------------------------------------------------------------
 
 Top 10 départements avec le plus d'outliers :
-  Paris                          : 48555 ( 2.55%)
-  Hauts-de-Seine                 : 41211 ( 2.16%)
-  Nord                           : 39162 ( 2.06%)
-  Yvelines                       : 32519 ( 1.71%)
-  Seine-Saint-Denis              : 28977 ( 1.52%)
-  Val-de-Marne                   : 28358 ( 1.49%)
-  Bouches-du-Rhône               : 27723 ( 1.46%)
-  Seine-et-Marne                 : 27310 ( 1.43%)
-  Essonne                        : 26387 ( 1.39%)
-  Val-d'Oise                     : 26316 ( 1.38%)
+  Hérault                        :     1 (33.33%)
+  Vendée                         :     1 (33.33%)
+  Tarn                           :     1 (33.33%)
 
 Top 10 villes avec le plus d'outliers :
-  PARIS                          : 85251 ( 4.47%)
-  MARSEILLE                      : 29104 ( 1.53%)
-  TOULOUSE                       : 23118 ( 1.21%)
-  LYON                           : 20496 ( 1.08%)
-  NICE                           : 15844 ( 0.83%)
-  NANTES                         : 14751 ( 0.77%)
-  BORDEAUX                       : 13720 ( 0.72%)
-  MONTPELLIER                    : 13211 ( 0.69%)
-  LILLE                          : 11236 ( 0.59%)
-  RENNES                         :  8306 ( 0.44%)
+  MONTPELLIER                    :     1 (33.33%)
+  BREM SUR MER                   :     1 (33.33%)
+  CASTRES                        :     1 (33.33%)
 
 RÉPARTITION PAR TYPE DE BIEN
 --------------------------------------------------------------------------------
 
 Par type de bien :
-  MAI                  : 991842 (52.06%)
-  APT                  : 913234 (47.94%)
+  APT                  :     2 (66.67%)
+  MAI                  :     1 (33.33%)
 
 Par année :
-  1994 :     1 ( 0.00%)
-  1995 :     4 ( 0.00%)
-  1996 :     3 ( 0.00%)
-  1997 :     5 ( 0.00%)
-  1998 :    14 ( 0.00%)
-  1999 :   120 ( 0.01%)
-  2000 :   510 ( 0.03%)
-  2001 :  2523 ( 0.13%)
-  2002 :  5391 ( 0.28%)
-  2003 : 11064 ( 0.58%)
-  2004 : 18039 ( 0.95%)
-  2005 : 34320 ( 1.80%)
-  2006 : 50510 ( 2.65%)
-  2007 : 52170 ( 2.74%)
-  2008 : 45657 ( 2.40%)
-  2009 : 54124 ( 2.84%)
-  2010 : 96681 ( 5.07%)
-  2011 : 88544 ( 4.65%)
-  2012 : 70356 ( 3.69%)
-  2013 : 76827 ( 4.03%)
-  2014 : 708995 (37.22%)
-  2015 : 589218 (30.93%)
+  1994 :     1 (33.33%)
+  1995 :     2 (66.67%)
 
 ANALYSE PAR SOURCE DE DONNÉES
 --------------------------------------------------------------------------------
 
 Par source :
-  DVF                  : 1092348 (57.34%)
-  CL                   : 812728 (42.66%)
+  CL                   :     3 (100.00%)
 
 ================================================================================
 EXEMPLES D'OUTLIERS EXTRÊMES
 ================================================================================
 
 5 prix au m² les plus bas :
-       ville_ TYPE_BIEN  Prix_m2  NB_SURF_HAB  NB_PIECES type_anomalie
-      MATOURY       MAI 2.234843      17285.0      868.0   Prix < 200€
-AUBERCHICOURT       MAI 3.732162       2733.0      133.0   Prix < 200€
-     LAMENTIN       MAI 5.364327       2237.0      110.0   Prix < 200€
-        REIMS       MAI 5.579399       2330.0      106.0   Prix < 200€
-        DIJON       APT 5.948840       1681.0       83.0   Prix < 200€
+      ville_ TYPE_BIEN  Prix_m2  NB_SURF_HAB  NB_PIECES      type_anomalie
+ MONTPELLIER       APT      NaN          NaN        NaN Groupe insuffisant
+BREM SUR MER       MAI      NaN          NaN        NaN Groupe insuffisant
+     CASTRES       APT      NaN          NaN        NaN Groupe insuffisant
 
 5 prix au m² les plus hauts :
-              ville_ TYPE_BIEN      Prix_m2  NB_SURF_HAB  NB_PIECES type_anomalie
-             CHAMBLY       MAI 2.578125e+07        128.0        5.0 Prix > 20000€
-             CHAMBLY       APT 1.954545e+07         88.0        2.0 Prix > 20000€
-SAINT PERE SUR LOIRE       APT 1.111111e+07         54.0        2.0 Prix > 20000€
-              CANNES       APT 8.914652e+06         72.0        2.0 Prix > 20000€
-              FREJUS       APT 4.100000e+06         22.0        1.0 Prix > 20000€
+      ville_ TYPE_BIEN  Prix_m2  NB_SURF_HAB  NB_PIECES      type_anomalie
+ MONTPELLIER       APT      NaN          NaN        NaN Groupe insuffisant
+BREM SUR MER       MAI      NaN          NaN        NaN Groupe insuffisant
+     CASTRES       APT      NaN          NaN        NaN Groupe insuffisant
 
+Traceback (most recent call last):
+  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 259, in <module>
+    fig1.show()
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\basedatatypes.py", line 3420, in show
+    return pio.show(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 407, in show
+    bundle = renderers._build_mime_bundle(fig_dict, renderers_string=renderer, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 304, in _build_mime_bundle
+    self._activate_pending_renderers(cls=MimetypeRenderer)
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 215, in _activate_pending_renderers
+    renderer.activate()
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_base_renderers.py", line 268, in activate
+    raise ValueError(
+ValueError: The NotebookRenderer class requires ipython but it is not installed
+
+import sys
+import os
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
+sys.path.append(parent_dir)
+
+import pandas as pd
+import pickle
+import matplotlib.pyplot as plt
+from datetime import datetime
+import logging
+import math
+from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
+from classe import (DateOffset,
+                         ImportRecentData,
+                         CalcMetaNum,
+                         EffectifsParMailleGeo,
+                         DefMailleGeoCITY,
+                         DetectAno,
+                         detect_ano_ml
+)
+import numpy as np
+import plotly.express as px
+import plotly.io as pio
+import pandas as pd
+import time
+
+import os
+
+# Dossier de sortie
+output_dir = os.path.join(os.path.dirname(__file__), "results")
+os.makedirs(output_dir, exist_ok=True)
+
+
+
+
+
+
+
+pio.renderers.default = "notebook"  
+
+
+################ Importation de la base ################
+start_time = time.time()
+df = pd.read_parquet("Z:\data\cl_estim\cleaned_data\df_transac_clean.parquet")
+end_time = time.time()
+print(f"Temps d'importation : {end_time - start_time:.2f} secondes")
+
+
+
+
+start_time = time.time()
+base_ml_full, outliers = detect_ano_ml(input_df=df, date_min = None, date_max = None, type_bien = None) #Algorithme de détection d'anomalies, détaillé dans classe.py
+end_time = time.time()
+print(f"Temps de détections d'anomalies : {end_time - start_time:.2f} secondes")
+
+# periode_reference: paramètre permettant de choisir le mois de référence 
+periode_reference = None # à changer en fonction de la plage de temps souhaitée
+ref_date = periode_reference or df["DATE"].max()
+
+date_max = (ref_date.replace(day = 1))
+date_min = (date_max - relativedelta(years= 10))
+
+base_ml = base_ml_full[(base_ml_full["DATE"] >= date_min) & (base_ml_full["DATE"] < date_max)]
+base_ml.to_parquet("base_ml_filtre.parquet", index=False) #on enregistre la base filtrée pour les autres fichiers
+
+
+
+############### Statistiques sur les anomalies ###############
+colonnes = ["Prix_m2", "NB_SURF_HAB", "NB_PIECES"]
+
+def analyse_generale_outliers(data_mauvais, data_recent):
+    total = len(data_mauvais) + len(data_recent)
+    print("STATISTIQUES GÉNÉRALES")
+    print("-" * 80)
+    print(f"Nombre total de biens sur 2015-2025 : {total:,}")
+    print(f"Biens valides : {len(data_recent):,} ({len(data_recent)/total*100:.2f}%)")
+    print(f"Outliers détectés : {len(data_mauvais):,} ({len(data_mauvais)/total*100:.2f}%)")
+    print()
+    
+    
+    print("Prix au m² - Outliers :")
+    print(f"  Min : {data_mauvais['Prix_m2'].min():,.0f} €")
+    print(f"  Max : {data_mauvais['Prix_m2'].max():,.0f} €")
+    print(f"  Médiane : {data_mauvais['Prix_m2'].median():,.0f} €")
+    print(f"  Moyenne : {data_mauvais['Prix_m2'].mean():,.0f} €")
+    print()
+
+
+def classifier_outliers(data_mauvais, data_recent):
+    print("CLASSIFICATION DES OUTLIERS")
+    print("-" * 80)
+    
+    medianes = data_recent.groupby(['YEAR', 'ville_', 'TYPE_BIEN'])['Prix_m2'].median().reset_index()
+    medianes.rename(columns={'Prix_m2': 'mediane'}, inplace=True)
+    
+    data_outliers_class = data_mauvais.merge(medianes, on=['YEAR', 'ville_', 'TYPE_BIEN'], how='left')
+    
+    def classifier(row):
+        prix = row['Prix_m2']
+        if pd.isna(row['mediane']):
+            if prix < 200:
+                return 'Prix < 200€'
+            elif prix > 20000:
+                return 'Prix > 20000€'
+            else:
+                return 'Groupe insuffisant'
+        else:
+            mediane = row['mediane']
+            if prix < 200:
+                return 'Prix < 200€'
+            elif prix > 20000:
+                return 'Prix > 20000€'
+            elif prix < mediane / 4:
+                return 'Prix < médiane/4'
+            elif prix > 4 * mediane:
+                return 'Prix > 4×médiane'
+            else:
+                return 'Autre'
+    
+    data_outliers_class['type_anomalie'] = data_outliers_class.apply(classifier, axis=1)
+    
+    repartition = data_outliers_class['type_anomalie'].value_counts()
+    print("\nRépartition par type d'anomalie :")
+    for anomalie, count in repartition.items():
+        pct = count / len(data_outliers_class) * 100
+        print(f"  {anomalie:20s} : {count:5d} ({pct:5.2f}%)")
+    print()
+    
+    return data_outliers_class
+
+
+def analyse_geo_outliers(data_outliers_class):
+    print("RÉPARTITION GÉOGRAPHIQUE")
+    print("-" * 80)
+    
+    print("\nTop 10 départements avec le plus d'outliers :")
+    top_dept = data_outliers_class['LIBELLE_DEPT'].value_counts().head(10)
+    for dept, count in top_dept.items():
+        pct = count / len(data_outliers_class) * 100
+        print(f"  {dept:30s} : {count:5d} ({pct:5.2f}%)")
+    print()
+    
+    print("Top 10 villes avec le plus d'outliers :")
+    top_ville = data_outliers_class['ville_'].value_counts().head(10)
+    for ville, count in top_ville.items():
+        pct = count / len(data_outliers_class) * 100
+        print(f"  {ville:30s} : {count:5d} ({pct:5.2f}%)")
+    print()
+
+
+def analyse_typologie_outliers(data_outliers_class):
+    print("RÉPARTITION PAR TYPE DE BIEN")
+    print("-" * 80)
+    
+    print("\nPar type de bien :")
+    type_bien = data_outliers_class['TYPE_BIEN'].value_counts()
+    for tb, count in type_bien.items():
+        pct = count / len(data_outliers_class) * 100
+        print(f"  {tb:20s} : {count:5d} ({pct:5.2f}%)")
+    print()
+    
+    print("Par année :")
+    annee = data_outliers_class['YEAR'].value_counts().sort_index()
+    for year, count in annee.items():
+        pct = count / len(data_outliers_class) * 100
+        print(f"  {year} : {count:5d} ({pct:5.2f}%)")
+    print()
+    
+
+
+def analyse_sources_outliers(data_outliers_class):
+
+    print("ANALYSE PAR SOURCE DE DONNÉES")
+    print("-" * 80)
+    
+    print("\nPar source :")
+    source = data_outliers_class['SOURCE'].value_counts()
+    for src, count in source.items():
+        pct = count / len(data_outliers_class) * 100
+        print(f"  {src:20s} : {count:5d} ({pct:5.2f}%)")
+    print()
+    
+
+
+def exemples_outliers(data_outliers_class):
+    print("=" * 80)
+    print("EXEMPLES D'OUTLIERS EXTRÊMES")
+    print("=" * 80)
+    
+    print("\n5 prix au m² les plus bas :")
+    cols_display = ['ville_', 'TYPE_BIEN', 'Prix_m2', 'NB_SURF_HAB', 'NB_PIECES', 'type_anomalie']
+    print(data_outliers_class.nsmallest(5, 'Prix_m2')[cols_display].to_string(index=False))
+    print()
+    
+    print("5 prix au m² les plus hauts :")
+    print(data_outliers_class.nlargest(5, 'Prix_m2')[cols_display].to_string(index=False))
+    print()
+
+
+
+
+def analyser_outliers_complet(data_mauvais, data_recent):
+    analyse_generale_outliers(data_mauvais, data_recent)
+    data_outliers_class = classifier_outliers(data_mauvais, data_recent)
+    analyse_geo_outliers(data_outliers_class)
+    analyse_typologie_outliers(data_outliers_class)
+    analyse_sources_outliers(data_outliers_class)
+    exemples_outliers(data_outliers_class)
+    return data_outliers_class
+
+data_outliers_classified = analyser_outliers_complet(outliers,base_ml_full)
