@@ -1,134 +1,153 @@
+Oui, c'est effectivement **très bizarre** ! Je vois le problème sur votre graphique pour LILLE. Voici ce qui ne va pas :
 
-top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
-         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+## Problème Identifié : Courbes Confondues Pendant 10 Ans
 
-# Préparation villes
-base_ml = base_ml.rename(columns={"ville_": "Ville"})
-base_ml2 = base_ml.copy()
-base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
-base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
+Sur votre graphique, la courbe **rouge (12 mois) et bleue (3 mois) sont exactement superposées** de 2016 à mi-2025, puis soudainement la courbe bleue apparaît en bas [1].
 
-# Période mensuelle
-base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"], errors="raise")
-base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
+Ce comportement est **anormal** et indique un **bug dans votre code**. Voici les causes possibles :
 
-keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+## Cause Probable 1 : Problème avec les Indicatrices
 
-# Univers mensuel agrégé par typologie
-univers_mensuel = (
-    base_ml2
-      .groupby(keys, dropna=False)
-      .agg(
-          nb_transac      = ("ID", "size"),
-          prix_moyen      = ("Prix_m2", "mean"),
-          prix_median     = ("Prix_m2", "median"),
-          surface_moyenne = ("NB_SURF_HAB", "mean")
-      )
-      .reset_index()
-)
-
-# Cohérence TYPE_BIEN / NB_PIECES_RANGE 
-univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
-univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
-mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
-
-# Compléter le calendrier mensuel par typologie
-def complete_months(g):
-    g = g.sort_values("Periode").set_index("Periode")
-    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
-    g = g.reindex(idx)
-    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
-        g[col] = g[col].ffill().bfill()
-    g["nb_transac"] = g["nb_transac"].fillna(0)
-    g["prix_moyen"] = g["prix_moyen"]  # on garde NaN si pas de prix
-    return g.reset_index().rename(columns={"index":"Periode"})
-
-univers_complet = (
-    univers_mensuel
-      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
-      .apply(complete_months)
-)
-
-# Poids globaux par typologie (structures fixées par Ville)
-poids_global = (
-    univers_mensuel
-      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index=False)["nb_transac"]
-      .sum()
-      .rename(columns={"nb_transac": "poids_total"})
-)
-poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x: x/x.sum())
-
-univers_complet = univers_complet.merge(
-    poids_global,
-    on=["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
-    how="left"
-)
-
-#  indicatrices TEMPORELLES 
-typokeys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]
-univers_complet = univers_complet.sort_values(typokeys + ["Periode"])
-
+```python
 univers_complet["I_3m"] = (
     univers_complet
       .groupby(typokeys, group_keys=False)["nb_transac"]
-      .transform(lambda s: (s.rolling(3,  min_periods=1).sum() > 0).astype(int))
+      .transform(lambda s: (s.rolling(3, min_periods=1).sum() > 0).astype(int))
 )
+```
 
-univers_complet["I_12m"] = (
-    univers_complet
-      .groupby(typokeys, group_keys=False)["nb_transac"]
-      .transform(lambda s: (s.rolling(12, min_periods=6).sum() > 0).astype(int))
+**Vérifiez si `I_3m` et `I_12m` sont identiques** en ajoutant ce diagnostic :
+
+```python
+# Après le calcul des indicatrices
+diagnostic = univers_complet.groupby('Periode')[['I_3m', 'I_12m']].agg({
+    'I_3m': 'sum',
+    'I_12m': 'sum'
+})
+print(diagnostic)
+```
+
+Si `I_3m` et `I_12m` ont toujours les **mêmes valeurs**, c'est le problème [2][3].
+
+## Cause Probable 2 : Toutes les Typologies Actives en Permanence
+
+Si **toutes les typologies** ont des transactions chaque mois à Lille, alors :
+- `I_3m = 1` pour toutes les typologies
+- `I_12m = 1` pour toutes les typologies
+- Les deux pondérations deviennent identiques → courbes confondues
+
+**Test** :
+
+```python
+# Vérifiez la densité des transactions
+densite = (
+    base_ml2[base_ml2['Ville'] == 'LILLE']
+    .groupby(['Periode', 'BIEN_NEUF', 'TYPE_BIEN', 'NB_PIECES_RANGE'])
+    .size()
+    .reset_index(name='count')
 )
+print(f"Typologies avec transactions chaque mois: {densite.groupby('Periode').size().mean()}")
+```
 
-# Agrégateur Ville x Periode utilisant les indicatrices  (plus de rolling ici)
+## Cause Probable 3 : Bug dans la Fonction d'Agrégation
+
+La fonction `calcule_prix_pondere_ville_periode` peut avoir un problème :
+
+```python
 def calcule_prix_pondere_ville_periode(g):
     have_price = g["prix_moyen"].notna()
-
+    
+    # BUG POTENTIEL : si have_price filtre les mêmes lignes pour les deux
     w3  = (g["poids_relatif"] * g["I_3m"]).where(have_price, 0.0)
     w12 = (g["poids_relatif"] * g["I_12m"]).where(have_price, 0.0)
+```
 
+**Ajoutez des prints pour déboguer** :
+
+```python
+def calcule_prix_pondere_ville_periode(g):
+    have_price = g["prix_moyen"].notna()
+    
+    w3  = (g["poids_relatif"] * g["I_3m"]).where(have_price, 0.0)
+    w12 = (g["poids_relatif"] * g["I_12m"]).where(have_price, 0.0)
+    
     tot3  = w3.sum()
     tot12 = w12.sum()
+    
+    # DIAGNOSTIC
+    if g['Ville'].iloc[0] == 'LILLE' and g['Periode'].iloc[0].year == 2020:
+        print(f"\n=== LILLE 2020 ===")
+        print(f"Typologies avec prix: {have_price.sum()}")
+        print(f"I_3m actifs: {g['I_3m'].sum()}")
+        print(f"I_12m actifs: {g['I_12m'].sum()}")
+        print(f"Poids total 3m: {tot3:.4f}")
+        print(f"Poids total 12m: {tot12:.4f}")
+    
+    # ... reste du code
+```
 
-    prix_pondere_3m  = np.average(g.loc[have_price, "prix_moyen"], weights=w3.loc[have_price])  if tot3  > 0 else np.nan
-    prix_pondere_12m = np.average(g.loc[have_price, "prix_moyen"], weights=w12.loc[have_price]) if tot12 > 0 else np.nan
+## Cause Probable 4 : Ordre d'Exécution du Groupby
 
-    return pd.Series({
-        "prix_moyen_pondere_dyn_3m":  prix_pondere_3m,
-        "prix_moyen_pondere_dyn_12m": prix_pondere_12m
-    })
+Le `.groupby(...).apply()` peut avoir un problème de scope. Essayez cette version corrigée :
 
-# Agrégation principale par Ville x Periode 
+```python
+# Au lieu de :
 model_agg = (
     univers_complet
       .groupby(["Ville", "Periode"], as_index=False)
       .apply(calcule_prix_pondere_ville_periode)
       .reset_index(drop=True)
-      .sort_values(["Ville","Periode"])
 )
 
-# (Option) bornage temporel
-model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
+# Utilisez :
+model_agg = (
+    univers_complet
+      .groupby(["Ville", "Periode"])
+      .apply(calcule_prix_pondere_ville_periode)
+)
+model_agg = model_agg.reset_index()
+```
 
-# Plot : on trace directement les deux séries dynamiques 
-for ville in model_agg["Ville"].unique():
-    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("Periode")
+## Solution : Code de Vérification Complet
 
-    fig = px.line(
-        df_ville,
-        x="Periode",
-        y=["prix_moyen_pondere_dyn_3m", "prix_moyen_pondere_dyn_12m"],
-        title=f"Évolution du prix au m² — {ville}",
-        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "Periode": "Date"},
-        markers=True
-    )
-    fig.update_layout(
-        title_x=0.5,
-        plot_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
-        yaxis=dict(showgrid=True, gridcolor="#eee"),
-        legend_title="Type de prix",
-        height=500
-    )
-    fig.show()
+Ajoutez ce bloc **juste avant le calcul de `model_agg`** :
+
+```python
+# DIAGNOSTIC COMPLET
+lille_data = univers_complet[univers_complet['Ville'] == 'LILLE'].copy()
+print("\n=== DIAGNOSTIC LILLE ===")
+print(f"Périodes: {lille_data['Periode'].min()} à {lille_data['Periode'].max()}")
+print(f"\nTypologies uniques: {len(lille_data.groupby(typokeys))}")
+
+# Vérifier si I_3m et I_12m sont différents
+diff_indicators = (
+    lille_data
+    .groupby('Periode')
+    .apply(lambda g: (g['I_3m'] != g['I_12m']).any())
+)
+print(f"\nPériodes avec I_3m ≠ I_12m: {diff_indicators.sum()} / {len(diff_indicators)}")
+
+if diff_indicators.sum() == 0:
+    print("⚠️ PROBLÈME: I_3m et I_12m sont TOUJOURS identiques!")
+    print("\nExemple pour janvier 2020:")
+    exemple = lille_data[lille_data['Periode'] == '2020-01-01'][['TYPE_BIEN', 'NB_PIECES_RANGE', 'I_3m', 'I_12m', 'nb_transac']]
+    print(exemple.head(10))
+```
+
+## Ce Que Vous Devriez Voir Normalement
+
+Pour un comportement correct, vous devriez observer :
+1. **2016-2017** : Convergence normale (phase d'amorçage)
+2. **2018-2025** : **Divergence croissante** entre les courbes
+3. La courbe 3m devrait être **plus volatile** que la 12m [2][4]
+
+Le fait qu'elles restent confondues pendant **9 ans** indique clairement que `I_3m` et `I_12m` produisent les mêmes filtres [1].
+
+Lancez ces diagnostics et partagez-moi les résultats pour qu'on identifie précisément le bug [5][3] !
+
+Sources
+[1] IMG_4943.JPG https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/26426814/099ec98a-e79a-44d5-b6d3-a679b84cf404/IMG_4943.JPG?AWSAccessKeyId=ASIA2F3EMEYEVFZ74G66&Signature=syoCQYNnH9CHOeD6%2FXnEtsiY7%2BM%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEHEaCXVzLWVhc3QtMSJHMEUCIQCnv6MblvSVXxAdskYVYF3bEO209WnGPbKFuDWig50yrwIgfpiCCg4hx8yLcKAa48BPQbmWaJYDg%2FaIB8lxaS2obP4q8wQIORABGgw2OTk3NTMzMDk3MDUiDEOGBg7YPI2ebuimmyrQBA57U8rS6x7A0N0ehhAGCf5ny5lVGgqDHFgHlqGuNN13w20QaH8XA35SYHRBCAg1IXTLZYIkbPlcV4mQawAxfct0GAJSacgjnlIC3liGbdzSm%2FyBaMB0oAvJnP%2BZGpboiDRQHvSgxgM036GlFPmmcnctwdK6IKfE19eNmlEUSbCdLumBHrIX0eO%2BCQx7FQh7quMStGN6dqH472i1WmQ2mWw5qiRL89CqxFaMqrOCdO6BacEGMWnw4Zu1Uty6CVbvFKSHAJuwY%2BFQm20qkXPxpgjemR%2BtgajtFkGwKVDvmUgvx9qZUCgem8VzIgz3zdv3%2BRaJlkGPEd5JRjmB0xhY6XUmQOaklc2dIlsDEslXf4NR9eEDKQTD9r52uB0VpVbiqpoJ0znGauepgFYuoo%2BkLQJQiHZSuxrDW00mL%2Bk7%2BkHpC%2BhDwhV1Nl7ldzdl%2BmFU5K46Uy79zHJMfkuP66h6b%2B1h30KH%2FdRoBVdsFOn8uWBi7JXfjbQDchhjC2WEmiIshMbkhQHSXhnNymEe2vwHcijpW4O4f%2BdAWabE2v2dn9Ys5IuQCXyD28Zq0cHojv5I9Jf0sy0LR1xvbK8ZMvuVFWGuD4hRBffD5A6AKSnypU%2B3G8XUmaRcWoQagyqH9Itj3zfKnU8SRaSM88gbHxRPkvfXDbPcFyWWv6eZ%2BNMJ0KGIzKmJnJV86uDZWRCaYqpoz6NiLlqxbBMu%2BTtddoWSxOSY5%2BXZj%2BXbdCg%2BjGNx8ceZaxz8JBH4FN0BPLQ1lXsQnNhnCExpqHZkCjXmfWI37dEwzePSyAY6mAHvPz5hVQPby2kSpmLEslIqUgjudD9KisTADOgvcDMfqoWKxnBkLlFNlcwWeMORc9lq1sN28Nn%2Fqevg4lJMFxBzCQalkSqImwQ5u6iM8AgCx8YWZiSjvxiG2lBMDb2%2BqIYjLhaAIjmKDt3OxShGf3T89bp1oonHL7UGktiNYpj45N6IN0wWwoxr1h94xsDhVtiY6QqHKaH5VA%3D%3D&Expires=1762964777
+[2] Applications of Rolling Windows for Time Series, with Python https://towardsdatascience.com/applications-of-rolling-windows-for-time-series-with-python-1a4bbe44901d/
+[3] Windowing operations — pandas 2.3.3 documentation - PyData | https://pandas.pydata.org/docs/user_guide/window.html
+[4] Long-Term vs Short-Term Trading: A Detailed Professional ... https://trade-ys.com/long-term-vs-short-term-trading-a-detailed-professional-analysis/
+[5] Rolling-Window Analysis of Time-Series Models - MATLAB & Simulink https://www.mathworks.com/help/econ/rolling-window-estimation-of-state-space-models.html
