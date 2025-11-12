@@ -1,3 +1,31 @@
+
+pio.renderers.default = "notebook"  
+
+
+################ Importation de la base ################
+start_time = time.time()
+df = pd.read_parquet("Z:\data\cl_estim\cleaned_data\df_transac_clean.parquet")
+end_time = time.time()
+print(f"Temps d'importation : {end_time - start_time:.2f} secondes")
+
+
+
+
+start_time = time.time()
+base_ml_full, outliers = detect_ano_ml(input_df=df, date_min = None, date_max = None, type_bien = None) #Algorithme de détection d'anomalies, détaillé dans classe.py
+end_time = time.time()
+print(f"Temps de détections d'anomalies : {end_time - start_time:.2f} secondes")
+
+# periode_reference: paramètre permettant de choisir le mois de référence 
+periode_reference = None # à changer en fonction de la plage de temps souhaitée
+ref_date = periode_reference or df["DATE"].max()
+
+date_max = (ref_date.replace(day = 1))
+date_min = (date_max - relativedelta(years= 10))
+
+base_ml = base_ml_full[(base_ml_full["DATE"] >= date_min) & (base_ml_full["DATE"] < date_max)]
+base_ml.to_parquet("base_ml_filtre.parquet", index=False) #on enregistre la base filtrée pour les autres fichiers
+
 def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, n_years = 30):
     DATE_MIN = pd.to_datetime(date_min)
     DATE_MAX = pd.to_datetime(date_max)
@@ -40,7 +68,7 @@ def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, 
 
     importrecentdata = ImportRecentData(n_years=n_years, input_= df)
     data_recent = importrecentdata.import_data_recent()
-    data_before = df.copy()             #on cree une copie pour étudier les outliers
+
     logging.info(
         f"Base d'analyse filtrée sur les {n_years} dernières années : {datetime.now()-start_time}\n"
     )
@@ -103,7 +131,7 @@ def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, 
     # =============================================================================
     
     logging.info("Detection and elimination of anomalies")
-
+    data_before = df.copy()             #on cree une copie pour étudier les outliers
     ids_avant = data_recent["ID"].copy()
     detectano = DetectAno(meta_num_all=meta_num_all_city, var_num= VAR_NUM)
     result = detectano.transform(data_recent)
@@ -131,3 +159,4 @@ def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, 
     print(f"Avant: {len(data_before)} / Après: {len(data_recent)}")
     print("IDs supprimés :", len(set(data_before['ID']) - set(data_recent['ID'])))
     return data_recent, data_mauvais
+   
