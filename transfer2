@@ -1,15 +1,19 @@
-base_ml3["Ville"] = base_ml3["Ville"].astype(str).str.strip().str.upper()
-base_ml3 = base_ml3[base_ml3["Ville"].isin(top15)]
+top15 = ["PARIS","MARSEILLE","LYON","LILLE","RENNES","TOULOUSE","BORDEAUX","NICE",
+         "STRASBOURG","NANTES","MONTPELLIER","TOULON","REIMS","SAINT-ETIENNE","LE HAVRE"]
+base_ml = base_ml.rename(columns={"ville_":"Ville"})
+base_ml2 = base_ml.copy()
+base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
+base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 
 
-base_ml3["DATE"] = pd.to_datetime(base_ml3["DATE"])
-base_ml3["Periode"] = base_ml3["DATE"].dt.to_period("M").dt.to_timestamp()
+base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
+base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
 
 
 keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
 
 univers_mensuel = (
-    base_ml3
+    base_ml2
       .groupby(keys, dropna=False)
       .agg(
           nb_transac     = ("ID", "size"),
@@ -43,10 +47,6 @@ univers_complet = (
       .apply(complete_months)
 )
 
-poids_global = (
-    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
-poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
-
 
 # pondération globale
 poids_global = (
@@ -67,17 +67,27 @@ univers_complet = univers_complet.merge(
 def calcule_prix_pondere_ville_periode(g):
     g = g.copy()
     g = g[g["prix_moyen"].notna()]  
-    g["I"] = (g["nb_transac"] > 0).astype(int)
-    g["poids_actif"] = g["poids_relatif"] * g["I"]
-    total_poids = g["poids_actif"].sum()
+    g["I_3m"] = (g["nb_transac"].rolling(3, min_periods=1).sum() > 0).astype(int)
+    g["poids_actif_3m"] = g["poids_relatif"] * g["I_3m"]
+    total_poids_3m = g["poids_actif_3m"].sum()
 
-    if total_poids > 0:
-        g["poids_dyn"] = g["poids_actif"] / total_poids
-        prix_pondere = np.average(g["prix_moyen"], weights=g["poids_dyn"])
+    g["I_12m"] = (g["nb_transac"].rolling(12, min_periods=6).sum() > 0).astype(int)
+    g["poids_actif_12m"] = g["poids_relatif"] * g["I_12m"]
+    total_poids_12m = g["poids_actif_12m"].sum()
+
+    if total_poids_3m > 0:
+        g["poids_dyn_3m"] = g["poids_actif_3m"] / total_poids_3m
+        prix_pondere_3m = np.average(g["prix_moyen"], weights=g["poids_dyn_3m"])
     else:
-        prix_pondere = np.nan
+        prix_pondere_3m = np.nan
 
-    return pd.Series({"prix_moyen_pondere_dyn": prix_pondere})
+    if total_poids_12m > 0:
+        g["poids_dyn_12m"] = g["poids_actif_12m"] / total_poids_12m
+        prix_pondere_12m = np.average(g["prix_moyen"], weights=g["poids_dyn_12m"])
+    else:
+        prix_pondere_12m = np.nan
+
+    return pd.Series({"prix_moyen_pondere_dyn_3m": prix_pondere_3m, "prix_moyen_pondere_dyn_12m": prix_pondere_12m})
 
 #agrégation principale
 model_agg = (
@@ -98,13 +108,28 @@ model_agg["glissant_12m"] = (
     .transform(lambda s: s.rolling(12, min_periods=3).mean())
 )
 
-
-model_agg = model_agg.rename(columns={
-    "Periode": "DATE"
-})
-
-model_agg2 = model_agg.drop(columns=["prix_moyen_pondere_dyn"], errors="ignore")
+model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
 
 
-model_agg2["DATE"] = pd.to_datetime(model_agg2["DATE"], errors="coerce")
-merge2["DATE"] = pd.to_datetime(merge["DATE"], errors="coerce")
+for ville in model_agg["Ville"].unique():
+    df_ville = model_agg[model_agg["Ville"] == ville].sort_values("Periode")
+    if df_ville["prix_moyen_pondere_dyn"].notna().sum() == 0:
+        print(f"Aucune donnée exploitable pour {ville}")
+        continue
+    fig = px.line(
+        df_ville,
+        x="Periode",
+        y=["prix_moyen_pondere_dyn", "glissant_3m", "glissant_12m"],
+        title=f"Évolution du prix au m² — {ville}",
+        labels={"value": "Prix du m² (€)", "variable": "Indicateur", "Periode": "Date"},
+        markers=True
+    )
+    fig.update_layout(
+        title_x=0.5,
+        plot_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee"),
+        legend_title="Type de prix",
+        height=500
+    )
+    fig.show()
