@@ -1,112 +1,97 @@
-(.venv) PS N:\uflumth\indicateur_marche\univers_elementaire> & n:/uflumth/indicateur_marche/univers_elementaire/.venv/Scripts/python.exe n:/uflumth/indicateur_marche/univers_elementaire/stat_df_cleaned_data/stat_df_cleaned_data.py
-Temps d'importation : 19.78 secondes
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:267: FutureWarning:
+mon fichier py:
+ import sys
+import os
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
+sys.path.append(parent_dir)
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+import pandas as pd
+import pickle
+import matplotlib.pyplot as plt
+from datetime import datetime
+import logging
+import math
+from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
+from classe import (DateOffset,
+                         ImportRecentData,
+                         CalcMetaNum,
+                         EffectifsParMailleGeo,
+                         DefMailleGeoCITY,
+                         DetectAno,
+                         detect_ano_ml
+)
+import numpy as np
+import plotly.express as px
+import plotly.io as pio
+import pandas as pd
+import time
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:269: FutureWarning:
+import os
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+# Dossier de sortie
+output_dir = os.path.join(os.path.dirname(__file__), "results")
+os.makedirs(output_dir, exist_ok=True)
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:270: FutureWarning:
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:273: FutureWarning:
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:277: FutureWarning:
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:279: FutureWarning:
+pio.renderers.default = "notebook"  
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:280: FutureWarning:
+################ Importation de la base ################
+start_time = time.time()
+df = pd.read_parquet("Z:\data\cl_estim\cleaned_data\df_transac_clean.parquet")
+end_time = time.time()
+print(f"Temps d'importation : {end_time - start_time:.2f} secondes")
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+# periode_reference: paramètre permettant de choisir le mois de référence 
+periode_reference = None # à changer en fonction de la plage de temps souhaitée
+ref_date = periode_reference or df["DATE"].max()
 
-Avant: 9557143 / Après: 9557143
-IDs supprimés : 0
-Temps de détections d'anomalies : 773.41 secondes
-Traceback (most recent call last):
-  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 62, in <module>
-    base_ml.to_parquet("univers_elementaire/base_ml_filtre.parquet", index=False) #on enregistre la base filtrée pour les autres fichiers
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\util\_decorators.py", line 333, in wrapper
-    return func(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\core\frame.py", line 3124, in to_parquet
-    return to_parquet(
-           ^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\parquet.py", line 482, in to_parquet
-    impl.write(
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\parquet.py", line 199, in write
-    path_or_handle, handles, filesystem = _get_path_or_handle(
-                                          ^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\parquet.py", line 141, in _get_path_or_handle
-    handles = get_handle(
-              ^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\common.py", line 749, in get_handle
-    check_parent_directory(str(handle))
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\common.py", line 616, in check_parent_directory
-    raise OSError(rf"Cannot save file into a non-existent directory: '{parent}'")
-OSError: Cannot save file into a non-existent directory: 'univers_elementaire'
-(.venv) PS N:\uflumth\indicateur_marche\univers_elementaire> & n:/uflumth/indicateur_marche/univers_elementaire/.venv/Scripts/python.exe n:/uflumth/indicateur_marche/univers_elementaire/stat_df_cleaned_data/stat_df_cleaned_data.py
-Temps d'importation : 19.98 secondes
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:267: FutureWarning:
+date_max = (ref_date.replace(day = 1))
+date_min = (date_max - relativedelta(years= 10))
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:269: FutureWarning:
+start_time = time.time()
+base_ml, outliers = detect_ano_ml(input_df=df, date_min = date_min, date_max = date_max, type_bien = None) #Algorithme de détection d'anomalies, détaillé dans classe.py
+end_time = time.time()
+print(f"Temps de détections d'anomalies : {end_time - start_time:.2f} secondes")
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
+mon fichier notebook:
+import pandas as pd
+import pickle
+import matplotlib.pyplot as plt
+from datetime import datetime
+import logging
+import math
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:270: FutureWarning:
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:273: FutureWarning:
+# NOMBRE D'ANNEES RECENTES A IMPORTER (N DERNIERES ANNEES)
+N_YEARS = 3  # pour le modele ML
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:277: FutureWarning:
+df = pd.read_parquet("Z:\data\cl_estim\cleaned_data\df_transac_clean.parquet")
+print(df.head())
+from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
+from prez.classe import (DateOffset,
+                         ImportRecentData,
+                         CalcMetaNum,
+                         EffectifsParMailleGeo,
+                         DefMailleGeoCITY,
+                         DetectAno,
+                         detect_ano_ml
 
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:279: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-n:\uflumth\indicateur_marche\univers_elementaire\classe.py:280: FutureWarning:
-
-Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-Avant: 9557143 / Après: 9557143
-IDs supprimés : 0
-Temps de détections d'anomalies : 766.57 secondes
-Traceback (most recent call last):
-  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 62, in <module>
-    base_ml.to_parquet("univers_elementaire/base_ml_filtre.parquet", index=False) #on enregistre la base filtrée pour les autres fichiers
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\util\_decorators.py", line 333, in wrapper
-    return func(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\core\frame.py", line 3124, in to_parquet
-    return to_parquet(
-           ^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\parquet.py", line 482, in to_parquet
-    impl.write(
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\parquet.py", line 199, in write
-    path_or_handle, handles, filesystem = _get_path_or_handle(
-                                          ^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\parquet.py", line 141, in _get_path_or_handle
-    handles = get_handle(
-              ^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\common.py", line 749, in get_handle
-    check_parent_directory(str(handle))
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\io\common.py", line 616, in check_parent_directory
-    raise OSError(rf"Cannot save file into a non-existent directory: '{parent}'")
-OSError: Cannot save file into a non-existent directory: 'univers_elementaire'
+)
+import numpy as np
+import plotly.express as px
+import plotly.io as pio
+import pandas as pd
+pio.renderers.default = "notebook"  
+base_ml, outliers = detect_ano_ml(input_df=df, date_min = None, date_max = None, type_bien = None)
+  
