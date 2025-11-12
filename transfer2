@@ -1,97 +1,66 @@
-mon fichier py:
- import sys
-import os
-current_dir = os.path.dirname(__file__)
-parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
-sys.path.append(parent_dir)
+(.venv) PS N:\uflumth\indicateur_marche\univers_elementaire> & n:/uflumth/indicateur_marche/univers_elementaire/.venv/Scripts/python.exe n:/uflumth/indicateur_marche/univers_elementaire/stat_df_cleaned_data/stat_df_cleaned_data.py
+Temps d'importation : 20.09 secondes
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:267: FutureWarning:
 
-import pandas as pd
-import pickle
-import matplotlib.pyplot as plt
-from datetime import datetime
-import logging
-import math
-from datetime import timedelta, datetime
-from dateutil.relativedelta import relativedelta
-from classe import (DateOffset,
-                         ImportRecentData,
-                         CalcMetaNum,
-                         EffectifsParMailleGeo,
-                         DefMailleGeoCITY,
-                         DetectAno,
-                         detect_ano_ml
-)
-import numpy as np
-import plotly.express as px
-import plotly.io as pio
-import pandas as pd
-import time
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-import os
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:269: FutureWarning:
 
-# Dossier de sortie
-output_dir = os.path.join(os.path.dirname(__file__), "results")
-os.makedirs(output_dir, exist_ok=True)
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:270: FutureWarning:
 
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:273: FutureWarning:
 
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:277: FutureWarning:
 
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-pio.renderers.default = "notebook"  
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:279: FutureWarning:
 
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-################ Importation de la base ################
-start_time = time.time()
-df = pd.read_parquet("Z:\data\cl_estim\cleaned_data\df_transac_clean.parquet")
-end_time = time.time()
-print(f"Temps d'importation : {end_time - start_time:.2f} secondes")
+n:\uflumth\indicateur_marche\univers_elementaire\classe.py:280: FutureWarning:
 
-# periode_reference: paramètre permettant de choisir le mois de référence 
-periode_reference = None # à changer en fonction de la plage de temps souhaitée
-ref_date = periode_reference or df["DATE"].max()
+Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
 
-date_max = (ref_date.replace(day = 1))
-date_min = (date_max - relativedelta(years= 10))
+Avant: 11462787 / Après: 9557711
+IDs supprimés : 1905076
+Temps de détections d'anomalies : 776.19 secondes
+STATISTIQUES GÉNÉRALES
+--------------------------------------------------------------------------------
+Nombre total de biens sur 2015-2025 : 11,462,787
+Biens valides : 9,557,711 (83.38%)
+Outliers détectés : 1,905,076 (16.62%)
 
+Prix au m² - Outliers :
+  Min : 2 €
+  Max : 25,781,250 €
+  Médiane : 2,222 €
+  Moyenne : 2,807 €
 
-start_time = time.time()
-base_ml, outliers = detect_ano_ml(input_df=df, date_min = date_min, date_max = date_max, type_bien = None) #Algorithme de détection d'anomalies, détaillé dans classe.py
-end_time = time.time()
-print(f"Temps de détections d'anomalies : {end_time - start_time:.2f} secondes")
-
-mon fichier notebook:
-import pandas as pd
-import pickle
-import matplotlib.pyplot as plt
-from datetime import datetime
-import logging
-import math
-
-
-
-# NOMBRE D'ANNEES RECENTES A IMPORTER (N DERNIERES ANNEES)
-N_YEARS = 3  # pour le modele ML
-
-
-df = pd.read_parquet("Z:\data\cl_estim\cleaned_data\df_transac_clean.parquet")
-print(df.head())
-from datetime import timedelta, datetime
-from dateutil.relativedelta import relativedelta
-from prez.classe import (DateOffset,
-                         ImportRecentData,
-                         CalcMetaNum,
-                         EffectifsParMailleGeo,
-                         DefMailleGeoCITY,
-                         DetectAno,
-                         detect_ano_ml
-
-)
-import numpy as np
-import plotly.express as px
-import plotly.io as pio
-import pandas as pd
-pio.renderers.default = "notebook"  
-base_ml, outliers = detect_ano_ml(input_df=df, date_min = None, date_max = None, type_bien = None)
-  
+CLASSIFICATION DES OUTLIERS
+--------------------------------------------------------------------------------
+Traceback (most recent call last):
+  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 214, in <module>
+    data_outliers_classified = analyser_outliers_complet(outliers,base_ml)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 207, in analyser_outliers_complet
+    data_outliers_class = classifier_outliers(data_mauvais, data_recent)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 96, in classifier_outliers
+    medianes = data_recent.groupby(['YEAR', 'ville_', 'TYPE_BIEN'])['Prix_m2'].median().reset_index()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\core\frame.py", line 9210, in groupby
+    return DataFrameGroupBy(
+           ^^^^^^^^^^^^^^^^^
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\core\groupby\groupby.py", line 1331, in __init__
+    grouper, exclusions, obj = get_grouper(
+                               ^^^^^^^^^^^^
+  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\pandas\core\groupby\grouper.py", line 1043, in get_grouper
+    raise KeyError(gpr)
+KeyError: 'YEAR'
