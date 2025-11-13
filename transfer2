@@ -1,9 +1,101 @@
-Traceback (most recent call last):
-  File "n:\uflumth\indicateur_marche\univers_elementaire\stat_df_cleaned_data\stat_df_cleaned_data.py", line 254, in <module>
-    fig1.show()
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\basedatatypes.py", line 3420, in show
-    return pio.show(self, *args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "N:\uflumth\indicateur_marche\univers_elementaire\.venv\Lib\site-packages\plotly\io\_renderers.py", line 410, in show
-    raise ValueError(
-ValueError: Mime type rendering requires ipython but it is not installed
+keys = ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE","Periode"]
+
+univers_mensuel = (
+    base_ml2
+      .groupby(keys, dropna=False)
+      .agg(
+          nb_transac     = ("ID", "size"),
+          prix_moyen     = ("Prix_m2", "mean"),
+          prix_median    = ("Prix_m2", "median"),
+          surface_moyenne= ("NB_SURF_HAB", "mean")
+      )
+      .reset_index()
+)
+
+
+univers_mensuel["PB"] = univers_mensuel["NB_PIECES_RANGE"].astype(str).str.strip().str[:3].str.upper()
+univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
+mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
+univers_mensuel = univers_mensuel.loc[~mask].drop(columns="PB")
+
+
+def complete_months(g):
+    g = g.sort_values("Periode").set_index("Periode")
+    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
+    g = g.reindex(idx)
+    for col in ["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"]:
+        g[col] = g[col].ffill().bfill()
+    g["nb_transac"] = g["nb_transac"].fillna(0)
+    g["prix_moyen"] = g["prix_moyen"].fillna(np.nan)
+    return g.reset_index().rename(columns={"index":"Periode"})
+
+
+univers_complet = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], group_keys=False)
+      .apply(complete_months)
+)
+
+poids_global = (
+    univers_mensuel.groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index = False)["nb_transac"].sum().rename(columns={"nb_transac":"poids_total"}))
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x : x/x.sum())
+
+
+# pondération globale
+poids_global = (
+    univers_mensuel
+      .groupby(["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"], as_index=False)["nb_transac"]
+      .sum()
+      .rename(columns={"nb_transac":"poids_total"})
+)
+poids_global["poids_relatif"] = poids_global.groupby('Ville')["poids_total"].transform(lambda x: x/x.sum())
+
+univers_complet = univers_complet.merge(
+    poids_global,
+    on=["Ville","BIEN_NEUF","TYPE_BIEN","NB_PIECES_RANGE"],
+    how="left"
+)
+
+#fonction de calcul pondéré par ville et mois
+def calcule_prix_pondere_ville_periode(g):
+    g = g.copy()
+    g = g[g["prix_moyen"].notna()]  
+    g["I_3m"] = ((g["nb_transac"].rolling(window = 3, min_periods = 3).sum() > 0).astype(int))
+    g["poids_actif_3m"] = g["poids_relatif"] * g["I_3m"]
+    g["I_12m"] = ((g["nb_transac"].rolling(window = 12, min_periods = 12).sum() > 0).astype(int))
+    g["poids_actif_12m"] = g["poids_relatif"] * g["I_12m"]
+    total_poids_3m = g["poids_actif_3m"].sum()
+    total_poids_12m = g["poids_actif_12m"].sum()
+
+    if total_poids_3m > 0:
+        g["poids_dyn_3m"] = g["poids_actif_3m"] / total_poids_3m
+        prix_pondere_3m = np.average(g["prix_moyen"], weights=g["poids_dyn_3m"])
+    else:
+        prix_pondere_3m = np.nan
+    
+    if total_poids_12m > 0:
+        g["poids_dyn_12m"] = g["poids_actif_12m"] / total_poids_12m
+        prix_pondere_12m = np.average(g["prix_moyen"], weights=g["poids_dyn_12m"])
+    else:
+        prix_pondere_12m = np.nan
+
+    return pd.Series({"prix_moyen_pondere_dyn_3m": prix_pondere_3m, "prix_moyen_pondere_dyn_12m": prix_pondere_12m })
+
+#agrégation principale
+model_agg = (
+    univers_complet
+    .groupby(["Ville", "Periode"], as_index=False)
+    .apply(calcule_prix_pondere_ville_periode)
+    .reset_index(drop=True) 
+)
+
+# calculs glissants
+model_agg = model_agg.sort_values(["Ville","Periode"])
+model_agg["glissant_3m"] = (
+    model_agg.groupby("Ville")["prix_moyen_pondere_dyn_3m"]
+    .transform(lambda s: s.rolling(1, min_periods=1).mean())
+)
+model_agg["glissant_12m"] = (
+    model_agg.groupby("Ville")["prix_moyen_pondere_dyn_12m"]
+    .transform(lambda s: s.rolling(1, min_periods=1).mean())
+)
