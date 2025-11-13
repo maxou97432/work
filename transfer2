@@ -11,7 +11,7 @@ top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", "TOULOUSE", "BORDEAUX"
          "STRASBOURG", "NANTES", "MONTPELLIER", "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
 
 # Préparation base
-base_ml2 = base_ml.copy()
+base_ml2 = base_ml2.copy()
 base_ml2 = base_ml2.rename(columns={"ville_": "Ville"})
 base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
 base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
@@ -20,7 +20,6 @@ base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
 base_ml2["DATE"] = pd.to_datetime(base_ml2["DATE"])
 base_ml2["Periode"] = base_ml2["DATE"].dt.to_period("M").dt.to_timestamp()
 
-print(f"✓ Données filtrées : {len(base_ml2):,} transactions sur {len(top15)} villes")
 
 # =============================================================================
 # AGRÉGATION MENSUELLE PAR TYPOLOGIE
@@ -134,45 +133,21 @@ univers_complet["I_3m"] = (
 univers_complet["I_12m"] = (
     univers_complet
     .groupby(typokeys, group_keys=False)["nb_transac"]
-    .transform(lambda s: (s.rolling(window=12, min_periods=6).sum() > 0).astype(int))
+    .transform(lambda s: (s.rolling(window=12, min_periods=1).sum() > 0).astype(int))
 )
 
 print("✓ Indicatrices I_3m et I_12m calculées par typologie")
 
-# =============================================================================
-# FORWARD-FILL DES PRIX (CRUCIAL POUR LA DIVERGENCE)
-# =============================================================================
 
-print("\n=== FORWARD-FILL DES PRIX ===")
-
-# Pour chaque typologie, propager le dernier prix connu
-univers_complet["prix_moyen_ffill"] = (
-    univers_complet
-    .groupby(typokeys, group_keys=False)["prix_moyen"]
-    .transform(lambda s: s.ffill())
-)
-
-# Limiter le forward-fill à 6 mois maximum (optionnel mais recommandé)
-univers_complet["mois_sans_prix"] = (
-    univers_complet
-    .groupby(typokeys, group_keys=False)["prix_moyen"]
-    .transform(lambda s: s.isna().cumsum() - s.isna().cumsum().where(s.notna()).ffill().fillna(0))
-)
-
-# Si plus de 6 mois sans prix, mettre NaN même avec ffill
-univers_complet.loc[univers_complet["mois_sans_prix"] > 6, "prix_moyen_ffill"] = np.nan
-
-nb_ffill = (univers_complet["prix_moyen"].isna() & univers_complet["prix_moyen_ffill"].notna()).sum()
-print(f"✓ Prix forward-fillés : {nb_ffill:,} mois utilisent un prix antérieur")
 
 # =============================================================================
-# FONCTION D'AGRÉGATION AVEC FORWARD-FILL
+# FONCTION D'AGRÉGATION 
 # =============================================================================
 
 def calcule_prix_pondere_ville_periode(g):
     """
     Agrège les prix au niveau Ville×Periode avec pondération dynamique.
-    Utilise prix_moyen_ffill pour inclure les typologies actives même sans prix récent.
+
     """
     g = g.copy()
     
@@ -189,12 +164,12 @@ def calcule_prix_pondere_ville_periode(g):
         prix_pondere_3m = np.nan
         nb_typo_3m = 0
     
-    # --- CALCUL 12 MOIS (avec forward-fill : inclut typologies actives sur 12m) ---
-    g_12m = g[(g["prix_moyen_ffill"].notna()) & (g["I_12m"] == 1)].copy()
+    # --- CALCUL 12 MOIS ) ---
+    g_12m = g[(g["prix_moyen"].notna()) & (g["I_12m"] == 1)].copy()
     
     if len(g_12m) > 0 and g_12m["poids_relatif"].sum() > 0:
         poids_12m_norm = g_12m["poids_relatif"] / g_12m["poids_relatif"].sum()
-        prix_pondere_12m = np.average(g_12m["prix_moyen_ffill"], weights=poids_12m_norm)
+        prix_pondere_12m = np.average(g_12m["prix_moyen"], weights=poids_12m_norm)
         nb_typo_12m = len(g_12m)
     else:
         prix_pondere_12m = np.nan
@@ -225,39 +200,6 @@ model_agg = model_agg.sort_values(["Ville", "Periode"])
 
 print(f"✓ Agrégation terminée : {len(model_agg):,} lignes")
 
-# =============================================================================
-# VÉRIFICATIONS ET DIAGNOSTICS
-# =============================================================================
-
-print("\n=== DIAGNOSTICS ===")
-
-for ville in ["PARIS", "LYON", "MARSEILLE"]:
-    df_ville = model_agg[model_agg["Ville"] == ville]
-    
-    prix_3m_valides = df_ville["prix_moyen_pondere_dyn_3m"].notna().sum()
-    prix_12m_valides = df_ville["prix_moyen_pondere_dyn_12m"].notna().sum()
-    
-    if prix_3m_valides > 0 and prix_12m_valides > 0:
-        divergence = (
-            df_ville["prix_moyen_pondere_dyn_3m"] - 
-            df_ville["prix_moyen_pondere_dyn_12m"]
-        ).abs()
-        
-        periodes_divergence = (divergence > 50).sum()
-        
-        print(f"\n{ville:15s}")
-        print(f"  Prix 3m valides          : {prix_3m_valides}/{len(df_ville)}")
-        print(f"  Prix 12m valides         : {prix_12m_valides}/{len(df_ville)}")
-        print(f"  Typologies moy. (3m)     : {df_ville['nb_typo_3m'].mean():.1f}")
-        print(f"  Typologies moy. (12m)    : {df_ville['nb_typo_12m'].mean():.1f}")
-        print(f"  Divergence moyenne       : {divergence.mean():.0f} €")
-        print(f"  Divergence max           : {divergence.max():.0f} €")
-        print(f"  Mois avec divergence >50€: {periodes_divergence} ({periodes_divergence/len(df_ville)*100:.1f}%)")
-
-# =============================================================================
-# BORNAGE TEMPOREL (OPTIONNEL)
-# =============================================================================
-
 model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
 
 print(f"\n✓ Période finale : {model_agg['Periode'].min()} à {model_agg['Periode'].max()}")
@@ -266,10 +208,6 @@ print(f"\n✓ Période finale : {model_agg['Periode'].min()} à {model_agg['Peri
 # GÉNÉRATION DES GRAPHIQUES
 # =============================================================================
 
-print("\n=== GÉNÉRATION DES GRAPHIQUES ===")
-
-output_dir = os.path.join(os.path.dirname(__file__), "results")
-os.makedirs(output_dir, exist_ok=True)
 
 for ville in model_agg["Ville"].unique():
     df_ville = model_agg[model_agg["Ville"] == ville].sort_values("Periode")
@@ -291,10 +229,5 @@ for ville in model_agg["Ville"].unique():
         legend_title="Type de prix",
         height=500
     )
-    
-    # Sauvegarder en HTML
-    output_path = os.path.join(output_dir, f"evolution_prix_{ville}.html")
-    fig.write_html(output_path)
-    print(f"  ✓ {ville:20s} -> {os.path.basename(output_path)}")
+    fig.show()
 
-print(f"\n✓ Tous les graphiques sauvegardés dans : {output_dir}")
