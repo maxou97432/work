@@ -115,7 +115,6 @@ univers_complet = univers_complet.merge(
 
 # =============================================================================
 # CALCUL DES INDICATRICES I_3m ET I_12m PAR TYPOLOGIE
-# (AVANT L'AGRÉGATION PAR VILLE×PERIODE)
 # =============================================================================
 
 print("\n=== CALCUL DES INDICATRICES D'ACTIVITÉ ===")
@@ -140,54 +139,72 @@ univers_complet["I_12m"] = (
 
 print("✓ Indicatrices I_3m et I_12m calculées par typologie")
 
-# Diagnostic rapide
-diag = univers_complet.groupby("Periode")[["I_3m", "I_12m"]].sum()
-print(f"  Typologies actives moyennes par mois (3m)  : {diag['I_3m'].mean():.1f}")
-print(f"  Typologies actives moyennes par mois (12m) : {diag['I_12m'].mean():.1f}")
+# =============================================================================
+# FORWARD-FILL DES PRIX (CRUCIAL POUR LA DIVERGENCE)
+# =============================================================================
+
+print("\n=== FORWARD-FILL DES PRIX ===")
+
+# Pour chaque typologie, propager le dernier prix connu
+univers_complet["prix_moyen_ffill"] = (
+    univers_complet
+    .groupby(typokeys, group_keys=False)["prix_moyen"]
+    .transform(lambda s: s.ffill())
+)
+
+# Limiter le forward-fill à 6 mois maximum (optionnel mais recommandé)
+univers_complet["mois_sans_prix"] = (
+    univers_complet
+    .groupby(typokeys, group_keys=False)["prix_moyen"]
+    .transform(lambda s: s.isna().cumsum() - s.isna().cumsum().where(s.notna()).ffill().fillna(0))
+)
+
+# Si plus de 6 mois sans prix, mettre NaN même avec ffill
+univers_complet.loc[univers_complet["mois_sans_prix"] > 6, "prix_moyen_ffill"] = np.nan
+
+nb_ffill = (univers_complet["prix_moyen"].isna() & univers_complet["prix_moyen_ffill"].notna()).sum()
+print(f"✓ Prix forward-fillés : {nb_ffill:,} mois utilisent un prix antérieur")
 
 # =============================================================================
-# FONCTION D'AGRÉGATION SIMPLIFIÉE (INDICATRICES DÉJÀ CALCULÉES)
+# FONCTION D'AGRÉGATION AVEC FORWARD-FILL
 # =============================================================================
 
 def calcule_prix_pondere_ville_periode(g):
     """
     Agrège les prix au niveau Ville×Periode avec pondération dynamique.
-    Les indicatrices I_3m et I_12m sont déjà calculées en amont.
+    Utilise prix_moyen_ffill pour inclure les typologies actives même sans prix récent.
     """
-    # Filtrer : ne garder que les typologies avec prix ce mois-ci
-    g = g[g["prix_moyen"].notna()].copy()
+    g = g.copy()
     
-    if len(g) == 0:
-        return pd.Series({
-            "prix_moyen_pondere_dyn_3m": np.nan,
-            "prix_moyen_pondere_dyn_12m": np.nan,
-            "nb_typo_actives_3m": 0,
-            "nb_typo_actives_12m": 0
-        })
+    # SÉPARATION DES CALCULS 3m ET 12m
     
-    # Calcul des poids actifs (poids structurel × indicatrice)
-    g["poids_actif_3m"] = g["poids_relatif"] * g["I_3m"]
-    g["poids_actif_12m"] = g["poids_relatif"] * g["I_12m"]
+    # --- CALCUL 3 MOIS (strict : seulement les typologies avec prix récent) ---
+    g_3m = g[(g["prix_moyen"].notna()) & (g["I_3m"] == 1)].copy()
     
-    total_poids_3m = g["poids_actif_3m"].sum()
-    total_poids_12m = g["poids_actif_12m"].sum()
-    
-    # Calcul des prix pondérés
-    if total_poids_3m > 0:
-        prix_pondere_3m = np.average(g["prix_moyen"], weights=g["poids_actif_3m"])
+    if len(g_3m) > 0 and g_3m["poids_relatif"].sum() > 0:
+        poids_3m_norm = g_3m["poids_relatif"] / g_3m["poids_relatif"].sum()
+        prix_pondere_3m = np.average(g_3m["prix_moyen"], weights=poids_3m_norm)
+        nb_typo_3m = len(g_3m)
     else:
         prix_pondere_3m = np.nan
+        nb_typo_3m = 0
     
-    if total_poids_12m > 0:
-        prix_pondere_12m = np.average(g["prix_moyen"], weights=g["poids_actif_12m"])
+    # --- CALCUL 12 MOIS (avec forward-fill : inclut typologies actives sur 12m) ---
+    g_12m = g[(g["prix_moyen_ffill"].notna()) & (g["I_12m"] == 1)].copy()
+    
+    if len(g_12m) > 0 and g_12m["poids_relatif"].sum() > 0:
+        poids_12m_norm = g_12m["poids_relatif"] / g_12m["poids_relatif"].sum()
+        prix_pondere_12m = np.average(g_12m["prix_moyen_ffill"], weights=poids_12m_norm)
+        nb_typo_12m = len(g_12m)
     else:
         prix_pondere_12m = np.nan
+        nb_typo_12m = 0
     
     return pd.Series({
         "prix_moyen_pondere_dyn_3m": prix_pondere_3m,
         "prix_moyen_pondere_dyn_12m": prix_pondere_12m,
-        "nb_typo_actives_3m": (g["I_3m"] == 1).sum(),
-        "nb_typo_actives_12m": (g["I_12m"] == 1).sum()
+        "nb_typo_3m": nb_typo_3m,
+        "nb_typo_12m": nb_typo_12m
     })
 
 
@@ -226,11 +243,16 @@ for ville in ["PARIS", "LYON", "MARSEILLE"]:
             df_ville["prix_moyen_pondere_dyn_12m"]
         ).abs()
         
+        periodes_divergence = (divergence > 50).sum()
+        
         print(f"\n{ville:15s}")
-        print(f"  Prix 3m valides     : {prix_3m_valides}/{len(df_ville)}")
-        print(f"  Prix 12m valides    : {prix_12m_valides}/{len(df_ville)}")
-        print(f"  Divergence moyenne  : {divergence.mean():.0f} €")
-        print(f"  Divergence max      : {divergence.max():.0f} €")
+        print(f"  Prix 3m valides          : {prix_3m_valides}/{len(df_ville)}")
+        print(f"  Prix 12m valides         : {prix_12m_valides}/{len(df_ville)}")
+        print(f"  Typologies moy. (3m)     : {df_ville['nb_typo_3m'].mean():.1f}")
+        print(f"  Typologies moy. (12m)    : {df_ville['nb_typo_12m'].mean():.1f}")
+        print(f"  Divergence moyenne       : {divergence.mean():.0f} €")
+        print(f"  Divergence max           : {divergence.max():.0f} €")
+        print(f"  Mois avec divergence >50€: {periodes_divergence} ({periodes_divergence/len(df_ville)*100:.1f}%)")
 
 # =============================================================================
 # BORNAGE TEMPOREL (OPTIONNEL)
