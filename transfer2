@@ -1,3 +1,4 @@
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -11,7 +12,7 @@ top15 = ["PARIS", "MARSEILLE", "LYON", "LILLE", "RENNES", "TOULOUSE", "BORDEAUX"
          "STRASBOURG", "NANTES", "MONTPELLIER", "TOULON", "REIMS", "SAINT-ETIENNE", "LE HAVRE"]
 
 # Préparation base
-base_ml2 = base_ml.copy()
+base_ml2 = base_ml2.copy()
 base_ml2 = base_ml2.rename(columns={"ville_": "Ville"})
 base_ml2["Ville"] = base_ml2["Ville"].astype(str).str.strip().str.upper()
 base_ml2 = base_ml2[base_ml2["Ville"].isin(top15)]
@@ -288,10 +289,6 @@ model_agg = model_agg[model_agg["Periode"] < "2025-10-01"]
 # GÉNÉRATION DES GRAPHIQUES
 # =============================================================================
 
-print("\n=== GÉNÉRATION DES GRAPHIQUES ===")
-
-output_dir = os.path.join(os.path.dirname(__file__), "results")
-os.makedirs(output_dir, exist_ok=True)
 
 for ville in model_agg["Ville"].unique():
     df_ville = model_agg[model_agg["Ville"] == ville].sort_values("Periode")
@@ -326,9 +323,4 @@ for ville in model_agg["Ville"].unique():
         "prix_mm_3m": "Moyenne mobile 3 mois",
         "prix_mm_12m": "Moyenne mobile 12 mois"
     }[t.name]))
-    
-    output_path = os.path.join(output_dir, f"evolution_prix_mm_{ville}.html")
-    fig.write_html(output_path)
-    print(f"  ✓ {ville:20s} -> {os.path.basename(output_path)}")
-
-print(f"\n✓ Tous les graphiques sauvegardés dans : {output_dir}")
+    fig.show()
