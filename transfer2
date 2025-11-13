@@ -1,24 +1,21 @@
-def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, n_years = 10):
+def detect_ano_ml(input_df, date_min=None, date_max=None, type_bien=None, n_years=10):
     DATE_MIN = pd.to_datetime(date_min)
     DATE_MAX = pd.to_datetime(date_max)
     TYPE_BIEN = type_bien
     logging.info("ML detection of anomalies starting")
     
     # =============================================================================
-    # Pré-filtrage des données
+    # CORRECTION 1 : Sauvegarder les données AVANT tout filtrage
     # =============================================================================
-
-    df = input_df.copy()
+    data_original = input_df.copy()  # ← Sauvegarde COMPLÈTE
     
-
-
-
-
+    # Pré-filtrage des données
+    df = input_df.copy()
     df["DATE"] = pd.to_datetime(df["DATE"])
     df = df.sort_values("DATE", ascending=False)
     df["DATE"] = df["DATE"].apply(lambda x: x.replace(day=1))
 
-
+    # Application des conditions
     conditions = pd.Series(True, index=df.index)
 
     if date_min is not None:
@@ -31,49 +28,31 @@ def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, 
         conditions &= df["TYPE_BIEN"] == type_bien
 
     df = df[conditions]
-    data_before = df.copy()             #on cree une copie pour étudier les outliers
+    
     # =============================================================================
+    # CORRECTION 2 : Sauvegarder les IDs APRÈS filtrage temporel mais AVANT détection
+    # =============================================================================
+    ids_avant_detection = set(df["ID"])  # ← IDs qui entrent dans la détection
+    
     # Import des données sur les N_YEARS dernières années
-    # =============================================================================
-
     start_time = datetime.now()
-
-    importrecentdata = ImportRecentData(n_years=n_years, input_= df)
+    importrecentdata = ImportRecentData(n_years=n_years, input_=df)
     data_recent = importrecentdata.import_data_recent()
     logging.info(
         f"Base d'analyse filtrée sur les {n_years} dernières années : {datetime.now()-start_time}\n"
     )
 
-    # =============================================================================
-    # Calculs des effectifs par ville et par Iris
-    # =============================================================================
+    # Calculs des effectifs par ville
     step_time = datetime.now()
     logging.info("workforce calculation")
-
-    step_time = datetime.now()
+    
     effectifsparVille = EffectifsParMailleGeo(maille_geo="ville_")
+    dict_geo_city = effectifsparVille.transform(data_recent)
     logging.info(
-        f"\t Calcul et enregistrement dans le dictionnaire dict_geo_ville_ des effectifs par ville_ : {datetime.now()-step_time}\n"
+        f"\t Calcul des effectifs par ville : {datetime.now()-step_time}\n"
     )
 
-    dict_geo_city = effectifsparVille.transform(data_recent)
-
-    # =============================================================================
-    # Définition des mailles géographiques pour chaque bien en fonction d'un seuil fixé d'effectif minimum (N_MIN)
-    # *version 1 (maille_geo_loc): maille la plus fine à l'iris
-    # ET
-    # *version 2 (maille_geo_loc_city): maille la plus fine à la ville
-    # =============================================================================
-    # Création de 4 champs :
-    # Version 1 :
-    # maille_geo_loc : définition de la maille géographique ('IRIS', 'ARR', 'CITY', 'DEPT')
-    # geo_bien_iris : valeur associée de la maille géographique (code iris, numéro d'arrondissement, nom de la ville, ou numéro du déârtement)
-    # Version 2 :
-    # maille_geo_loc_city : définition de la maille géographique ('ARR', 'CITY', 'DEPT')
-    # geo_bien_city : valeur associée de la maille géographique (numéro d'arrondissement, nom de la ville, ou numéro du déârtement)
-
-
-
+    # Définition des mailles géographiques
     defmaillegeocity = DefMailleGeoCITY(
         n_min=N_MIN,
         dict_geo_city=dict_geo_city,
@@ -81,52 +60,80 @@ def detect_ano_ml(input_df, date_min = None, date_max = None, type_bien = None, 
         by_year=0,
     )
     data_recent = defmaillegeocity.transform(data_recent)
-
     logging.info("workforce calculation OK")
-    # =============================================================================
-    # Calculs des statistiques descriptives par typologie de bien
-    # =============================================================================
 
+    # Calculs des statistiques descriptives
     logging.info("statistics calculation")
     step_time = datetime.now()
     calcmetanumCity = CalcMetaNum(
-        n_years=1, geo_bien="geo_bien_city", var_num= VAR_NUM
+        n_years=1, geo_bien="geo_bien_city", var_num=VAR_NUM
     )
     meta_num_all_city, data_recent = calcmetanumCity.transform(data_recent)
     logging.info(
-        f"\t Calcul des statistiques descriptives par geo_bien_city et typologie de bien : {datetime.now()-step_time}\n"
+        f"\t Statistiques descriptives : {datetime.now()-step_time}\n"
     )
 
     # =============================================================================
     # Détection et suppression des anomalies
     # =============================================================================
-    
     logging.info("Detection and elimination of anomalies")
-
+    
     ids_avant = data_recent["ID"].copy()
-    detectano = DetectAno(meta_num_all=meta_num_all_city, var_num= VAR_NUM)
+    detectano = DetectAno(meta_num_all=meta_num_all_city, var_num=VAR_NUM)
     result = detectano.transform(data_recent)
+    
     if isinstance(result, tuple):
         _, data_recent = result
-    else: 
+    else:
         data_recent = result
     
     if "ID" not in data_recent.columns:
         data_recent["ID"] = ids_avant.loc[data_recent.index].values
 
-    data_recent.drop(columns=["year_geo_bien"], inplace=True, errors = "ignore")
+    data_recent.drop(columns=["year_geo_bien"], inplace=True, errors="ignore")
     logging.info("Detection and elimination of anomalies OK")
-
     logging.info(f"ML detection of anomalies completed: {datetime.now()-start_time}.\n")
     
-    data_recent = data_recent[["ID","ville_",
-"LIBELLE_DEPT","DEPT_Corse_2A_2B","TYPE_BIEN","DATE","YEAR","Prix_m2","SOURCE", "CD_NATUR_OP","NB_SURF_HAB", "NB_PIECES","CODE_POSTAL","NATURE_MUTATION","CLE_INTEROP_ADR"]]
+    # =============================================================================
+    # CORRECTION 3 : Sélection des colonnes communes avant filtrage
+    # =============================================================================
+    colonnes_finales = ["ID", "ville_", "LIBELLE_DEPT", "DEPT_Corse_2A_2B", 
+                        "TYPE_BIEN", "DATE", "YEAR", "Prix_m2", "SOURCE", 
+                        "CD_NATUR_OP", "NB_SURF_HAB", "NB_PIECES", 
+                        "CODE_POSTAL", "NATURE_MUTATION", "CLE_INTEROP_ADR"]
     
-    # Identifier les anomalies par différence
+    # Vérifier que toutes les colonnes existent
+    colonnes_disponibles = [col for col in colonnes_finales if col in data_recent.columns]
+    data_recent = data_recent[colonnes_disponibles]
+    
+    # =============================================================================
+    # CORRECTION 4 : Identifier les outliers correctement
+    # =============================================================================
     ids_valides = set(data_recent["ID"])
-    data_mauvais = data_before[~data_before["ID"].isin(ids_valides)]
-    data_mauvais = data_mauvais[data_recent.columns]
     
-    print(f"Avant: {len(data_before)} / Après: {len(data_recent)}")
-    print("IDs supprimés :", len(set(data_before['ID']) - set(data_recent['ID'])))
+    # Outliers = IDs entrés dans la détection MAIS rejetés
+    ids_outliers = ids_avant_detection - ids_valides
+    
+    # Récupérer les outliers depuis les données ORIGINALES
+    data_mauvais = data_original[
+        (data_original["ID"].isin(ids_outliers)) &
+        (data_original["ID"].isin(ids_avant_detection))  # Sécurité
+    ].copy()
+    
+    # Ne garder que les colonnes disponibles
+    colonnes_communes = [col for col in colonnes_disponibles if col in data_mauvais.columns]
+    data_mauvais = data_mauvais[colonnes_communes]
+    
+    # =============================================================================
+    # CORRECTION 5 : Statistiques détaillées
+    # =============================================================================
+    print("\n" + "="*80)
+    print("RAPPORT DE DÉTECTION D'ANOMALIES")
+    print("="*80)
+    print(f"Données entrées dans l'analyse    : {len(ids_avant_detection):,}")
+    print(f"Données validées                  : {len(ids_valides):,}")
+    print(f"Outliers détectés                 : {len(ids_outliers):,}")
+    print(f"Taux de rejet                     : {len(ids_outliers)/len(ids_avant_detection)*100:.2f}%")
+    print("="*80 + "\n")
+    
     return data_recent, data_mauvais
