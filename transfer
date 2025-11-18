@@ -1,48 +1,55 @@
-base_ml = base_ml.rename(columns={"DEPT_Corse_2A_2B": "DEPT"})
-
-maille_geo = ["DEPT","Ville","CODE_POSTAL"]
-univers_complet = {}
-for col in maille_geo:
-    dims = [col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
-
-
-
-
-    univers = (
-        base_ml.groupby(dims, dropna=False)
-        .agg(
-            nb_transac = ("ID", "size"),
-            prix_median = ("Prix_m2", "median"),
-            prix_moyen = ("Prix_m2", "mean"),
-        )
-        .reset_index()
-    )
-
-
-    grille = (
-    pd.MultiIndex.from_product(
-        [base_ml["DEPT_Corse_2A_2B"].unique(),
-         base_ml["BIEN_NEUF"].unique(),
-         base_ml["TYPE_BIEN"].unique(),
-         base_ml["NB_PIECES_RANGE"].unique()],
-        names=dims
-    ).to_frame(index=False)
-    )
+def calcule_moyenne_mobile_ponderee(g, window, col_prix, col_indicatrice):
+    """
+    Calcule une moyenne mobile pondérée sur 3 et 12 mois.
     
-    univers_complet[col]  = grille.merge(univers, on=dims, how="left").sort_values(dims)
-    univers_complet["nb_transac"] = univers_complet["nb_transac"].fillna(0).astype(int)
-    univers_complet["PB"] = (
-        univers_complet["NB_PIECES_RANGE"]
-        .astype(str)
-        .str.strip()
-        .str[:3]
-        .str.upper()
-    )
-    univers_complet["TYPE_BIEN"] = univers_complet["TYPE_BIEN"].astype(str).str.strip().str.upper()
+    Pour chaque mois t :
+    - Regarde les 3/12 derniers mois
+    - Pour chaque sous-univers : prend les prix où indicatrice = 1
+    - Fait une moyenne pondérée de tous ces prix
 
-
-    mask = univers_complet["TYPE_BIEN"] != univers_complet["PB"]
-
-    univers_complet = univers_complet.loc[~mask].copy()
-    univers_complet = univers_complet.drop(columns=["PB"])
-    univers_complet["Repartition (%)"] = (univers_complet["nb_transac"] / univers_complet.groupby("DEPT_Corse_2A_2B")["nb_transac"].transform(sum)) * 100
+    """
+    result = []
+    
+    g = g.sort_values("Periode")
+    periodes = g["Periode"].unique()
+    
+    for i, periode in enumerate(periodes):
+        # Fenêtre : 'window' derniers mois incluant le mois actuel
+        start_idx = max(0, i - window + 1)
+        periodes_fenetre = periodes[start_idx:i+1]
+        
+        # Données de la fenêtre
+        df_fenetre = g[g["Periode"].isin(periodes_fenetre)].copy()
+        
+        # Filtrer : seulement les lignes avec prix ET indicatrice = 1
+        df_actif = df_fenetre[
+            (df_fenetre[col_prix].notna()) & 
+            (df_fenetre[col_indicatrice] == 1)
+        ].copy()
+        
+        if len(df_actif) == 0:
+            result.append({
+                "Periode": periode,
+                "prix_mm": np.nan,
+                "nb_observations": 0,
+                "nb_typologies": 0
+            })
+            continue
+        
+        # Pondération : poids_relatif pour chaque observation
+        total_poids = df_actif["poids_relatif"].sum()
+        
+        if total_poids > 0:
+            poids_norm = df_actif["poids_relatif"] / total_poids
+            prix_mm = np.average(df_actif[col_prix], weights=poids_norm)
+        else:
+            prix_mm = np.nan
+        
+        result.append({
+            "Periode": periode,
+            "prix_mm": prix_mm,
+            "nb_observations": len(df_actif),
+            "nb_typologies": df_actif.groupby(typokeys).ngroups
+        })
+    
+    return pd.DataFrame(result)
