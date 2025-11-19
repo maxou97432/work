@@ -1,244 +1,28 @@
-import sys
-import os
+{
+	"name": "AttributeError",
+	"message": "'dict' object has no attribute 'merge'",
+	"stack": "---------------------------------------------------------------------------
+AttributeError                            Traceback (most recent call last)
+Cell In[19], line 144
+    133 poids_global = (
+    134     univers_mensuel
+    135     .groupby([col, \"BIEN_NEUF\", \"TYPE_BIEN\", \"NB_PIECES_RANGE\"], as_index=False)[\"nb_transac\"]
+    136     .sum()
+    137     .rename(columns={\"nb_transac\": \"poids_total\"})
+    138 )
+    140 poids_global[\"poids_relatif\"] = (
+    141     poids_global.groupby(col)[\"poids_total\"].transform(lambda x: x / x.sum())
+    142 )
+--> 144 univers_complet = univers_complet.merge(
+    145     poids_global,
+    146     on=[col, \"BIEN_NEUF\", \"TYPE_BIEN\", \"NB_PIECES_RANGE\"],
+    147     how=\"left\"
+    148 )
+    150 print(f\"✓ Poids structurels calculés\")
+    153 # =============================================================================
+    154 # CALCUL DES INDICATRICES I_3m ET I_12m PAR TYPOLOGIE
+    155 # =============================================================================
+    156 #création d'une variable indicatrice représentant la présence ou non de transaction sur 3 et 12 mois
 
-current_dir = os.path.dirname(__file__)
-parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
-sys.path.append(parent_dir)
-
-import time
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-import plotly.express as px
-import plotly.io as pio
-from classe import Connector
-import param_general as params
-pio.renderers.default = "png"
-
-base_ml = pd.read_parquet("base_ml_filtre_complet.parquet")
-
-
-def complete_months(g, col):  #complète les mois manquants dans un sous univers en attribuant des valeurs nulles pour nb_transac et na pour prix_m2_moyen
-    g = g.sort_values("Periode").set_index("Periode")
-    idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
-    g = g.reindex(idx)
-    
-    for i in [col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]:
-        g[i] = g[i].ffill().bfill()
-    
-    g["nb_transac"] = g["nb_transac"].fillna(0)
-    g["prix_moyen"] = g["prix_moyen"]  # Garde NaN
-    
-    return g.reset_index().rename(columns={"index": "Periode"})
-
-def calcule_moyenne_mobile_ponderee(g, window, col_prix, col_indicatrice, typokeys):
-    """
-    Calcule une moyenne mobile pondérée sur 3 et 12 mois.
-    
-    Pour chaque mois t :
-    - Regarde les 3/12 derniers mois
-    - Pour chaque sous-univers : prend les prix où indicatrice = 1
-    - Fait une moyenne pondérée de tous ces prix
-
-    """
-    result = []
-    
-    g = g.sort_values("Periode")
-    periodes = g["Periode"].unique()
-    
-    for i, periode in enumerate(periodes):
-        # Fenêtre : 'window' derniers mois incluant le mois actuel
-        start_idx = max(0, i - window + 1)
-        periodes_fenetre = periodes[start_idx:i+1]
-        
-        # Données de la fenêtre
-        df_fenetre = g[g["Periode"].isin(periodes_fenetre)].copy()
-        
-        # Filtrer : seulement les lignes avec prix ET indicatrice = 1
-        df_actif = df_fenetre[
-            (df_fenetre[col_prix].notna()) & 
-            (df_fenetre[col_indicatrice] == 1)
-        ].copy()
-        
-        if len(df_actif) == 0:
-            result.append({
-                "Periode": periode,
-                "prix_mm": np.nan,
-                "nb_observations": 0,
-                "nb_typologies": 0
-            })
-            continue
-        
-        # Pondération : poids_relatif pour chaque observation
-        total_poids = df_actif["poids_relatif"].sum()
-        
-        if total_poids > 0:
-            poids_norm = df_actif["poids_relatif"] / total_poids
-            prix_mm = np.average(df_actif[col_prix], weights=poids_norm)
-        else:
-            prix_mm = np.nan
-        
-        result.append({
-            "Periode": periode,
-            "prix_mm": prix_mm,
-            "nb_observations": len(df_actif),
-            "nb_typologies": df_actif.groupby(typokeys).ngroups
-        })
-    
-    return pd.DataFrame(result)
-
-
-################# CONSTRUCTION DES UNIVERS ELEMENTAIRES PAR ZONE GEOGRAPHIQUE #################
-base_ml = base_ml.rename(columns={"DEPT_Corse_2A_2B": "DEPT"})
-base_ml["DATE"] = pd.to_datetime(base_ml["DATE"])
-base_ml["Periode"] = base_ml["DATE"].dt.to_period("M").dt.to_timestamp()
-
-
-maille_geo = ["DEPT","Ville","CODE_POSTAL"]
-univers_complet = {}
-for col in maille_geo:
-    dims = [col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE","Periode"]
-
-
-    if base_ml[col].dtype in ["object","str"]:
-        base_ml[col] = base_ml[col].astype(str).str.strip().str.upper()
-    else: 
-        continue
-
-    # =============================================================================
-    # AGRÉGATION MENSUELLE PAR UNIVERS
-    # =============================================================================
-
-    univers_mensuel = (
-        base_ml.groupby(dims, dropna=False)
-        .agg(
-            nb_transac = ("ID", "size"),
-            prix_median = ("Prix_m2", "median"),
-            prix_moyen = ("Prix_m2", "mean"),
-        )
-        .reset_index()
-    )
-
-
-    
-    univers_mensuel["nb_transac"] = univers_mensuel["nb_transac"].fillna(0).astype(int)
-    univers_mensuel["PB"] = (
-        univers_mensuel["NB_PIECES_RANGE"]
-        .astype(str)
-        .str.strip()
-        .str[:3]
-        .str.upper()
-    )
-    univers_mensuel["TYPE_BIEN"] = univers_mensuel["TYPE_BIEN"].astype(str).str.strip().str.upper()
-
-
-    mask = univers_mensuel["TYPE_BIEN"] != univers_mensuel["PB"]
-
-    univers_mensuel = univers_mensuel.loc[~mask].copy()
-    univers_mensuel = univers_mensuel.drop(columns=["PB"])
-    
-
-    univers_complet = (
-    univers_mensuel
-    .groupby([col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"], group_keys=False)
-    .apply(complete_months)
-    )
-
-    # =============================================================================
-    # CALCUL DES POIDS STRUCTURELS SUR 2015-2025
-    # =============================================================================
-
-    poids_global = (
-        univers_mensuel
-        .groupby([col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"], as_index=False)["nb_transac"]
-        .sum()
-        .rename(columns={"nb_transac": "poids_total"})
-    )
-
-    poids_global["poids_relatif"] = (
-        poids_global.groupby(col)["poids_total"].transform(lambda x: x / x.sum())
-    )
-
-    univers_complet = univers_complet.merge(
-        poids_global,
-        on=[col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"],
-        how="left"
-    )
-
-    print(f"✓ Poids structurels calculés")
-
-
-    # =============================================================================
-    # CALCUL DES INDICATRICES I_3m ET I_12m PAR TYPOLOGIE
-    # =============================================================================
-    #création d'une variable indicatrice représentant la présence ou non de transaction sur 3 et 12 mois
-
-    typokeys = [col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
-
-    univers_complet = univers_complet.sort_values(typokeys + ["Periode"])
-
-    univers_complet["I_3m"] = (
-        univers_complet
-        .groupby(typokeys, group_keys=False)["nb_transac"]
-        .transform(lambda s: (s.rolling(window=3, min_periods=3).sum() > 0).astype(int))
-    )
-
-    univers_complet["I_12m"] = (
-        univers_complet
-        .groupby(typokeys, group_keys=False)["nb_transac"]
-        .transform(lambda s: (s.rolling(window=12, min_periods=12).sum() > 0).astype(int))
-    )
-
-    print("✓ Indicatrices I_3m et I_12m calculées")
-
-
-
-    # =============================================================================
-    # MOYENNES MOBILES PONDÉRÉES AVEC INDICATRICES
-    # =============================================================================
-
-
-    print("Calcul des moyennes mobiles par maille géographique")
-
-    resultats_mm = []
-
-    for maille in univers_complet[col].unique():
-        df_maille = univers_complet[univers_complet[col] == maille].copy()
-    
-        # Moyenne mobile 3 mois
-        mm_3m = calcule_moyenne_mobile_ponderee(
-            df_maille, 
-            window=3, 
-            col_prix='prix_moyen',
-            col_indicatrice='I_3m',
-            typokeys = typokeys
-        )
-        mm_3m = mm_3m.rename(columns={
-            "prix_mm": "prix_mm_3m",
-            "nb_observations": "nb_obs_3m",
-            "nb_typologies": "nb_typo_3m"
-        })
-    
-        # Moyenne mobile 12 mois
-        mm_12m = calcule_moyenne_mobile_ponderee(
-            df_maille, 
-            window=12, 
-            col_prix='prix_moyen',
-            col_indicatrice='I_12m',
-            typokeys = typokeys
-        )
-        mm_12m = mm_12m.rename(columns={
-            "prix_mm": "prix_mm_12m",
-            "nb_observations": "nb_obs_12m",
-            "nb_typologies": "nb_typo_12m"
-        })
-    
-        # Fusion
-        mm_maille = mm_3m.merge(mm_12m, on="Periode", how="outer")
-        mm_maille[col] = maille
-    
-        resultats_mm.append(mm_maille)
-
-
-    model_agg = pd.concat(resultats_mm, ignore_index=True)
-    model_agg = model_agg.sort_values([col, "Periode"])
+AttributeError: 'dict' object has no attribute 'merge'"
+}
