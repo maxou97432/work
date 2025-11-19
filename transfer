@@ -1,4 +1,28 @@
-def complete_months(g, col):
+import sys
+import os
+
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
+sys.path.append(parent_dir)
+
+import time
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import plotly.express as px
+import plotly.io as pio
+from classe import Connector
+import param_general as params
+pio.renderers.default = "png"
+
+output_dir = os.path.join(os.path.dirname(__file__))
+os.makedirs(output_dir, exist_ok=True)
+
+base_ml = pd.read_parquet("base_ml_filtre_complet.parquet")
+
+
+
+def complete_months(g, col):       #complète les mois manquants dans un sous univers en attribuant des valeurs nulles pour nb_transac et na pour prix_m2_moyen
     g = g.sort_values("Periode").set_index("Periode")
     idx = pd.date_range(g.index.min(), g.index.max(), freq="MS")
     g = g.reindex(idx)
@@ -53,11 +77,11 @@ def calcule_moyenne_mobile_ponderee(g, window, col_prix, col_indicatrice, typoke
     return pd.DataFrame(result)
 
 ################# CONSTRUCTION DES UNIVERS ELEMENTAIRES #################
-base_ml = base_ml.rename(columns={"DEPT_Corse_2A_2B": "DEPT"})
+base_ml = base_ml.rename(columns={"DEPT_Corse_2A_2B": "DEPT","ville_" : "CITY", "CODE_POSTAL":"CP", "code_iris" : "IRIS"})
 base_ml["DATE"] = pd.to_datetime(base_ml["DATE"])
 base_ml["Periode"] = base_ml["DATE"].dt.to_period("M").dt.to_timestamp()
 
-maille_geo = ["DEPT", "Ville", "CODE_POSTAL"]
+maille_geo = ["DEPT", "CITY", "CODE_POSTAL", "IRIS"]
 univers_complet = {}
 resultats_finaux = {}
 
@@ -96,7 +120,7 @@ for col in maille_geo:
         .apply(lambda g: complete_months(g, col))
     )
     
-    # POIDS STRUCTURELS
+    # POIDS STRUCTURELS SUR 2025-2025
     poids_global = (
         univers_mensuel
         .groupby([col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"], as_index=False)["nb_transac"]
@@ -107,7 +131,7 @@ for col in maille_geo:
         poids_global.groupby(col)["poids_total"].transform(lambda x: x / x.sum())
     )
     
-    # CORRECTION : univers_complet_temp au lieu de univers_complet
+
     univers_complet_temp = univers_complet_temp.merge(
         poids_global,
         on=[col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"],
@@ -120,7 +144,7 @@ for col in maille_geo:
     typokeys = [col, "BIEN_NEUF", "TYPE_BIEN", "NB_PIECES_RANGE"]
     univers_complet_temp = univers_complet_temp.sort_values(typokeys + ["Periode"])
     
-    # CORRECTION : univers_complet_temp au lieu de univers_complet
+
     univers_complet_temp["I_3m"] = (
         univers_complet_temp
         .groupby(typokeys, group_keys=False)["nb_transac"]
@@ -162,8 +186,7 @@ for col in maille_geo:
             mm_3m["DIC_NAME"] = "prix_m2_3m"
             mm_3m = mm_3m.rename(columns={
                 "prix_mm": "prix_mm_value",
-                "nb_observations": "nb_obs",
-                "nb_typologies": "NB_BIENS"
+                "nb_observations": "NB_BIENS",
             })
             
             # MM 12 mois
@@ -177,8 +200,7 @@ for col in maille_geo:
             mm_12m["DIC_NAME"] = "prix_m2_12m"
             mm_12m = mm_12m.rename(columns={
                 "prix_mm": "prix_mm_value",
-                "nb_observations": "nb_obs",
-                "nb_typologies": "NB_BIENS"
+                "nb_observations": "NB_BIENS",
             })
             
             # Concat
@@ -195,3 +217,26 @@ for col in maille_geo:
     resultats_finaux[col] = model_agg
     
     print(f"✓ Maille {col} traitée")
+
+
+#=========================================================
+#FUSION DES DATAFRAME ET CREATION DE LA BASE dbo.PRIX_M2
+#=========================================================
+
+dfs_to_concat = []
+
+for type_maille in maille_geo:
+    df = resultats_finaux[type_maille].copy()
+
+    df = df.rename(columns={type_maille : "VAL_MAILLE_GEO"})
+    dfs_to_concat.append(df)
+
+res = pd.concat(dfs_to_concat, ignore_index = True)
+res = res.sort_values(["TYPE_MAILLE","VAL_MAILLE_GEO","CD_TYPE_BIEN","Periode","DIC_NAME"])
+res = res[res["Periode"] == res["Periode"].max()]
+res = res.rename(columns={"Periode":"DT_MAJ_PM2"})
+colonnes = ["DIC_NAME", "CD_TYPE_BIEN","VAL_MAILLE_GEO","DT_MAJ_PM2","NB_BIENS","nb_obs","prix_mm_value"]
+res = res[colonnes]
+csv_path = os.path.join(output_dir, "univers_complet_reg.csv")
+res.to_csv(csv_path, index=False)
+print(res)
