@@ -1,8 +1,94 @@
-def taux_infl_12m(res):
-    res.sort_values(by=["Periode"])
-    if res[res["Periode"] == res["Periode"].year.min()]:
-        return np.nan
-    else :
-        for i in res["Periode"]
-        return (res["prix_mm_value"].iloc[i] - res["prix_mm_value"].iloc[i - 1]) / res["prix_mm_value"].iloc[i - 1])
-res.apply(taux_infl_12m)
+
+import plotly.io as pio
+import os
+import pandas as pd
+import time
+import numpy as np
+import textwrap
+import matplotlib.pyplot as plt
+import seaborn as sns
+import re
+import folium
+import xlsxwriter
+import json
+from folium.features import GeoJsonTooltip
+import io
+import scipy.stats as stats
+from datetime import datetime
+import string
+import openpyxl
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
+from openpyxl.styles.differential import DifferentialStyle
+from openpyxl.formatting.rule import Rule
+from openpyxl.utils import get_column_letter
+from openpyxl.utils.dataframe import dataframe_to_rows
+import shutil
+from openpyxl.drawing.image import Image
+from openpyxl.styles import Font, Color, PatternFill, Border, Side
+from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
+import warnings
+import pathlib
+import pyodbc
+import pandasql as ps
+warnings.filterwarnings('ignore')
+sns.set_theme()
+pio.renderers.default = "png"  
+
+base_ml2 = pd.read_parquet("base_ml_filtre_complet.parquet")
+
+
+
+# =============================================================================
+# CARTE PRIX M2 - DEPARTEMENT
+# =============================================================================
+
+df_prix_m2_dept = pd.read_parquet("prix_m2_univ_elem.parquet")
+df_prix_m2_dept = df_prix_m2_dept[df_prix_m2_dept["TYPE_MAILLE"] == "DEPT"]
+
+
+
+with open(r'N:\uflujek\table_rapport\Prix_m2\dep_fr.geojson') as f:
+    geojson = json.load(f)
+
+
+types_bien = ['APT', 'MAI']
+
+for type_bien in types_bien:
+
+    
+
+    for feature in geojson['features']:
+        code = feature['properties']['code']
+        row = df_prix_m2_dept.loc[df_prix_m2_dept['VAL_MAILLE_GEO'] == code]
+        for col in df_prix_m2_dept.columns:
+            if col == 'prix_mm_value' and len(row[col].values) > 0:
+    
+                feature['properties'][col] = f"Prix au m² : {round(row[col].values[0])} €"
+            elif len(row[col].values) > 0:
+                feature['properties'][col] = row[col].values[0]
+            else:
+                feature['properties'][col] = None
+
+    m = folium.Map(location=[46.603354, 1.888334], zoom_start=6)
+
+    
+    choropleth = folium.Choropleth(
+        geo_data=geojson,
+        name='choropleth',
+        data=df_prix_m2_dept,
+        columns=['VAL_MAILLE_GEO', 'prix_mm_value',"TAUX_INFL_3M","TAUX_INFL_12M"],
+        key_on='feature.properties.code',
+        fill_color='YlGn',
+        fill_opacity=0.7,
+        line_opacity=0.2,
+        legend_name='Prix au m²'
+    ).add_to(m)
+
+   
+    choropleth.geojson.add_child(
+        folium.features.GeoJsonTooltip(['nom', 'prix_mm_value',"TAUX_INFL_3M","TAUX_INFL_12M"], labels=False)
+    )
+
+   
+    m.save(f'N:\\uflujek\\prix_m2\\ma_carte_prix_m2_dept_{type_bien}.html')
