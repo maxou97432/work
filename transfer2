@@ -1,39 +1,52 @@
-# =============================================================================
-# CARTE PRIX M2 - VILLE
-# =============================================================================
+{
+	"name": "KeyError",
+	"message": "'label'",
+	"stack": "---------------------------------------------------------------------------
+KeyError                                  Traceback (most recent call last)
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
+   3811 try:
+-> 3812     return self._engine.get_loc(casted_key)
+   3813 except KeyError as err:
 
+File pandas/_libs/index.pyx:167, in pandas._libs.index.IndexEngine.get_loc()
 
-df_final = pd.DataFrame()
-list_tables = [] 
+File pandas/_libs/index.pyx:196, in pandas._libs.index.IndexEngine.get_loc()
 
+File pandas/_libs/hashtable_class_helper.pxi:7088, in pandas._libs.hashtable.PyObjectHashTable.get_item()
 
+File pandas/_libs/hashtable_class_helper.pxi:7096, in pandas._libs.hashtable.PyObjectHashTable.get_item()
 
-table_final = pd.concat(list_tables, ignore_index=True)
+KeyError: 'label'
 
-types_bien = ['APT', 'MAI']
+The above exception was the direct cause of the following exception:
 
-for type_bien in types_bien:
-    df_prix_filtre = df_prix_m2[(df_prix_m2["CD_TYPE_BIEN"] ==  type_bien) & (df_prix_m2["DIC_NAME"] == "prix_m2_12m")].copy()
-    prix_dict = df_prix_filtre['prix_mm_value'].to_dict()
-    ti_3m_dict = df_prix_filtre['TAUX_INFL_3M'].to_dict()
-    ti_12m_dict = df_prix_filtre['TAUX_INFL_12M'].to_dict()
+KeyError                                  Traceback (most recent call last)
+Cell In[89], line 15
+     11 df_prix_filtre = df_prix_m2[(df_prix_m2[\"CD_TYPE_BIEN\"] ==  type_bien) & (df_prix_m2[\"DIC_NAME\"] == \"prix_m2_12m\")].copy()
+     14 df_geo = pd.read_csv(r'N:\\uflujek\\commune_france_gps.csv')
+---> 15 df_geo['label'] = df_geo['label'].apply(lambda x: x.upper())
+     16 df= df_geo.merge(df_prix_filtre, left_on='label', right_on='VAL_MAILLE_GEO', how='inner')
+     17 df['prix_mm_value'] = pd.to_numeric(df['prix_mm_value'],errors = 'coerce').astype('Int64')
 
-    df_geo = pd.read_csv(r'N:\uflujek\commune_france_gps.csv')
-    df_geo['label'] = df_geo['label'].apply(lambda x: x.upper().replace('-', ' ') if pd.notnull(x) else np.nan)
-    df= df_geo.merge(df_prix_m2, left_on='label', right_on='VAL_MAILLE_GEO', how='right')
-    df['prix_mm_value'] = pd.to_numeric(df['prix_mm_value'],errors = 'coerce').astype('Int64')
-    df = df[['label','latitude','longitude', 'prix_mm_value', "taux_12m"]]
-    df = df.dropna(subset=['latitude', 'longitude'])
-    df = df.drop_duplicates(subset='label', keep='first')
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\frame.py:4113, in DataFrame.__getitem__(self, key)
+   4111 if self.columns.nlevels > 1:
+   4112     return self._getitem_multilevel(key)
+-> 4113 indexer = self.columns.get_loc(key)
+   4114 if is_integer(indexer):
+   4115     indexer = [indexer]
 
-    # Initialisez la carte centrée sur Paris
-    m = folium.Map(location=[48.8566, 2.3522], zoom_start=12)
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
+   3814     if isinstance(casted_key, slice) or (
+   3815         isinstance(casted_key, abc.Iterable)
+   3816         and any(isinstance(x, slice) for x in casted_key)
+   3817     ):
+   3818         raise InvalidIndexError(key)
+-> 3819     raise KeyError(key) from err
+   3820 except TypeError:
+   3821     # If we have a listlike key, _check_indexing_error will raise
+   3822     #  InvalidIndexError. Otherwise we fall through and re-raise
+   3823     #  the TypeError.
+   3824     self._check_indexing_error(key)
 
-    # Ajout des villes sur la carte
-    for i in range(0, len(df)):
-        folium.Marker([df.iloc[i]['latitude'], df.iloc[i]['longitude']], 
-                      popup=folium.Popup(('Ville: ' + str(df.iloc[i]['label']).capitalize() + '<br>'
-                                          'Prix au m²: ' + str(df.iloc[i]['mean_12_m']) + '€<br>'), 
-                                         max_width=250)).add_to(m)
-
-    #m.save(f'N:\\uflujek\\prix_m2\\ma_carte_prix_m2_villes_{type_bien}.html')
+KeyError: 'label'"
+}
