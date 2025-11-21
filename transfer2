@@ -1,6 +1,6 @@
 {
 	"name": "KeyError",
-	"message": "'label'",
+	"message": "'TAUX_INFL_3m'",
 	"stack": "---------------------------------------------------------------------------
 KeyError                                  Traceback (most recent call last)
 File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3812, in Index.get_loc(self, key)
@@ -16,24 +16,32 @@ File pandas/_libs/hashtable_class_helper.pxi:7088, in pandas._libs.hashtable.PyO
 
 File pandas/_libs/hashtable_class_helper.pxi:7096, in pandas._libs.hashtable.PyObjectHashTable.get_item()
 
-KeyError: 'label'
+KeyError: 'TAUX_INFL_3m'
 
 The above exception was the direct cause of the following exception:
 
 KeyError                                  Traceback (most recent call last)
-Cell In[89], line 15
-     11 df_prix_filtre = df_prix_m2[(df_prix_m2[\"CD_TYPE_BIEN\"] ==  type_bien) & (df_prix_m2[\"DIC_NAME\"] == \"prix_m2_12m\")].copy()
-     14 df_geo = pd.read_csv(r'N:\\uflujek\\commune_france_gps.csv')
----> 15 df_geo['label'] = df_geo['label'].apply(lambda x: x.upper())
-     16 df= df_geo.merge(df_prix_filtre, left_on='label', right_on='VAL_MAILLE_GEO', how='inner')
-     17 df['prix_mm_value'] = pd.to_numeric(df['prix_mm_value'],errors = 'coerce').astype('Int64')
+Cell In[98], line 30
+     28 ville = str(data['label']).capitalize()
+     29 prix = data[\"prix_mm_value\"]
+---> 30 ti_3m = data[\"TAUX_INFL_3m\"]
+     31 ti_12m = data[\"TAUX_INFL_12m\"]
+     32 prix_formate = f\"{round(prix):,} €\".replace(',',' ')
 
-File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\frame.py:4113, in DataFrame.__getitem__(self, key)
-   4111 if self.columns.nlevels > 1:
-   4112     return self._getitem_multilevel(key)
--> 4113 indexer = self.columns.get_loc(key)
-   4114 if is_integer(indexer):
-   4115     indexer = [indexer]
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\series.py:1133, in Series.__getitem__(self, key)
+   1130     return self._values[key]
+   1132 elif key_is_scalar:
+-> 1133     return self._get_value(key)
+   1135 # Convert generator to list before going through hashable part
+   1136 # (We will iterate through the generator there to check for slices)
+   1137 if is_iterator(key):
+
+File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\series.py:1249, in Series._get_value(self, label, takeable)
+   1246     return self._values[label]
+   1248 # Similar to Index.get_value, but we do not fall back to positional
+-> 1249 loc = self.index.get_loc(label)
+   1251 if is_integer(loc):
+   1252     return self._values[loc]
 
 File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas\\core\\indexes\\base.py:3819, in Index.get_loc(self, key)
    3814     if isinstance(casted_key, slice) or (
@@ -48,5 +56,5 @@ File n:\\uflumth\\indicateur_marche\\V2\\sklearn-env\\Lib\\site-packages\\pandas
    3823     #  the TypeError.
    3824     self._check_indexing_error(key)
 
-KeyError: 'label'"
+KeyError: 'TAUX_INFL_3m'"
 }
