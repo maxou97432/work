@@ -1,35 +1,40 @@
-# =============================================================================
-# CARTE PRIX M2 - VILLE
-# =============================================================================
+    Rang   Commune  Population municipale 2017     DIC_NAME CD_TYPE_BIEN  \
+0      9  BORDEAUX                      265328  prix_m2_12m          APT   
+1      9  BORDEAUX                      265328   prix_m2_3m          APT   
+2      9  BORDEAUX                      265328  prix_m2_12m          MAI   
+3      9  BORDEAUX                      265328   prix_m2_3m          MAI   
+4     19  GRENOBLE                      156389  prix_m2_12m          APT   
+..   ...       ...                         ...          ...          ...   
+57    12    TOULON                      180834   prix_m2_3m          MAI   
+58     4  TOULOUSE                      511684  prix_m2_12m          APT   
+59     4  TOULOUSE                      511684   prix_m2_3m          APT   
+60     4  TOULOUSE                      511684  prix_m2_12m          MAI   
+61     4  TOULOUSE                      511684   prix_m2_3m          MAI   
 
+   TYPE_MAILLE VAL_MAILLE_GEO  DT_MAJ_PM2  NB_BIENS  prix_mm_value  \
+0         CITY       BORDEAUX  2025-09-01      64.0    4427.840654   
+1         CITY       BORDEAUX  2025-09-01      16.0    4548.533696   
+2         CITY       BORDEAUX  2025-09-01      25.0    5003.072103   
+3         CITY       BORDEAUX  2025-09-01       6.0    5105.084392   
+4         CITY       GRENOBLE  2025-09-01      46.0    2688.808683   
+..         ...            ...         ...       ...            ...   
+57        CITY         TOULON  2025-09-01       6.0    4021.242350   
+58        CITY       TOULOUSE  2025-09-01      70.0    3812.743865   
+59        CITY       TOULOUSE  2025-09-01      18.0    4090.689712   
+60        CITY       TOULOUSE  2025-09-01      30.0    3961.765313   
+61        CITY       TOULOUSE  2025-09-01       7.0    4008.890650   
 
-df_final = pd.DataFrame()
-list_tables = [] 
+    TAUX_INFL_3M  TAUX_INFL_12M  
+0       0.013069      -0.036651  
+1       0.035464       0.022838  
+2       0.020043      -0.070916  
+3       0.020775      -0.018205  
+4       0.015935       0.007410  
+..           ...            ...  
+57     -0.081980      -0.139282  
+58      0.017419       0.015964  
+59      0.091708       0.099430  
+60      0.019306      -0.035116  
+61      0.046333       0.042477  
 
-
-
-table_final = pd.concat(list_tables, ignore_index=True)
-
-types_bien = ['APT', 'MAI']
-
-for type_bien in types_bien:
-
-    df_geo = pd.read_csv(r'N:\uflujek\commune_france_gps.csv')
-    df_geo['label'] = df_geo['label'].apply(lambda x: x.upper().replace('-', ' ') if pd.notnull(x) else np.nan)
-    df= df_geo.merge(df_prix_m2, left_on='label', right_on='VAL_MAILLE_GEO', how='right')
-    df['prix_mm_value'] = df['prix_mm_value'].astype(int)
-    df = df[['label','latitude','longitude', 'prix_mm_value']]
-    df = df.dropna(subset=['latitude', 'longitude'])
-    df = df.drop_duplicates(subset='label', keep='first')
-
-    # Initialisez la carte centrée sur Paris
-    m = folium.Map(location=[48.8566, 2.3522], zoom_start=12)
-
-    # Ajout des villes sur la carte
-    for i in range(0, len(df)):
-        folium.Marker([df.iloc[i]['latitude'], df.iloc[i]['longitude']], 
-                      popup=folium.Popup(('Ville: ' + str(df.iloc[i]['label']).capitalize() + '<br>'
-                                          'Prix au m²: ' + str(df.iloc[i]['mean_12_m']) + '€<br>'), 
-                                         max_width=250)).add_to(m)
-
-    #m.save(f'N:\\uflujek\\prix_m2\\ma_carte_prix_m2_villes_{type_bien}.html')
+[62 rows x 12 columns]
