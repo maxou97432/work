@@ -5,69 +5,7 @@
 
 df_final = pd.DataFrame()
 list_tables = [] 
-for k in range(50):
-    requete_sql = f"""
-    SELECT  *
-    FROM df_prix_m2
-    WHERE Rang = '{k}' """
-    df_prix_m2_ville = ps.sqldf(requete_sql, locals())
 
-    df = df_prix_m2_ville
-    
-    df_3m = df[(df['DIC_NAME'] == '__pm2_cty_3m') & (df['CD_TYP_BIEN'] != 'ALL') | 
-                (df['DIC_NAME'] == '__pm2_cty_comp_3m') & (df['CD_TYP_BIEN'] == 'ALL')]
-    df_6m = df[((df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
-                ((df['DIC_NAME'] == '__pm2_cty_comp_6m') & (df['CD_TYP_BIEN'] == 'ALL'))]
-    df_3m = df_3m.rename(columns={'MEAN': 'mean_3m', 'NB_BIENS': 'nb_bien_3m'})
-    df_6m = df_6m.rename(columns={'MEAN': 'mean_6m_3m', 'NB_BIENS': 'nb_bien_6m'})
-    df_merged = pd.merge(df_3m, df_6m, on=['Commune', 'CD_TYP_BIEN'], how='inner')
-
-    df_merged['mean_6_m'] = (df_merged['mean_6m_3m'] * (df_merged['nb_bien_3m'] + df_merged['nb_bien_6m']) - df_merged['nb_bien_3m'] * df_merged['mean_3m']) / df_merged['nb_bien_6m']
-
-
-    df_6m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_6m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_6m'))]
-    df_prix_m2_ville = pd.merge(df_prix_m2_ville, df_6m_merged[['Commune', 'CD_TYP_BIEN', 'mean_6_m']], on=['Commune', 'CD_TYP_BIEN'], how='left')
-    df_prix_m2_ville['mean_6_m'] = df_prix_m2_ville['mean_6_m'].where(df_prix_m2_ville['DIC_NAME'].str.endswith('6m'), np.nan)
-    df_6m = df[(df['DIC_NAME'] == '__pm2_cty_6m') & (df['CD_TYP_BIEN'] != 'ALL') | 
-                (df['DIC_NAME'] == '__pm2_cty_comp_6m') & (df['CD_TYP_BIEN'] == 'ALL')]
-    df_12m = df[((df['DIC_NAME'] == '__pm2_cty_12m') & (df['CD_TYP_BIEN'] != 'ALL')) | 
-                ((df['DIC_NAME'] == '__pm2_cty_comp_12m') & (df['CD_TYP_BIEN'] == 'ALL'))]
-    df_6m = df_6m.rename(columns={'MEAN': 'mean_6m', 'NB_BIENS': 'nb_bien_6m'})
-    df_12m = df_12m.rename(columns={'MEAN': 'mean_12m_6m', 'NB_BIENS': 'nb_bien_12m'})
-    df_merged = pd.merge(df_6m, df_12m, on=['Commune', 'CD_TYP_BIEN'], how='inner')
-    df_merged['mean_12_m'] = (df_merged['mean_12m_6m'] * (df_merged['nb_bien_6m'] + df_merged['nb_bien_12m']) - df_merged['nb_bien_6m'] * df_merged['mean_6m']) / df_merged['nb_bien_12m']
-    df_12m_merged = df_merged[((df_merged['DIC_NAME_y'] == '__pm2_cty_12m') | (df_merged['DIC_NAME_y'] == '__pm2_cty_comp_12m'))]
-    df_prix_m2_ville = pd.merge(df_prix_m2_ville, df_12m_merged[['Commune', 'CD_TYP_BIEN', 'mean_12_m']], on=['Commune', 'CD_TYP_BIEN'], how='left')
-    df_prix_m2_ville['mean_12_m'] = df_prix_m2_ville['mean_12_m'].where(df_prix_m2_ville['DIC_NAME'].str.endswith('12m'), np.nan)
-
-    table = df_prix_m2_ville[['Commune', 'CD_TYP_BIEN', 'mean_6_m', 'mean_12_m', 'DIC_NAME', 'MEAN', 'NB_BIENS', 'VAL_MAILLE_GEO', 'STD']]
-    list_tables.append(table)
-
-
-
-
-    def create_pivot(df, dic_name, value_column, index='Commune', columns='CD_TYP_BIEN'):
-        unique_cols = df[columns].unique()
-        pivot = pd.DataFrame(columns=pd.MultiIndex.from_product([[f'prix_m2_{dic_name}'], unique_cols]), index=df[index].unique())
-        subset_df = df[df['DIC_NAME'].str.contains(dic_name)]
-        if not subset_df[value_column].isna().all():
-            pivot_temp = subset_df.pivot_table(index=index, columns=columns, values=value_column)
-            pivot_temp.columns = pd.MultiIndex.from_product([[f'prix_m2_{dic_name}'], pivot_temp.columns])
-            pivot.update(pivot_temp)
-            
-        return pivot
-
-
-
-    pivot_3m = create_pivot(df_prix_m2_ville, '3m', 'MEAN')
-    pivot_6m = create_pivot(df_prix_m2_ville, '6m', 'mean_6_m')
-    pivot_12m = create_pivot(df_prix_m2_ville, '12m', 'mean_12_m')
-
-    df_new = pd.concat([pivot_3m, pivot_6m, pivot_12m], axis=1)
-    
-    if not df_new.empty:
-        df_new = df_new.round(0)
-        df_final = pd.concat([df_final, df_new], axis=0)
 
 
 table_final = pd.concat(list_tables, ignore_index=True)
@@ -75,16 +13,12 @@ table_final = pd.concat(list_tables, ignore_index=True)
 types_bien = ['APT', 'MAI']
 
 for type_bien in types_bien:
-    requete_sql = f"""
-    SELECT  DISTINCT *
-    FROM table_final
-    WHERE CD_TYP_BIEN = '{type_bien}' AND DIC_NAME LIKE '%cty_%_%m' AND mean_12_m NOT NULL"""
-    df = ps.sqldf(requete_sql, locals())
+
     df_geo = pd.read_csv(r'N:\uflujek\commune_france_gps.csv')
     df_geo['label'] = df_geo['label'].apply(lambda x: x.upper().replace('-', ' ') if pd.notnull(x) else np.nan)
-    df= df_geo.merge(df, left_on='label', right_on='VAL_MAILLE_GEO', how='right')
-    df['mean_12_m'] = df['mean_12_m'].astype(int)
-    df = df[['label','latitude','longitude', 'mean_12_m']]
+    df= df_geo.merge(df_prix_m2, left_on='label', right_on='VAL_MAILLE_GEO', how='right')
+    df['prix_mm_value'] = df['prix_mm_value'].astype(int)
+    df = df[['label','latitude','longitude', 'prix_mm_value']]
     df = df.dropna(subset=['latitude', 'longitude'])
     df = df.drop_duplicates(subset='label', keep='first')
 
@@ -98,4 +32,4 @@ for type_bien in types_bien:
                                           'Prix au m²: ' + str(df.iloc[i]['mean_12_m']) + '€<br>'), 
                                          max_width=250)).add_to(m)
 
-    m.save(f'N:\\uflujek\\prix_m2\\ma_carte_prix_m2_villes_{type_bien}.html')
+    #m.save(f'N:\\uflujek\\prix_m2\\ma_carte_prix_m2_villes_{type_bien}.html')
